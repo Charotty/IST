@@ -1,0 +1,97 @@
+from __future__ import annotations
+
+import logging
+from typing import Tuple
+
+import numpy as np
+import pandas as pd
+
+logger = logging.getLogger(__name__)
+
+
+def handle_missing(
+    data: pd.DataFrame,
+    method: str = "ffill",
+    limit: int = 1,
+) -> pd.DataFrame:
+    """
+    Pure missing data handling.
+    Returns new DataFrame; original unchanged.
+    """
+    if method == "ffill":
+        filled = data.ffill(limit=limit)
+    elif method == "interpolate":
+        filled = data.interpolate(method="time", limit=limit)
+    elif method == "drop":
+        filled = data.dropna()
+    else:
+        raise ValueError(f"Unknown method: {method}")
+    return filled
+
+
+def normalize_features(
+    features: np.ndarray,
+    method: str = "zscore",
+    axis: int = 0,
+) -> Tuple[np.ndarray, dict]:
+    """
+    Pure normalization; returns normalized array and stats dict.
+    Stats dict can be used for inverse transform.
+    """
+    if method == "zscore":
+        mean = np.mean(features, axis=axis, keepdims=True)
+        std = np.std(features, axis=axis, keepdims=True)
+        norm = (features - mean) / (std + 1e-10)
+        stats = {"mean": mean.squeeze(axis), "std": std.squeeze(axis)}
+    elif method == "minmax":
+        mn = np.min(features, axis=axis, keepdims=True)
+        mx = np.max(features, axis=axis, keepdims=True)
+        norm = (features - mn) / (mx - mn + 1e-10)
+        stats = {"min": mn.squeeze(axis), "max": mx.squeeze(axis)}
+    else:
+        raise ValueError(f"Unknown method: {method}")
+    return norm, stats
+
+
+def denormalize_features(
+    normalized: np.ndarray,
+    stats: dict,
+    method: str = "zscore",
+) -> np.ndarray:
+    """Inverse of normalize_features; pure."""
+    if method == "zscore":
+        mean = stats["mean"]
+        std = stats["std"]
+        if mean.ndim == 1:
+            mean = mean.reshape(1, -1)
+            std = std.reshape(1, -1)
+        return normalized * (std + 1e-10) + mean
+    if method == "minmax":
+        mn = stats["min"]
+        mx = stats["max"]
+        if mn.ndim == 1:
+            mn = mn.reshape(1, -1)
+            mx = mx.reshape(1, -1)
+        return normalized * (mx - mn + 1e-10) + mn
+    raise ValueError(f"Unknown method: {method}")
+
+
+def resample_to_uniform(
+    data: pd.DataFrame,
+    freq: str = "1s",
+    agg: dict | None = None,
+) -> pd.DataFrame:
+    """
+    Resample to uniform frequency; pure.
+    Default aggregation: OHLC for price, sum for volume.
+    """
+    if agg is None:
+        agg = {
+            "open": "first",
+            "high": "max",
+            "low": "min",
+            "close": "last",
+            "volume": "sum",
+        }
+    resampled = data.resample(freq).agg(agg)
+    return resampled.dropna()
