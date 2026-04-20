@@ -31,6 +31,10 @@ from its_project.decision import (
     Decision,
     TradingDecisionEngine,
 )
+from its_project.execution import (
+    PaperTradingExecutor,
+    OrderManager,
+)
 from its_project.features import (
     synchronize_marketdata,
     extract_ohlcv_from_synced,
@@ -396,6 +400,81 @@ async def decision_task(
             logger.exception("Decision processing error")
 
 
+async def execution_task(
+    *,
+    in_queue: asyncio.Queue,
+    out_queue: asyncio.Queue,
+    stop_event: asyncio.Event,
+) -> None:
+    """
+    Consume trading decisions, execute via OrderManager, publish order results.
+    """
+    # Initialize paper trading executor (ALWAYS start with paper)
+    executor = PaperTradingExecutor({
+        "initial_balance": 10000.0,
+        "latency_ms": 50,
+    })
+    
+    # Initialize order manager
+    order_manager = OrderManager(executor, {"monitor_interval": 1.0})
+    await order_manager.start()
+    
+    try:
+        while not stop_event.is_set():
+            try:
+                decision_msg = await asyncio.wait_for(in_queue.get(), timeout=1.0)
+                in_queue.task_done()
+            except asyncio.TimeoutError:
+                continue
+            except Exception:
+                logger.exception("Error reading from decisions queue")
+                continue
+
+            try:
+                # Execute decision
+                order = await order_manager.execute_decision(
+                    symbol=decision_msg["symbol"],
+                    side=decision_msg["action"],
+                    amount=decision_msg["size"],
+                    order_type="market",  # Always market for now
+                    price=decision_msg.get("price"),
+                    stop_loss=decision_msg.get("stop_loss"),
+                    take_profit=decision_msg.get("take_profit"),
+                )
+                
+                # Publish order result
+                await out_queue.put({
+                    "timestamp": decision_msg["timestamp"],
+                    "order_id": order.id,
+                    "symbol": order.symbol,
+                    "action": decision_msg["action"],
+                    "size": order.amount,
+                    "price": order.price,
+                    "status": order.status.value,
+                    "filled": order.filled,
+                    "remaining": order.remaining,
+                    "stop_loss": decision_msg.get("stop_loss"),
+                    "take_profit": decision_msg.get("take_profit"),
+                    "reason": decision_msg.get("reason"),
+                    "model_type": decision_msg.get("model_type"),
+                })
+                
+                logger.info(
+                    "Order executed: %s %s %s @ %s (status=%s)",
+                    order.side,
+                    order.symbol,
+                    order.amount,
+                    order.price,
+                    order.status.value,
+                )
+                
+            except Exception:
+                logger.exception("Order execution error for decision %s", decision_msg.get("timestamp"))
+                
+    finally:
+        await order_manager.stop()
+
+
 async def run_app(cfg: AppConfig) -> None:
     queues = create_queues(cfg.queue_maxsize)
     stop_event = asyncio.Event()
@@ -619,6 +698,21 @@ async def run_app(cfg: AppConfig) -> None:
         )
         tasks.append(
             asyncio.create_task(_drain("decisions", queues.decisions), name="drain_decisions")
+        )
+
+        # Execution task
+        tasks.append(
+            asyncio.create_task(
+                execution_task(
+                    in_queue=queues.decisions,
+                    out_queue=queues.orders,
+                    stop_event=stop_event,
+                ),
+                name="execution",
+            )
+        )
+        tasks.append(
+            asyncio.create_task(_drain("orders", queues.orders), name="drain_orders")
         )
 
         try:

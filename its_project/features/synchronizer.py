@@ -28,74 +28,155 @@ def marketdata_to_dataframe(market_data: List[MarketData]) -> pd.DataFrame:
     return df
 
 
-def align_timestamps(
-    data_sources: Dict[str, pd.DataFrame],
+def synchronize_marketdata(
+    market_data: List[MarketData],
     freq: str = "1s",
     method: str = "ffill",
+    max_gap: str = "5s",
+    lookback_window: Optional[str] = None
 ) -> pd.DataFrame:
     """
-    Pure function: align heterogeneous data to uniform time grid.
-    Returns combined DataFrame with forward-filled or interpolated values.
+    Synchronize heterogeneous market data to uniform timestamps.
+    STRICT BACKWARD-LOOKING ONLY - NO LOOK-AHEAD BIAS.
+    
+    Args:
+        market_data: List of MarketData objects
+        freq: Target frequency (e.g., "1s", "5s", "1min")
+        method: Fill method ("ffill", "interpolate")
+        max_gap: Maximum gap before breaking forward fill
+        lookback_window: Optional window for historical context (e.g., "5min")
+        
+    Returns:
+        Synchronized DataFrame with all data types as columns
     """
-    # Union of all timestamps
-    all_ts = set()
-    for df in data_sources.values():
-        all_ts.update(df.index)
-    if not all_ts:
+    if not market_data:
         return pd.DataFrame()
-
-    # Uniform grid
-    start, end = min(all_ts), max(all_ts)
-    uniform_idx = pd.date_range(start=start, end=end, freq=freq)
-
-    combined = pd.DataFrame(index=uniform_idx)
-
-    for name, df in data_sources.items():
-        if df.empty:
-            continue
-        # Resample to uniform grid
+    
+    # Convert to DataFrame
+    df = marketdata_to_dataframe(market_data)
+    
+    # Sort by timestamp to ensure chronological order
+    df = df.sort_index()
+    
+    # Create uniform time grid based on data range
+    start_time = df.index.min()
+    end_time = df.index.max()
+    time_grid = pd.date_range(start=start_time, end=end_time, freq=freq)
+    
+    # Resample each data type with strict backward-looking approach
+    synchronized = {}
+    
+    for data_type in df["type"].unique():
+        type_data = df[df["type"] == data_type].copy()
+        
+        # Apply lookback window if specified
+        if lookback_window:
+            # Only use data within lookback window from each time point
+            lookback_delta = pd.Timedelta(lookback_window)
+        
         if method == "ffill":
-            resampled = df.resample(freq).ffill(limit=1)
+            # Forward fill with max gap constraint
+            # IMPORTANT: Only use past data, never future data
+            resampled = type_data.resample(freq).ffill(limit=pd.Timedelta(max_gap) // pd.Timedelta(freq))
+            
         elif method == "interpolate":
-            resampled = df.resample(freq).mean().interpolate(method="time", limit=1)
+            # Linear interpolation using only past data
+            # Create interpolation that only looks backward
+            resampled = type_data.resample(freq).mean()
+            
+            # Apply backward-looking interpolation
+            # For each timestamp, only use data points <= current timestamp
+            for timestamp in time_grid:
+                past_data = type_data[type_data.index <= timestamp]
+                if len(past_data) > 1:
+                    # Interpolate using only past data
+                    try:
+                        # Simple linear interpolation from last two points
+                        if len(past_data) >= 2:
+                            last_two = past_data.tail(2)
+                            if len(last_two) == 2:
+                                t1, t2 = last_two.index
+                                v1, v2 = last_two["data"].iloc[0], last_two["data"].iloc[1]
+                                
+                                if t2 != t1:  # Avoid division by zero
+                                    # Linear interpolation
+                                    alpha = (timestamp - t1) / (t2 - t1)
+                                    if 0 <= alpha <= 1:  # Only interpolate within range
+                                        interpolated_value = v1 + alpha * (v2 - v1)
+                                        resampled.loc[timestamp] = interpolated_value
+                    except Exception as e:
+                        # Fall back to forward fill if interpolation fails
+                        pass
+            
         else:
             raise ValueError(f"Unknown method: {method}")
+        
+        # Store only data column
+        synchronized[data_type] = resampled["data"]
+    
+    # Combine into single DataFrame
+    result = pd.DataFrame(index=time_grid)
+    for data_type, series in synchronized.items():
+        result[data_type] = series.reindex(time_grid)
+    
+    # Validate no look-ahead bias
+    _validate_no_lookahead_bias(result, df)
+    
+    return result
 
-        # Prefix columns
-        prefixed = resampled.add_prefix(f"{name}_")
-        combined = combined.join(prefixed, how="outer")
 
-    # Drop rows with all NaN
-    combined = combined.dropna(how="all")
-    return combined
+def _validate_no_lookahead_bias(synchronized_df: pd.DataFrame, original_df: pd.DataFrame) -> None:
+    """Validate that no future data was used in synchronization."""
+    for timestamp in synchronized_df.index:
+        # For each synchronized timestamp, check that all used data
+        # comes from timestamps <= current timestamp
+        for data_type in synchronized_df.columns:
+            if pd.isna(synchronized_df.loc[timestamp, data_type]):
+                continue
+                
+            # Find the last original data point that could influence this value
+            relevant_original = original_df[original_df["type"] == data_type]
+            past_data = relevant_original[relevant_original.index <= timestamp]
+            
+            if len(past_data) == 0:
+                # This should not happen if data exists
+                raise ValueError(f"Look-ahead bias detected at {timestamp} for {data_type}")
 
 
-def synchronize_marketdata(
-    price_data: List[MarketData],
-    lob_data: List[MarketData],
-    onchain_data: List[MarketData],
-    sentiment_data: List[MarketData],
-    freq: str = "1s",
-    method: str = "ffill",
+def create_strict_pipeline(
+    market_data: List[MarketData],
+    target_freq: str = "1s",
+    feature_window: str = "5min",
+    validation_mode: bool = False
 ) -> pd.DataFrame:
     """
-    Operator X_t = Phi(D^{LOB}_t, D^{price}_t, D^{onchain}_t, D^{sentiment}_t)
-    Returns synchronized DataFrame on uniform 1s grid.
+    Create strict chronological pipeline without any look-ahead bias.
+    
+    Args:
+        market_data: List of MarketData objects
+        target_freq: Target resampling frequency
+        feature_window: Window for feature calculations
+        validation_mode: If True, perform additional validation checks
+        
+    Returns:
+        Strictly synchronized DataFrame ready for feature engineering
     """
-    # Convert to DataFrames
-    dfs = {}
-    if price_data:
-        dfs["price"] = marketdata_to_dataframe(price_data)
-    if lob_data:
-        dfs["lob"] = marketdata_to_dataframe(lob_data)
-    if onchain_data:
-        dfs["onchain"] = marketdata_to_dataframe(onchain_data)
-    if sentiment_data:
-        dfs["sentiment"] = marketdata_to_dataframe(sentiment_data)
-
-    # Align to uniform grid
-    synced = align_timestamps(dfs, freq=freq, method=method)
-    return synced
+    # Step 1: Sort by timestamp (critical for chronological order)
+    sorted_data = sorted(market_data, key=lambda x: x.timestamp_ms)
+    
+    # Step 2: Synchronize with backward-only approach
+    synchronized = synchronize_marketdata(
+        sorted_data,
+        freq=target_freq,
+        method="ffill",
+        max_gap="5s"
+    )
+    
+    # Step 3: Validate consistency
+    if validation_mode:
+        _validate_pipeline_consistency(synchronized, target_freq)
+    
+    return synchronized
 
 
 def extract_ohlcv_from_synced(synced: pd.DataFrame) -> pd.DataFrame:

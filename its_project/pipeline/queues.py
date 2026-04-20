@@ -16,6 +16,7 @@ class PipelineQueues:
     predictions: asyncio.Queue[dict]  # model predictions (class, proba, confidence)
     metalearning_results: asyncio.Queue[dict]  # model selection results
     decisions: asyncio.Queue[dict]  # final trading decisions (action, size, SL/TP)
+    orders: asyncio.Queue[dict]  # order execution results (order_id, status, fills)
 
 
 def create_queues(maxsize: int) -> PipelineQueues:
@@ -28,4 +29,5 @@ def create_queues(maxsize: int) -> PipelineQueues:
         predictions=asyncio.Queue(maxsize=maxsize),
         metalearning_results=asyncio.Queue(maxsize=maxsize),
         decisions=asyncio.Queue(maxsize=maxsize),
+        orders=asyncio.Queue(maxsize=maxsize),
     )
