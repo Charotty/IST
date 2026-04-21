@@ -1,0 +1,134 @@
+version: '3.8'
+
+services:
+  # Main Trading System
+  its-trading:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: its-trading
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=INFO
+      - EXECUTION_MODE=paper  # Start with paper trading
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./cache:/app/cache
+      - ./config.yaml:/app/config.yaml:ro
+    ports:
+      - "5000:5000"  # Web Dashboard
+    networks:
+      - its-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Web Dashboard (can be separate for scaling)
+  its-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: its-dashboard
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=INFO
+      - DASHBOARD_ONLY=true
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    ports:
+      - "5001:5000"  # Separate port for dashboard
+    networks:
+      - its-network
+    depends_on:
+      - its-trading
+
+  # PostgreSQL for persistent storage (optional, for production)
+  postgres:
+    image: postgres:15-alpine
+    container_name: its-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=its_trading
+      - POSTGRES_USER=its_user
+      - POSTGRES_PASSWORD=its_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - its-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U its_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and message queue (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: its-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - its-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Prometheus for monitoring (optional)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: its-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - its-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+
+  # Grafana for visualization (optional)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: its-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - its-network
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  its-network:
+    driver: bridge

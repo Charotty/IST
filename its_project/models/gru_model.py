@@ -8,7 +8,10 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from its_project.models.base import BaseModel
+try:
+    from its_project.models.base import BaseModel
+except ImportError:
+    from .base import BaseModel
 
 logger = logging.getLogger(__name__)
 

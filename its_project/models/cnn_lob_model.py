@@ -9,7 +9,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 
-from its_project.models.base import BaseModel
+try:
+    from its_project.models.base import BaseModel
+except ImportError:
+    from .base import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +82,10 @@ class CNNLOBModel(BaseModel):
                     in_channels = out_ch
                 
                 # Calculate flattened size after convolutions
-                # After conv layers: (batch, channels, depth_levels, sequence_length)
+                # Input: (batch, sequence_length, depth_levels, num_features)
+                # After permute: (batch, num_features, depth_levels, sequence_length)
+                # After conv layers: (batch, conv_channels[-1], depth_levels, sequence_length)
+                # Flattened: (batch, conv_channels[-1] * depth_levels * sequence_length)
                 self.flattened_size = conv_channels[-1] * depth_levels * sequence_length
                 
                 # Fully connected layers
@@ -133,7 +139,7 @@ class CNNLOBModel(BaseModel):
             # This is a simplified approach - in practice, you'd need proper LOB data structure
             n_samples = X.shape[0]
             # Assume features are organized as [price_level1, volume_level1, price_level2, volume_level2, ...]
-            n_features_per_level = 2  # price and volume
+            n_features_per_level = self.num_features  # Use configured number of features
             n_levels = self.depth_levels
             
             # Pad or truncate to match expected depth levels

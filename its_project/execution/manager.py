@@ -4,7 +4,10 @@ import asyncio
 from typing import Dict, Any, Optional, List
 import time
 
-from its_project.execution.base import BaseExecutor, Order, OrderType, OrderStatus
+try:
+    from its_project.execution.base import BaseExecutor, Order, OrderType, OrderStatus
+except ImportError:
+    from .base import BaseExecutor, Order, OrderType, OrderStatus
 
 
 class OrderManager:

@@ -34,15 +34,20 @@ sys.path.insert(0, str(PROJECT_ROOT))
 logs_dir = PROJECT_ROOT / 'logs'
 logs_dir.mkdir(exist_ok=True)
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler(logs_dir / 'system.log', mode='a')
-    ]
-)
+# Configure logging using project module
+try:
+    from common.logging import configure_logging
+    configure_logging(logging.INFO)
+except ImportError:
+    # Fallback logging configuration
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler(logs_dir / 'system.log', mode='a')
+        ]
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +89,10 @@ class ITSLauncher:
             logger.error(f"GUI script not found: {gui_script}")
             return 1
         
-        # Prepare command
+        # Prepare command with proper Python path
+        env = os.environ.copy()
+        env['PYTHONPATH'] = str(self.project_root) + os.pathsep + env.get('PYTHONPATH', '')
+        
         cmd = [sys.executable, str(gui_script)]
         if demo:
             cmd.append('--demo')
@@ -94,8 +102,8 @@ class ITSLauncher:
         os.chdir(self.gui_dir)
         
         try:
-            # Launch GUI
-            process = subprocess.Popen(cmd)
+            # Launch GUI with proper environment
+            process = subprocess.Popen(cmd, env=env)
             return process.wait()
         except Exception as e:
             logger.error(f"Failed to start GUI: {e}")
@@ -217,8 +225,51 @@ class ITSLauncher:
         # Create basic config files
         self._create_basic_configs()
         
-        logger.info("Initial setup completed")
-        return 0
+        # Test setup
+        logger.info("Testing setup...")
+        test_result = self._test_setup()
+        
+        if test_result == 0:
+            logger.info("✅ Initial setup completed successfully!")
+            logger.info("You can now run: python run.py gui")
+        else:
+            logger.warning("⚠️ Setup completed with warnings")
+        
+        return test_result
+    
+    def _test_setup(self) -> int:
+        """Test that setup was successful."""
+        issues = []
+        
+        # Check GUI files exist
+        gui_files = [
+            'gui/main_window.py',
+            'gui/production_main_window.py',
+            'gui/async_main_window.py',
+            'gui/realtime_main_window.py',
+            'gui/integrated_main_window.py'
+        ]
+        
+        for gui_file in gui_files:
+            full_path = self.project_root / gui_file
+            if not full_path.exists():
+                issues.append(f"Missing GUI file: {gui_file}")
+        
+        # Check common module
+        common_files = ['common/__init__.py', 'common/config.py', 'common/logging.py']
+        for common_file in common_files:
+            full_path = self.project_root / common_file
+            if not full_path.exists():
+                issues.append(f"Missing common file: {common_file}")
+        
+        if issues:
+            logger.warning("Setup test found issues:")
+            for issue in issues:
+                logger.warning(f"  - {issue}")
+            return 1
+        else:
+            logger.info("✅ All critical files present")
+            return 0
     
     def _create_basic_configs(self):
         """Create basic configuration files."""
@@ -284,39 +335,54 @@ def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
         description="Intelligent Trading System Launcher",
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python run.py setup                    # Initial setup
+  python run.py gui                      # Launch production GUI
+  python run.py gui --mode async         # Launch async GUI
+  python run.py gui --demo               # Launch GUI in demo mode
+  python run.py check                    # System health check
+  python run.py test --type gui          # Run GUI tests
+        """
     )
     
     # Subcommands
-    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    subparsers = parser.add_subparsers(dest='command', help='Available commands', metavar='COMMAND')
+    
+    # Setup command
+    setup_parser = subparsers.add_parser('setup', help='Run initial setup and create directories')
     
     # GUI command
     gui_parser = subparsers.add_parser('gui', help='Launch GUI application')
     gui_parser.add_argument('--mode', choices=['basic', 'integrated', 'production', 'async', 'realtime'],
-                           default='production', help='GUI mode')
-    gui_parser.add_argument('--demo', action='store_true', help='Run in demo mode')
+                           default='production', help='GUI mode (default: production)')
+    gui_parser.add_argument('--demo', action='store_true', help='Run in demo mode with sample data')
     
     # Backend command
-    subparsers.add_parser('backend', help='Start backend services')
+    backend_parser = subparsers.add_parser('backend', help='Start backend services')
     
     # Data command
-    subparsers.add_parser('data', help='Run data processing')
+    data_parser = subparsers.add_parser('data', help='Run data processing pipeline')
     
     # Test command
     test_parser = subparsers.add_parser('test', help='Run system tests')
     test_parser.add_argument('--type', choices=['all', 'unit', 'integration', 'gui'],
-                            default='all', help='Test type')
+                            default='all', help='Test type (default: all)')
     
     # Health check command
-    subparsers.add_parser('check', help='Run system health check')
-    
-    # Setup command
-    subparsers.add_parser('setup', help='Run initial setup')
+    check_parser = subparsers.add_parser('check', help='Run system health check')
     
     # Parse arguments
-    args = parser.parse_args()
+    try:
+        args = parser.parse_args()
+    except argparse.ArgumentError as e:
+        logger.error(f"Argument error: {e}")
+        parser.print_help()
+        return 1
     
     if not args.command:
+        print("Error: No command specified")
         parser.print_help()
         return 1
     

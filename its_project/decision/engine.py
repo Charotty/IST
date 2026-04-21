@@ -2,11 +2,18 @@ from __future__ import annotations
 
 from typing import Optional
 
-from its_project.decision.decision import Signal, Decision, Action
-from its_project.decision.simple import SimpleDecisionMaker
-from its_project.decision.risk import RiskManager
-from its_project.decision.sizer import PositionSizer
-from its_project.decision.portfolio import PortfolioManager
+try:
+    from its_project.decision.decision import Signal, Decision, Action
+    from its_project.decision.simple import SimpleDecisionMaker
+    from its_project.decision.risk import RiskManager
+    from its_project.decision.sizer import PositionSizer
+    from its_project.decision.portfolio import PortfolioManager
+except ImportError:
+    from .decision import Signal, Decision, Action
+    from .simple import SimpleDecisionMaker
+    from .risk import RiskManager
+    from .sizer import PositionSizer
+    from .portfolio import PortfolioManager
 
 
 class TradingDecisionEngine:

@@ -12,7 +12,7 @@ class BaseModel(ABC):
 
     def __init__(self, config: Dict[str, Any]) -> None:
         self.config = config
-        self.is_fitted = False
+        self._is_fitted = False
         self.feature_names: Optional[List[str]] = None
 
     @abstractmethod
@@ -68,7 +68,7 @@ class BaseModel(ABC):
 
     def save(self, path: Path) -> None:
         """Serialize model to disk."""
-        if not self.is_fitted:
+        if not self._is_fitted:
             raise RuntimeError("Model not fitted, nothing to save")
         model_data = {
             "model": self,
@@ -91,17 +91,25 @@ class BaseModel(ABC):
         """Model metadata."""
         return {
             "model_type": self.__class__.__name__,
-            "is_fitted": self.is_fitted,
+            "is_fitted": self._is_fitted,
             "config": self.config,
         }
 
-    def validate_input(self, X: np.ndarray) -> None:
+    def validate_input(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> None:
         """Validate input shape and type."""
         if not isinstance(X, np.ndarray):
             raise TypeError(f"X must be np.ndarray, got {type(X)}")
         if X.ndim != 2:
             raise ValueError(f"X must be 2D, got {X.ndim}D")
-        if self.is_fitted and self.feature_names is not None:
+        if self._is_fitted and self.feature_names is not None:
             expected = len(self.feature_names)
             if X.shape[1] != expected:
                 raise ValueError(f"Expected {expected} features, got {X.shape[1]}")
+        
+        if y is not None:
+            if not isinstance(y, np.ndarray):
+                raise TypeError(f"y must be np.ndarray, got {type(y)}")
+            if y.ndim != 1:
+                raise ValueError(f"y must be 1D, got {y.ndim}D")
+            if len(X) != len(y):
+                raise ValueError(f"X and y must have same length: {len(X)} vs {len(y)}")

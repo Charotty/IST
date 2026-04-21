@@ -3,7 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Optional
 
-from its_project.decision.risk import Position
+try:
+    from its_project.decision.risk import Position
+except ImportError:
+    from .risk import Position
 
 
 @dataclass

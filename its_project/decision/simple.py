@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from typing import Optional, Dict, Any, Tuple
 
-from its_project.decision.decision import BaseDecisionMaker, Signal, Decision, Action
+try:
+    from its_project.decision.decision import BaseDecisionMaker, Signal, Decision, Action
+except ImportError:
+    from .decision import BaseDecisionMaker, Signal, Decision, Action
 
 
 class SimpleDecisionMaker(BaseDecisionMaker):

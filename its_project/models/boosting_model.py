@@ -7,7 +7,10 @@ import numpy as np
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.model_selection import cross_val_score
 
-from its_project.models.base import BaseModel
+try:
+    from its_project.models.base import BaseModel
+except ImportError:
+    from .base import BaseModel
 
 logger = logging.getLogger(__name__)
 

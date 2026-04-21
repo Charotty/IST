@@ -3,7 +3,10 @@ from __future__ import annotations
 from typing import Dict, Type, List
 from pathlib import Path
 
-from its_project.models.base import BaseModel
+try:
+    from its_project.models.base import BaseModel
+except ImportError:
+    from .base import BaseModel
 
 
 class ModelRegistry:

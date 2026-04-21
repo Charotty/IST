@@ -4,7 +4,10 @@ import asyncio
 import time
 from typing import Dict, Any, List
 
-from its_project.execution.base import BaseExecutor, Order, OrderType, OrderStatus, Position
+try:
+    from its_project.execution.base import BaseExecutor, Order, OrderType, OrderStatus, Position
+except ImportError:
+    from .base import BaseExecutor, Order, OrderType, OrderStatus, Position
 
 
 class PaperTradingExecutor(BaseExecutor):

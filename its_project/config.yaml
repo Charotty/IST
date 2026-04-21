@@ -1,0 +1,17 @@
+# ITS Configuration
+database:
+  timescale_dsn: "postgresql://user:pass@localhost/its"
+  parquet_path: "data/parquet"
+
+trading:
+  initial_balance: 10000.0
+  commission_rate: 0.001
+  max_position_size: 0.1
+
+models:
+  default_model: "GRU-LSTM"
+  model_weights: [0.4, 0.3, 0.3]
+
+logging:
+  level: "INFO"
+  file: "logs/system.log"

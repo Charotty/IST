@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from typing import Dict, Any
 
-from its_project.decision.decision import Signal
+try:
+    from its_project.decision.decision import Signal
+except ImportError:
+    from .decision import Signal
 
 
 class PositionSizer:

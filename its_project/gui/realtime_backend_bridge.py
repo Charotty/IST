@@ -10,22 +10,44 @@ import numpy as np
 import pandas as pd
 
 # Backend imports
-from its_project.decision.signal_generator import SignalGenerator
-from its_project.decision.decision import Action, Signal, Decision
-from its_project.execution.trader import PaperTrader
-from its_project.meta.model_selector import ModelSelector
-from its_project.storage.data_loader import DataLoader
-from its_project.features.feature_builder import FeatureBuilder
-from its_project.models.gru_model import GRUModel
-from its_project.models.cnn_lob_model import CNNLOBModel
-from its_project.models.boosting_model import BoostingModel
-from its_project.features.synchronizer import synchronize_marketdata
-from its_project.common.types import MarketData, MarketDataType, Order, OrderStatus, OrderType
-from its_project.metalearning.metrics import TradingMetrics
+try:
+    from decision.signal_generator import SignalGenerator
+    from decision.decision import Action, Signal, Decision
+    from execution.trader import PaperTrader
+    from meta.model_selector import ModelSelector
+    from storage.data_loader import DataLoader
+    from features.feature_builder import FeatureBuilder
+    from models.gru_model import GRUModel
+    from models.cnn_lob_model import CNNLOBModel
+    from models.boosting_model import BoostingModel
+    from features.synchronizer import synchronize_marketdata
+    from common.types import MarketData, MarketDataType, Order, OrderStatus, OrderType
+    from metalearning.metrics import TradingMetrics
+except ImportError:
+    # Fallback for development/testing
+    logging.warning("Backend modules not available, using mock implementations")
+    SignalGenerator = None
+    Action = None
+    Signal = None
+    Decision = None
+    PaperTrader = None
+    ModelSelector = None
+    DataLoader = None
+    FeatureBuilder = None
+    GRUModel = None
+    CNNLOBModel = None
+    BoostingModel = None
+    synchronize_marketdata = None
+    MarketData = None
+    MarketDataType = None
+    Order = None
+    OrderStatus = None
+    OrderType = None
+    TradingMetrics = None
 
 from data_adapters import (
     GUISignal, GUITrade, GUIOrder, GUIMetrics, GUIModel, 
-    DataConverter, BatchConverter, ValidationReport
+    DataConverter, BatchConverter
 )
 from realtime_data_connector import UnifiedRealTimeConnector, RealTimeConfig, create_realtime_connector
 

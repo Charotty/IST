@@ -14,15 +14,31 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-import psycopg2
-from psycopg2.extras import execute_values
-import asyncpg
+try:
+    import psycopg2
+    from psycopg2.extras import execute_values
+    import asyncpg
+except ImportError:
+    logging.warning("Database modules not available, using fallback")
+    psycopg2 = None
+    execute_values = None
+    asyncpg = None
 
 # Backend imports
-from its_project.storage.parquet_store import ParquetStore
-from its_project.storage.timescale_client import TimescaleClient
-from its_project.common.types import MarketData, MarketDataType
-from async_integration import AsyncEventLoopManager, AsyncDataStream, get_async_manager
+try:
+    from storage.parquet_store import ParquetStore
+    from storage.timescale_client import TimescaleClient
+    from common.types import MarketData, MarketDataType
+    from async_integration import AsyncEventLoopManager, AsyncDataStream, get_async_manager
+except ImportError:
+    logging.warning("Backend modules not available, using fallback")
+    ParquetStore = None
+    TimescaleClient = None
+    MarketData = None
+    MarketDataType = None
+    AsyncEventLoopManager = None
+    AsyncDataStream = None
+    get_async_manager = None
 
 logger = logging.getLogger(__name__)
 

@@ -4,7 +4,10 @@ from typing import Dict, Any, List
 
 import ccxt.async_support as ccxt
 
-from its_project.execution.base import BaseExecutor, Order, OrderType, OrderStatus, Position
+try:
+    from its_project.execution.base import BaseExecutor, Order, OrderType, OrderStatus, Position
+except ImportError:
+    from .base import BaseExecutor, Order, OrderType, OrderStatus, Position
 
 
 class LiveExecutor(BaseExecutor):

@@ -6,7 +6,10 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier
 from sklearn.linear_model import LogisticRegression
 
-from its_project.models.base import BaseModel
+try:
+    from its_project.models.base import BaseModel
+except ImportError:
+    from .base import BaseModel
 
 
 class EnsembleModel(BaseModel):

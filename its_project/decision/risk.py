@@ -3,7 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Tuple
 
-from its_project.decision.decision import Decision
+try:
+    from its_project.decision.decision import Decision
+except ImportError:
+    from .decision import Decision
 
 
 @dataclass
