@@ -1,7 +1,6 @@
 from .base import BaseFeature
 from .synchronizer import (
     marketdata_to_dataframe,
-    align_timestamps,
     synchronize_marketdata,
     extract_ohlcv_from_synced,
 )
@@ -21,7 +20,6 @@ from .scaling import FeatureScaler
 __all__ = [
     "BaseFeature",
     "marketdata_to_dataframe",
-    "align_timestamps",
     "synchronize_marketdata",
     "extract_ohlcv_from_synced",
     "WindowedFeatures",

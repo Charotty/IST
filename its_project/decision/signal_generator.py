@@ -88,7 +88,7 @@ class SignalGenerator:
             signal = Signal(
                 action=action,
                 confidence=confidence,
-                timestamp_ms=timestamp_ms,
+                timestamp=timestamp_ms,
                 symbol=symbol,
                 metadata={
                     "price_change": price_change,

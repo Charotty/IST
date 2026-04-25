@@ -45,14 +45,8 @@ class ParquetStorage(BaseStorage):
                 "data": [json.dumps(r.data) for r in records],
             })
 
-            # Append mode for incremental writes
-            pq.write_to_dataset(
-                table,
-                root_path=str(file_path),
-                format="parquet",
-                write_dataset_kwargs={"partitioning": ["symbol"]},
-                existing_data_behavior="overwrite_or_ignore",
-            )
+            # Simple write to file
+            pq.write_table(table, file_path)
             written += len(records)
             logger.debug("Parquet batch write: %d records to %s", len(records), file_path)
 

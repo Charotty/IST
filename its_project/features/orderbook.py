@@ -87,7 +87,10 @@ class OrderBookFeatures(BaseFeature):
         if missing:
             raise ValueError(f"Missing columns: {missing}")
 
-        feats = {name: [] for name in self._feature_names()}
+        # Set feature names
+        self._feature_names = self._get_feature_names()
+
+        feats = {name: [] for name in self._feature_names}
         for _, row in data.iterrows():
             ob = row["data"]
             if not isinstance(ob, dict) or "bids" not in ob or "asks" not in ob:
@@ -126,14 +129,14 @@ class OrderBookFeatures(BaseFeature):
                 feats[f"ofi_{i}"].append(ofi[i] if i < len(ofi) else np.nan)
 
         # Convert to arrays and handle NaNs
-        arr = np.column_stack([np.array(feats[name], dtype=float) for name in self._feature_names()])
+        arr = np.column_stack([np.array(feats[name], dtype=float) for name in self._feature_names])
         arr = np.nan_to_num(arr, nan=0.0)
         return arr
 
     def get_feature_names(self) -> List[str]:
-        return self._feature_names()
+        return self._feature_names
 
-    def _feature_names(self) -> List[str]:
+    def _get_feature_names(self) -> List[str]:
         """Helper to generate consistent feature names."""
         names = [
             "spread",

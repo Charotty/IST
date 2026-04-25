@@ -5,7 +5,8 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-from its_project.decision.decision import Decision, Position
+from its_project.decision.decision import Decision
+from its_project.decision.portfolio import Position
 
 logger = logging.getLogger(__name__)
 

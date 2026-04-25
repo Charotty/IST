@@ -99,17 +99,21 @@ class BaseModel(ABC):
         """Validate input shape and type."""
         if not isinstance(X, np.ndarray):
             raise TypeError(f"X must be np.ndarray, got {type(X)}")
-        if X.ndim != 2:
-            raise ValueError(f"X must be 2D, got {X.ndim}D")
+        # Allow both 2D (sklearn-style) and 3D (neural network-style) inputs
+        if X.ndim not in [2, 3]:
+            raise ValueError(f"X must be 2D or 3D, got {X.ndim}D")
         if self._is_fitted and self.feature_names is not None:
+            # For 2D: check features in last dimension
+            # For 3D: check features in last dimension (sequence, features)
             expected = len(self.feature_names)
-            if X.shape[1] != expected:
-                raise ValueError(f"Expected {expected} features, got {X.shape[1]}")
+            if X.shape[-1] != expected:
+                raise ValueError(f"Expected {expected} features, got {X.shape[-1]}")
         
         if y is not None:
             if not isinstance(y, np.ndarray):
                 raise TypeError(f"y must be np.ndarray, got {type(y)}")
             if y.ndim != 1:
                 raise ValueError(f"y must be 1D, got {y.ndim}D")
+            # For 3D input, y length should match first dimension (samples)
             if len(X) != len(y):
                 raise ValueError(f"X and y must have same length: {len(X)} vs {len(y)}")

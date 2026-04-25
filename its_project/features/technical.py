@@ -24,8 +24,9 @@ def _safe_rsi(prices: np.ndarray, period: int = 14) -> np.ndarray:
 
 def _safe_macd(prices: np.ndarray, fast: int = 12, slow: int = 26, signal: int = 9) -> tuple:
     """Pure MACD calculation."""
-    exp_fast = prices.ewm(span=fast, adjust=False).mean()
-    exp_slow = prices.ewm(span=slow, adjust=False).mean()
+    prices_series = pd.Series(prices)
+    exp_fast = prices_series.ewm(span=fast, adjust=False).mean()
+    exp_slow = prices_series.ewm(span=slow, adjust=False).mean()
     macd_line = exp_fast - exp_slow
     signal_line = macd_line.ewm(span=signal, adjust=False).mean()
     histogram = macd_line - signal_line

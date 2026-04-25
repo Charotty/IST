@@ -69,9 +69,9 @@ class ITSLauncher:
         for directory in [self.logs_dir, self.data_dir]:
             directory.mkdir(exist_ok=True)
     
-    def run_gui(self, mode: str = 'production', demo: bool = False) -> int:
+    def run_gui(self, mode: str = 'production', demo: bool = False, with_backend: bool = False) -> int:
         """Launch GUI application."""
-        logger.info(f"Starting GUI in {mode} mode (demo={demo})")
+        logger.info(f"Starting GUI in {mode} mode (demo={demo}, with_backend={with_backend})")
         
         # Determine which GUI to launch
         if mode == 'realtime':
@@ -88,6 +88,23 @@ class ITSLauncher:
         if not gui_script.exists():
             logger.error(f"GUI script not found: {gui_script}")
             return 1
+        
+        # Start backend service if requested
+        backend_thread = None
+        if with_backend:
+            logger.info("Starting backend service in-process...")
+            try:
+                from backend import create_service
+                service = create_service(host="127.0.0.1", port=5050)
+                backend_thread = service.run(block=False)
+                logger.info("Backend service started")
+            except ImportError as e:
+                logger.error(f"Failed to import backend module: {e}")
+                logger.error("Install backend dependencies: pip install flask flask-socketio ccxt websockets")
+                return 1
+            except Exception as e:
+                logger.error(f"Failed to start backend: {e}")
+                return 1
         
         # Prepare command with proper Python path
         env = os.environ.copy()
@@ -110,15 +127,30 @@ class ITSLauncher:
             return 1
         finally:
             os.chdir(original_cwd)
+            if backend_thread:
+                logger.info("Stopping backend service...")
+                try:
+                    from backend import get_service
+                    get_service().stop()
+                except:
+                    pass
     
-    def run_backend(self) -> int:
+    def run_backend(self, host: str = "127.0.0.1", port: int = 5050) -> int:
         """Start backend services."""
-        logger.info("Starting backend services")
+        logger.info(f"Starting backend services on {host}:{port}")
         
-        # This would start backend services
-        # For now, just log that backend would start
-        logger.info("Backend services placeholder - implement as needed")
-        return 0
+        try:
+            from backend import create_service
+            service = create_service(host=host, port=port)
+            service.run(block=True)
+            return 0
+        except ImportError as e:
+            logger.error(f"Failed to import backend module: {e}")
+            logger.error("Make sure backend dependencies are installed (flask, flask-socketio, ccxt, websockets)")
+            return 1
+        except Exception as e:
+            logger.error(f"Failed to start backend: {e}")
+            return 1
     
     def run_data_processing(self) -> int:
         """Run data processing pipeline."""
@@ -358,6 +390,7 @@ Examples:
     gui_parser.add_argument('--mode', choices=['basic', 'integrated', 'production', 'async', 'realtime'],
                            default='production', help='GUI mode (default: production)')
     gui_parser.add_argument('--demo', action='store_true', help='Run in demo mode with sample data')
+    gui_parser.add_argument('--with-backend', action='store_true', help='Start backend service in-process with GUI')
     
     # Backend command
     backend_parser = subparsers.add_parser('backend', help='Start backend services')
@@ -392,7 +425,7 @@ Examples:
     # Execute command
     try:
         if args.command == 'gui':
-            return launcher.run_gui(mode=args.mode, demo=args.demo)
+            return launcher.run_gui(mode=args.mode, demo=args.demo, with_backend=args.with_backend)
         elif args.command == 'backend':
             return launcher.run_backend()
         elif args.command == 'data':

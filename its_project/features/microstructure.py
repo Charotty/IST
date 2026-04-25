@@ -28,9 +28,12 @@ def _vpin(buy_volume: np.ndarray, sell_volume: np.ndarray) -> float:
     Normalized absolute order flow imbalance.
     """
     total_volume = buy_volume + sell_volume
-    if total_volume == 0:
+    if np.all(total_volume == 0):
         return np.nan
     vpin = np.abs(buy_volume - sell_volume) / total_volume
+    # Return mean if array, else scalar
+    if isinstance(vpin, np.ndarray):
+        return np.mean(vpin)
     return vpin
 
 
@@ -87,6 +90,9 @@ class MicrostructureFeatures(BaseFeature):
         """
         self.validate_input(data)
 
+        # Set feature names
+        self._feature_names = self._get_feature_names()
+
         # Compute returns and volumes
         prices = data["close"].values
         volumes = data["volume"].values
@@ -94,12 +100,12 @@ class MicrostructureFeatures(BaseFeature):
 
         # Rolling window calculations
         n = len(prices)
-        feats = {name: np.full(n, np.nan) for name in self._feature_names()}
+        feats = {name: np.full(n, np.nan) for name in self._feature_names}
 
         for i in range(self.window, n):
             window_prices = prices[i - self.window : i + 1]
             window_returns = returns[i - self.window : i]
-            window_volumes = volumes[i - self.window : i]
+            window_volumes = volumes[i - self.window : i + 1]
 
             # Roll effective spread
             roll_val = _roll_effective_spread(window_prices)
@@ -109,8 +115,8 @@ class MicrostructureFeatures(BaseFeature):
             rv = _realized_volatility(window_returns)
             feats["realized_vol"][i] = rv
 
-            # Amihud illiquidity
-            amihud = _amihud_illiquidity(window_returns, window_volumes)
+            # Amihud illiquidity - align with returns
+            amihud = _amihud_illiquidity(window_returns, window_volumes[:-1])
             feats["amihud"][i] = amihud
 
             # VPIN (proxy using volume imbalance)
@@ -124,20 +130,20 @@ class MicrostructureFeatures(BaseFeature):
             # Kyle lambda (order flow proxy = volume * price change)
             order_flow = window_volumes[1:] * price_changes
             if len(order_flow) > 1 and len(window_returns) > 1:
-                kyle_val = _kyle_lambda(order_flow, window_returns[1:])
+                kyle_val = _kyle_lambda(order_flow, window_returns)
                 feats["kyle_lambda"][i] = kyle_val
 
         # Fill NaNs at beginning
         for name in feats:
             feats[name][: self.window] = 0.0
 
-        arr = np.column_stack([feats[name] for name in self._feature_names()])
+        arr = np.column_stack([feats[name] for name in self._feature_names])
         return arr
 
     def get_feature_names(self) -> List[str]:
-        return self._feature_names()
+        return self._feature_names
 
-    def _feature_names(self) -> List[str]:
+    def _get_feature_names(self) -> List[str]:
         """Helper to generate consistent feature names."""
         return [
             "roll",

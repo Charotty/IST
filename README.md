@@ -6,7 +6,7 @@ The Intelligent Trading System (ITS) is a comprehensive, production-ready crypto
 
 ### Key Features
 
-- **Multi-Source Data Collection**: Binance, Glassnode, Twitter sentiment, on-chain data
+- **Multi-Exchange Data Collection**: CCXT library supporting 100+ exchanges (Binance, Kraken, Coinbase, Bybit, OKX, etc.)
 - **Advanced ML Models**: GRU, CNN (order book), Gradient Boosting with ensemble methods
 - **Meta-Learning**: Automated model selection and hyperparameter optimization
 - **Decision Engine**: Risk management, position sizing, portfolio management
@@ -37,9 +37,9 @@ Data Sources → Storage → Preprocessing → Features → Models → Meta-Lear
 The system is organized into 10 main layers, each with specific responsibilities:
 
 #### Stage 1: Data Layer
-- **Purpose**: Collect raw data from multiple sources
-- **Components**: Binance API, Glassnode, Twitter, on-chain data
-- **Design**: Asynchronous data collection with error handling
+- **Purpose**: Collect raw data from multiple exchanges
+- **Components**: CCXT library supporting 100+ exchanges (Binance, Kraken, Coinbase, Bybit, OKX, Gate, KuCoin, etc.)
+- **Design**: Unified API interface via CCXT with asynchronous data collection, multi-exchange support
 
 #### Stage 2: Storage Layer
 - **Purpose**: Efficient data storage and retrieval
@@ -92,12 +92,10 @@ The system is organized into 10 main layers, each with specific responsibilities
 
 ```
 its_project/
-├── app/                    # Main application entry point
-├── data/                   # Data collection modules
-│   ├── binance.py          # Binance API integration
-│   ├── glassnode.py        # Glassnode on-chain data
-│   ├── sentiment.py        # Twitter sentiment analysis
-│   └── onchain.py          # On-chain data collection
+├── data_layer/             # Data collection via CCXT
+│   ├── base.py             # Base data source interface
+│   ├── ccxt_source.py      # CCXT multi-exchange implementation
+│   └── storage/            # Data storage modules
 ├── storage/                # Data storage layer
 │   ├── timescaledb.py      # TimescaleDB integration
 │   └── parquet.py          # Parquet file storage
@@ -162,40 +160,52 @@ its_project/
 
 ### Data Layer
 
-**Purpose**: Collect raw trading data from multiple sources.
+**Purpose**: Collect raw trading data from multiple exchanges via CCXT.
 
 **Components**:
 
-1. **Binance Collector** (`data/binance.py`)
-   - Real-time price data via WebSocket
-   - Order book depth data
-   - Trade history
-   - Account information
-   - Design: Asynchronous WebSocket connection with automatic reconnection
+1. **CCXT Data Source** (`data_layer/ccxt_source.py`)
+   - Unified interface for 100+ cryptocurrency exchanges
+   - Supported exchanges: Binance, Kraken, Coinbase, Bybit, OKX, Gate, KuCoin, and 90+ more
+   - Real-time price data, order book, OHLCV candles, trades
+   - Multi-exchange support for arbitrage and diversification
+   - Design: CCXT library with async support, rate limiting built-in
 
-2. **Glassnode Collector** (`data/glassnode.py`)
-   - On-chain metrics (exchange inflows/outflows, active addresses)
-   - Network statistics
-   - Market indicators
-   - Design: REST API integration with rate limiting
-
-3. **Sentiment Collector** (`data/sentiment.py`)
-   - Twitter/X sentiment analysis
-   - Reddit sentiment
-   - News sentiment
-   - Design: NLP-based sentiment scoring with caching
-
-4. **On-Chain Collector** (`data/onchain.py`)
-   - Blockchain transaction data
-   - Wallet activity
-   - Smart contract events
-   - Design: RPC connection with batch processing
+2. **Base Data Source** (`data_layer/base.py`)
+   - Abstract interface for all data sources
+   - Standard methods: connect, disconnect, subscribe, fetch, is_alive
+   - Design: Abstract base class with type hints
 
 **Design Decisions**:
-- **Asynchronous I/O**: All data collectors use asyncio for concurrent operations
-- **Error Handling**: Comprehensive error handling with automatic retry
-- **Data Validation**: Schema validation at collection time
-- **Rate Limiting**: Built-in rate limiting to respect API constraints
+- **CCXT Library**: Single library for all exchanges, unified API
+- **Multi-Exchange Support**: Easy switching between exchanges or using multiple simultaneously
+- **Asynchronous I/O**: All operations use asyncio for concurrent data collection
+- **Error Handling**: Comprehensive error handling with automatic retry via CCXT
+- **Rate Limiting**: Built-in rate limiting via CCXT to respect API constraints
+
+**Supported Exchanges**:
+- Major: Binance, Kraken, Coinbase, Bybit, OKX, Gate, KuCoin
+- Futures: Binance Futures, Kraken Futures, Bybit Futures
+- And 90+ more exchanges via CCXT
+
+**Usage Example**:
+```python
+from its_project.data_layer.ccxt_source import create_binance_source
+
+# Create Binance data source
+source = await create_binance_source(api_key="your_key", secret="your_secret")
+
+# Fetch market data
+data = await source.fetch('BTC/USDT')
+
+# Fetch OHLCV candles
+ohlcv = await source.fetch_ohlcv('BTC/USDT', timeframe='1m', limit=100)
+
+# Fetch trades
+trades = await source.fetch_trades('BTC/USDT', limit=50)
+
+await source.disconnect()
+```
 
 ### Storage Layer
 
