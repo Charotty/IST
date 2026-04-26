@@ -20,7 +20,7 @@ class BoostingModel(BaseModel):
     
     def __init__(self, config: Dict[str, Any]) -> None:
         super().__init__(config)
-        
+
         # Model parameters
         self.n_estimators = config.get("n_estimators", 100)
         self.learning_rate = config.get("learning_rate", 0.1)
@@ -30,7 +30,8 @@ class BoostingModel(BaseModel):
         self.subsample = config.get("subsample", 1.0)
         self.max_features = config.get("max_features", None)
         self.random_state = config.get("random_state", 42)
-        
+        self.class_weight = config.get("class_weight", None)
+
         # Initialize model
         self.model = GradientBoostingClassifier(
             n_estimators=self.n_estimators,
@@ -42,27 +43,35 @@ class BoostingModel(BaseModel):
             max_features=self.max_features,
             random_state=self.random_state
         )
-        
+
         self._fitted = False
         self._feature_names = None
     
     def fit(self, X: np.ndarray, y: np.ndarray) -> "BoostingModel":
         """Fit the Gradient Boosting model."""
         self.validate_input(X, y)
-        
+
         # Ensure 2D input for sklearn
         if X.ndim > 2:
             X = X.reshape(X.shape[0], -1)
-        
-        # Fit the model
-        self.model.fit(X, y)
+
+        # Handle class imbalance with sample weights
+        sample_weight = None
+        if self.class_weight == "balanced":
+            from sklearn.utils.class_weight import compute_sample_weight
+            sample_weight = compute_sample_weight("balanced", y)
+            logger.info("Using balanced sample weights for class imbalance")
+
+        self.model.fit(X, y, sample_weight=sample_weight)
         self._fitted = True
-        
+        self.feature_names = [f"feat_{i}" for i in range(X.shape[1])]
+        logger.info(f"Model fitted with {self.n_estimators} estimators")
+
         # Log feature importance if available
         if hasattr(self.model, 'feature_importances_'):
             top_features = np.argsort(self.model.feature_importances_)[-5:]
             logger.info(f"Top 5 feature indices: {top_features}")
-        
+
         return self
     
     def predict(self, X: np.ndarray) -> np.ndarray:

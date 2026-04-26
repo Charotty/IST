@@ -19,11 +19,16 @@ class EnsembleModel(BaseModel):
         super().__init__(config)
         # Base models
         self.models = {
-            "lr": LogisticRegression(max_iter=1000, random_state=42),
+            "lr": LogisticRegression(
+                max_iter=5000,  # Increased for convergence
+                random_state=42,
+                class_weight="balanced"  # Handle class imbalance
+            ),
             "rf": RandomForestClassifier(
                 n_estimators=config.get("rf_estimators", 100),
-                max_depth=config.get("rf_max_depth", 10),
+                max_depth=config.get("rf_max_depth", 15),
                 random_state=42,
+                class_weight="balanced"  # Handle class imbalance
             ),
             "gb": GradientBoostingClassifier(
                 n_estimators=config.get("gb_estimators", 100),
