@@ -55,13 +55,14 @@ class LSTMModel(BaseModel):
         )
         return net.to(self.device)
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> "LSTMModel":
+    def fit(self, X: np.ndarray, y: np.ndarray, progress_callback=None) -> "LSTMModel":
         """
         Train LSTM.
 
         Args:
             X: shape (n_samples, seq_len, n_features)
             y: shape (n_samples,)
+            progress_callback: optional callback(epoch, total_epochs, loss)
         """
         self.validate_input(X)
         if X.ndim != 3:
@@ -97,12 +98,17 @@ class LSTMModel(BaseModel):
                 loss.backward()
                 optimizer.step()
                 total_loss += loss.item()
+            avg_loss = total_loss / len(dataloader)
+            
+            # Call progress callback if provided
+            if progress_callback:
+                progress_callback(epoch + 1, epochs, avg_loss)
+            
             if (epoch + 1) % 10 == 0:
-                avg_loss = total_loss / len(dataloader)
                 # Use logger if available; otherwise print
                 print(f"Epoch [{epoch+1}/{epochs}], Loss: {avg_loss:.4f}")
 
-        self.is_fitted = True
+        self._is_fitted = True
         return self
 
     def predict(self, X: np.ndarray) -> np.ndarray:
@@ -112,7 +118,7 @@ class LSTMModel(BaseModel):
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
         """Predict class probabilities."""
-        if not self.is_fitted:
+        if not self._is_fitted:
             raise RuntimeError("Model not fitted")
         self.validate_input(X)
         if X.ndim != 3:
@@ -123,4 +129,46 @@ class LSTMModel(BaseModel):
             X_tensor = torch.FloatTensor(X).to(self.device)
             outputs = self.model(X_tensor)
             probs = torch.softmax(outputs, dim=1)
-        return probs.cpu().numpy()
+            return probs.cpu().numpy()
+    
+    def save(self, path: Path) -> None:
+        """Save PyTorch model to disk."""
+        if not self._is_fitted:
+            raise RuntimeError("Model not fitted, nothing to save")
+        
+        # Save PyTorch model state
+        torch.save({
+            'model_state_dict': self.model.state_dict(),
+            'config': self.config,
+            'input_size': self.input_size,
+            'hidden_size': self.hidden_size,
+            'num_layers': self.num_layers,
+            'num_classes': self.num_classes,
+            'dropout': self.dropout,
+            'device': str(self.device),
+            'feature_names': self.feature_names,
+        }, path)
+    
+    @classmethod
+    def load(cls, path: Path) -> "LSTMModel":
+        """Load PyTorch model from disk."""
+        checkpoint = torch.load(path, map_location='cpu')
+        
+        config = checkpoint['config']
+        model = cls(config)
+        model.model.load_state_dict(checkpoint['model_state_dict'])
+        model.feature_names = checkpoint.get('feature_names', None)
+        model._is_fitted = True
+        
+        return model
+    
+    def get_metadata(self) -> Dict[str, Any]:
+        """Return model metadata."""
+        return {
+            "model_type": "LSTM",
+            "input_size": self.input_size,
+            "hidden_size": self.hidden_size,
+            "num_layers": self.num_layers,
+            "num_classes": self.num_classes,
+            "dropout": self.dropout,
+        }

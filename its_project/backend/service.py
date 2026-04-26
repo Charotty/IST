@@ -113,6 +113,16 @@ class BackendServiceState:
         # Deployment config storage
         self.deployment_config: Optional[Dict] = None
         
+        # Training progress tracking
+        self.training_progress: Dict = {
+            'is_training': False,
+            'current_epoch': 0,
+            'total_epochs': 0,
+            'current_loss': 0.0,
+            'model_type': None,
+            'start_time': None
+        }
+        
         # OKX clients
         self.okx_ws_client = OKXWSClient()
         self.okx_rest_client = OKXRESTClient()
@@ -639,160 +649,432 @@ class BackendService:
             
             self._emit_log("info", f"Training {model_type} model with {epochs} epochs", "training")
             
-            try:
-                # Prepare data for training
-                # Drop NaN values (from rolling windows)
-                df_clean = df.dropna()
-                
-                if len(df_clean) < sequence_length:
-                    return jsonify(CommandResponse(
-                        success=False,
-                        message=f"Not enough data: {len(df_clean)} rows, need at least {sequence_length}",
-                        ts=int(time.time() * 1000)
-                    ))
-                
-                # Select feature columns
-                feature_cols = [col for col in df_clean.columns if col not in ['open', 'high', 'low', 'close', 'volume']]
-                if not feature_cols:
-                    return jsonify(CommandResponse(
-                        success=False,
-                        message="No feature columns found",
-                        ts=int(time.time() * 1000)
-                    ))
-                
-                X = df_clean[feature_cols].values
-                y = (df_clean['close'].shift(-1) > df_clean['close']).astype(int).values[:-1]  # Binary classification: price up or down
-                X = X[:-1]  # Align with y
-                
-                # Import real models
-                from its_project.models.lstm import LSTMModel
-                from its_project.models.gru_model import GRUModel
-                from its_project.models.transformer import TransformerModel
-                
-                # Prepare sequences for neural networks
-                def create_sequences(X, y, seq_len):
-                    X_seq, y_seq = [], []
-                    for i in range(len(X) - seq_len):
-                        X_seq.append(X[i:i+seq_len])
-                        y_seq.append(y[i+seq_len])
-                    return np.array(X_seq), np.array(y_seq)
-                
-                X_seq, y_seq = create_sequences(X, y, sequence_length)
-                
-                if len(X_seq) < 100:
-                    return jsonify(CommandResponse(
-                        success=False,
-                        message=f"Not enough sequences after windowing: {len(X_seq)}, need at least 100",
-                        ts=int(time.time() * 1000)
-                    ))
-                
-                # Train/test split
-                split_idx = int(len(X_seq) * train_test_split_ratio)
-                X_train, X_test = X_seq[:split_idx], X_seq[split_idx:]
-                y_train, y_test = y_seq[:split_idx], y_seq[split_idx:]
-                
-                # Select model based on type
-                if model_type == 'lstm':
-                    model = LSTMModel({
-                        'input_size': X_train.shape[2],
-                        'hidden_size': hidden_layers * 64,
-                        'num_layers': hidden_layers,
-                        'num_classes': 2,
-                        'dropout': dropout,
-                        'learning_rate': learning_rate,
-                        'epochs': epochs,
-                        'batch_size': batch_size
-                    })
-                elif model_type == 'gru':
-                    model = GRUModel({
-                        'input_size': X_train.shape[2],
-                        'hidden_size': hidden_layers * 64,
-                        'num_layers': hidden_layers,
-                        'num_classes': 2,
-                        'dropout': dropout,
-                        'learning_rate': learning_rate,
-                        'epochs': epochs,
-                        'batch_size': batch_size
-                    })
-                elif model_type == 'transformer':
-                    model = TransformerModel({
-                        'input_size': X_train.shape[2],
-                        'd_model': hidden_layers * 64,
-                        'nhead': 8,
-                        'num_layers': hidden_layers,
-                        'num_classes': 2,
-                        'dropout': dropout,
-                        'max_seq_len': sequence_length,
-                        'learning_rate': learning_rate,
-                        'epochs': epochs,
-                        'batch_size': batch_size
-                    })
-                elif model_type == 'ensemble':
-                    # Use LSTM as base for ensemble (simplified)
-                    model = LSTMModel({
-                        'input_size': X_train.shape[2],
-                        'hidden_size': hidden_layers * 64,
-                        'num_layers': hidden_layers,
-                        'num_classes': 2,
-                        'dropout': dropout,
-                        'learning_rate': learning_rate,
-                        'epochs': epochs,
-                        'batch_size': batch_size
-                    })
-                else:
-                    return jsonify(CommandResponse(
-                        success=False,
-                        message=f"Unknown model type: {model_type}",
-                        ts=int(time.time() * 1000)
-                    ))
-                
-                # Train model
-                model.fit(X_train, y_train)
-                
-                # Evaluate
-                y_pred = model.predict(X_test)
-                y_proba = model.predict_proba(X_test)
-                
-                accuracy = accuracy_score(y_test, y_pred)
-                precision = precision_score(y_test, y_pred, average='binary', zero_division=0)
-                recall = recall_score(y_test, y_pred, average='binary', zero_division=0)
-                f1 = f1_score(y_test, y_pred, average='binary', zero_division=0)
-                
-                # Store model in state
-                self.state.trained_model = {
-                    'model': model,
-                    'model_type': model_type,
-                    'feature_cols': feature_cols,
-                    'sequence_length': sequence_length,
-                    'accuracy': accuracy,
-                    'precision': precision,
-                    'recall': recall,
-                    'f1': f1,
-                    'trained_at': int(time.time() * 1000)
-                }
-                
-                self._emit_log("info", f"Model trained: accuracy={accuracy:.3f}, f1={f1:.3f}", "training")
-                
-                response = CommandResponse(
-                    success=True,
-                    message=f"Model trained successfully",
-                    data={
+            # Initialize training progress
+            self.state.training_progress = {
+                'is_training': True,
+                'current_epoch': 0,
+                'total_epochs': epochs,
+                'current_loss': 0.0,
+                'model_type': model_type,
+                'start_time': int(time.time() * 1000)
+            }
+            
+            # Progress callback
+            def progress_callback(epoch, total_epochs, loss):
+                self.state.training_progress['current_epoch'] = epoch
+                self.state.training_progress['current_loss'] = loss
+                self._emit_log("info", f"Epoch {epoch}/{total_epochs}, Loss: {loss:.4f}", "training")
+            
+            # Run training in background thread
+            import threading
+            training_result = {'success': False, 'message': '', 'data': None}
+            
+            def train_in_background():
+                try:
+                    # Force reload model modules to get latest changes
+                    import importlib
+                    import sys
+                    for module_name in list(sys.modules.keys()):
+                        if module_name.startswith('its_project.models'):
+                            if module_name in sys.modules:
+                                importlib.reload(sys.modules[module_name])
+                    
+                    # Re-import models after reload
+                    from its_project.models.lstm import LSTMModel
+                    from its_project.models.gru_model import GRUModel
+                    from its_project.models.transformer import TransformerModel
+                    
+                    # Prepare data for training
+                    # Drop NaN values (from rolling windows)
+                    df_clean = df.dropna()
+                    
+                    if len(df_clean) < sequence_length:
+                        training_result['success'] = False
+                        training_result['message'] = f"Not enough data: {len(df_clean)} rows, need at least {sequence_length}"
+                        return
+                    
+                    # Select feature columns
+                    feature_cols = [col for col in df_clean.columns if col not in ['open', 'high', 'low', 'close', 'volume']]
+                    if not feature_cols:
+                        training_result['success'] = False
+                        training_result['message'] = "No feature columns found"
+                        return
+                    
+                    X = df_clean[feature_cols].values
+                    
+                    # Improved target: use price change with threshold for better signal
+                    price_change = (df_clean['close'].shift(-1) - df_clean['close']) / df_clean['close']
+                    threshold = 0.001  # 0.1% threshold
+                    y = (price_change > threshold).astype(int).values[:-1]  # 1 if price goes up more than threshold
+                    X = X[:-1]  # Align with y
+                    
+                    # Normalize features
+                    from sklearn.preprocessing import StandardScaler
+                    scaler = StandardScaler()
+                    X = scaler.fit_transform(X)
+                    
+                    # Import real models
+                    from its_project.models.lstm import LSTMModel
+                    from its_project.models.gru_model import GRUModel
+                    from its_project.models.transformer import TransformerModel
+                    
+                    # Prepare sequences for neural networks
+                    def create_sequences(X, y, seq_len):
+                        X_seq, y_seq = [], []
+                        for i in range(len(X) - seq_len):
+                            X_seq.append(X[i:i+seq_len])
+                            y_seq.append(y[i+seq_len])
+                        return np.array(X_seq), np.array(y_seq)
+                    
+                    X_seq, y_seq = create_sequences(X, y, sequence_length)
+                    
+                    if len(X_seq) < 100:
+                        training_result['success'] = False
+                        training_result['message'] = f"Not enough sequences after windowing: {len(X_seq)}, need at least 100"
+                        return
+                    
+                    # Train/test split
+                    split_idx = int(len(X_seq) * train_test_split_ratio)
+                    X_train, X_test = X_seq[:split_idx], X_seq[split_idx:]
+                    y_train, y_test = y_seq[:split_idx], y_seq[split_idx:]
+                    
+                    # Select model based on type
+                    if model_type == 'lstm':
+                        model = LSTMModel({
+                            'input_size': X_train.shape[2],
+                            'hidden_size': hidden_layers * 64,
+                            'num_layers': hidden_layers,
+                            'num_classes': 2,
+                            'dropout': dropout,
+                            'learning_rate': learning_rate,
+                            'epochs': epochs,
+                            'batch_size': batch_size
+                        })
+                    elif model_type == 'gru':
+                        model = GRUModel({
+                            'input_size': X_train.shape[2],
+                            'hidden_size': hidden_layers * 64,
+                            'num_layers': hidden_layers,
+                            'num_classes': 2,
+                            'dropout': dropout,
+                            'learning_rate': learning_rate,
+                            'epochs': epochs,
+                            'batch_size': batch_size
+                        })
+                    elif model_type == 'transformer':
+                        model = TransformerModel({
+                            'input_size': X_train.shape[2],
+                            'd_model': hidden_layers * 64,
+                            'nhead': 8,
+                            'num_layers': hidden_layers,
+                            'num_classes': 2,
+                            'dropout': dropout,
+                            'max_seq_len': sequence_length,
+                            'learning_rate': learning_rate,
+                            'epochs': epochs,
+                            'batch_size': batch_size
+                        })
+                    elif model_type == 'ensemble':
+                        # Use LSTM as base for ensemble (simplified)
+                        model = LSTMModel({
+                            'input_size': X_train.shape[2],
+                            'hidden_size': hidden_layers * 64,
+                            'num_layers': hidden_layers,
+                            'num_classes': 2,
+                            'dropout': dropout,
+                            'learning_rate': learning_rate,
+                            'epochs': epochs,
+                            'batch_size': batch_size
+                        })
+                    else:
+                        training_result['success'] = False
+                        training_result['message'] = f"Unknown model type: {model_type}"
+                        return
+                    
+                    # Train model with progress callback
+                    model.fit(X_train, y_train, progress_callback=progress_callback)
+                    
+                    # Evaluate
+                    y_pred = model.predict(X_test)
+                    y_proba = model.predict_proba(X_test)
+                    
+                    logger.info(f"y_test shape: {y_test.shape}, y_pred shape: {y_pred.shape}")
+                    logger.info(f"y_test unique: {np.unique(y_test)}, y_pred unique: {np.unique(y_pred)}")
+                    
+                    accuracy = accuracy_score(y_test, y_pred)
+                    precision = precision_score(y_test, y_pred, average='binary', zero_division=0)
+                    recall = recall_score(y_test, y_pred, average='binary', zero_division=0)
+                    f1 = f1_score(y_test, y_pred, average='binary', zero_division=0)
+                    
+                    logger.info(f"Metrics - Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}")
+                    
+                    # Store model in state
+                    self.state.trained_model = {
+                        'model': model,
+                        'model_type': model_type,
+                        'feature_cols': feature_cols,
+                        'sequence_length': sequence_length,
+                        'accuracy': accuracy,
+                        'precision': precision,
+                        'recall': recall,
+                        'f1': f1,
+                        'trained_at': int(time.time() * 1000)
+                    }
+                    
+                    # Reset training progress
+                    self.state.training_progress['is_training'] = False
+                    
+                    self._emit_log("info", f"Model trained: accuracy={accuracy:.3f}, f1={f1:.3f}", "training")
+                    
+                    training_result['success'] = True
+                    training_result['message'] = "Model trained successfully"
+                    training_result['data'] = {
                         'model_type': model_type,
                         'accuracy': float(accuracy),
                         'precision': float(precision),
                         'recall': float(recall),
                         'f1': float(f1)
-                    },
-                    ts=int(time.time() * 1000)
-                )
-                
-                return jsonify(asdict(response))
-            except Exception as e:
-                logger.error(f"Error training model: {e}")
-                self._emit_log("error", f"Error training model: {e}", "training")
+                    }
+                except Exception as e:
+                    logger.error(f"Error training model: {e}")
+                    self._emit_log("error", f"Error training model: {e}", "training")
+                    self.state.training_progress['is_training'] = False
+                    training_result['success'] = False
+                    training_result['message'] = f"Error training model: {e}"
+            
+            # Start background thread
+            thread = threading.Thread(target=train_in_background)
+            thread.start()
+            
+            # Return immediately with training started
+            return jsonify(CommandResponse(
+                success=True,
+                message="Training started in background",
+                data={'status': 'training'},
+                ts=int(time.time() * 1000)
+            ))
+        
+        @self.app.route('/api/models/training-progress', methods=['GET'])
+        def get_training_progress():
+            """Get current training progress."""
+            progress = self.state.training_progress.copy()
+            
+            # Calculate percentage
+            if progress['total_epochs'] > 0:
+                progress['percentage'] = (progress['current_epoch'] / progress['total_epochs']) * 100
+            else:
+                progress['percentage'] = 0
+            
+            # Calculate elapsed time
+            if progress['start_time']:
+                elapsed = int(time.time() * 1000) - progress['start_time']
+                progress['elapsed_ms'] = elapsed
+            else:
+                progress['elapsed_ms'] = 0
+            
+            return jsonify(CommandResponse(
+                success=True,
+                message="Training progress retrieved",
+                data=progress,
+                ts=int(time.time() * 1000)
+            ))
+        
+        @self.app.route('/api/models/metrics', methods=['GET'])
+        def get_model_metrics():
+            """Get metrics of currently trained model."""
+            if self.state.trained_model is None:
                 return jsonify(CommandResponse(
                     success=False,
-                    message=f"Error training model: {e}",
+                    message="No trained model available",
+                    ts=int(time.time() * 1000)
+                ))
+            
+            metrics = {
+                'model_type': self.state.trained_model['model_type'],
+                'accuracy': self.state.trained_model['accuracy'],
+                'precision': self.state.trained_model['precision'],
+                'recall': self.state.trained_model['recall'],
+                'f1': self.state.trained_model['f1'],
+                'trained_at': self.state.trained_model['trained_at']
+            }
+            
+            return jsonify(CommandResponse(
+                success=True,
+                message="Model metrics retrieved",
+                data=metrics,
+                ts=int(time.time() * 1000)
+            ))
+        
+        @self.app.route('/api/models/save', methods=['POST'])
+        def save_model():
+            """Save trained model to disk."""
+            import os
+            from pathlib import Path
+            
+            if self.state.trained_model is None:
+                return jsonify(CommandResponse(
+                    success=False,
+                    message="No trained model to save",
+                    ts=int(time.time() * 1000)
+                ))
+            
+            data = request.get_json() or {}
+            model_name = data.get('model_name', 'model')
+            
+            try:
+                # Create models directory if it doesn't exist
+                models_dir = Path('models/saved')
+                models_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Generate filename with timestamp - use .pt for PyTorch models
+                timestamp = int(time.time())
+                model_type = self.state.trained_model['model_type']
+                if model_type in ['lstm', 'gru', 'transformer']:
+                    filename = f"{model_name}_{timestamp}.pt"
+                else:
+                    filename = f"{model_name}_{timestamp}.pkl"
+                filepath = models_dir / filename
+                
+                # Save model
+                model_obj = self.state.trained_model['model']
+                model_obj.save(filepath)
+                
+                # Save metadata
+                metadata = {
+                    'model_type': self.state.trained_model['model_type'],
+                    'feature_cols': self.state.trained_model['feature_cols'],
+                    'sequence_length': self.state.trained_model['sequence_length'],
+                    'accuracy': self.state.trained_model['accuracy'],
+                    'precision': self.state.trained_model['precision'],
+                    'recall': self.state.trained_model['recall'],
+                    'f1': self.state.trained_model['f1'],
+                    'trained_at': self.state.trained_model['trained_at'],
+                    'filename': filename,
+                    'model_name': model_name
+                }
+                
+                metadata_path = models_dir / f"{model_name}_{timestamp}_metadata.json"
+                import json
+                with open(metadata_path, 'w') as f:
+                    json.dump(metadata, f, indent=2)
+                
+                self._emit_log("info", f"Model saved to {filename}", "training")
+                
+                return jsonify(CommandResponse(
+                    success=True,
+                    message=f"Model saved as {filename}",
+                    data={'filename': filename, 'metadata': metadata},
+                    ts=int(time.time() * 1000)
+                ))
+            except Exception as e:
+                logger.error(f"Error saving model: {e}")
+                self._emit_log("error", f"Error saving model: {e}", "training")
+                return jsonify(CommandResponse(
+                    success=False,
+                    message=f"Error saving model: {e}",
+                    ts=int(time.time() * 1000)
+                ))
+        
+        @self.app.route('/api/models/list', methods=['GET'])
+        def list_models():
+            """List saved models."""
+            from pathlib import Path
+            import json
+            
+            models_dir = Path('models/saved')
+            if not models_dir.exists():
+                return jsonify(CommandResponse(
+                    success=True,
+                    message="No saved models found",
+                    data=[],
+                    ts=int(time.time() * 1000)
+                ))
+            
+            models = []
+            for metadata_file in models_dir.glob('*_metadata.json'):
+                try:
+                    with open(metadata_file, 'r') as f:
+                        metadata = json.load(f)
+                    models.append(metadata)
+                except Exception as e:
+                    logger.error(f"Error reading metadata {metadata_file}: {e}")
+            
+            # Sort by trained_at descending
+            models.sort(key=lambda x: x.get('trained_at', 0), reverse=True)
+            
+            return jsonify(CommandResponse(
+                success=True,
+                message=f"Found {len(models)} saved models",
+                data=models,
+                ts=int(time.time() * 1000)
+            ))
+        
+        @self.app.route('/api/models/load', methods=['POST'])
+        def load_model():
+            """Load saved model from disk."""
+            from pathlib import Path
+            import json
+            
+            data = request.get_json() or {}
+            filename = data.get('filename')
+            
+            if not filename:
+                return jsonify(CommandResponse(
+                    success=False,
+                    message="Model filename is required",
+                    ts=int(time.time() * 1000)
+                ))
+            
+            try:
+                models_dir = Path('models/saved')
+                filepath = models_dir / filename
+                
+                if not filepath.exists():
+                    return jsonify(CommandResponse(
+                        success=False,
+                        message=f"Model file not found: {filename}",
+                        ts=int(time.time() * 1000)
+                    ))
+                
+                # Load metadata
+                metadata_path = models_dir / filename.replace('.pkl', '_metadata.json')
+                if metadata_path.exists():
+                    with open(metadata_path, 'r') as f:
+                        metadata = json.load(f)
+                else:
+                    metadata = {}
+                
+                # Load model
+                from its_project.models.base import BaseModel
+                model = BaseModel.load(filepath)
+                
+                # Update state
+                self.state.trained_model = {
+                    'model': model,
+                    'model_type': metadata.get('model_type', 'unknown'),
+                    'feature_cols': metadata.get('feature_cols', []),
+                    'sequence_length': metadata.get('sequence_length', 60),
+                    'accuracy': metadata.get('accuracy', 0),
+                    'precision': metadata.get('precision', 0),
+                    'recall': metadata.get('recall', 0),
+                    'f1': metadata.get('f1', 0),
+                    'trained_at': metadata.get('trained_at', int(time.time() * 1000))
+                }
+                
+                self._emit_log("info", f"Model loaded from {filename}", "training")
+                
+                return jsonify(CommandResponse(
+                    success=True,
+                    message=f"Model loaded from {filename}",
+                    data=metadata,
+                    ts=int(time.time() * 1000)
+                ))
+            except Exception as e:
+                logger.error(f"Error loading model: {e}")
+                self._emit_log("error", f"Error loading model: {e}", "training")
+                return jsonify(CommandResponse(
+                    success=False,
+                    message=f"Error loading model: {e}",
                     ts=int(time.time() * 1000)
                 ))
         

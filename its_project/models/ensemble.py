@@ -42,19 +42,19 @@ class EnsembleModel(BaseModel):
         self.validate_input(X)
         self.feature_names = [f"feat_{i}" for i in range(X.shape[1])]
         self.ensemble.fit(X, y)
-        self.is_fitted = True
+        self._is_fitted = True
         return self
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """Predict class labels."""
-        if not self.is_fitted:
+        if not self._is_fitted:
             raise RuntimeError("Model not fitted")
         self.validate_input(X)
         return self.ensemble.predict(X)
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
         """Predict class probabilities."""
-        if not self.is_fitted:
+        if not self._is_fitted:
             raise RuntimeError("Model not fitted")
         self.validate_input(X)
         return self.ensemble.predict_proba(X)

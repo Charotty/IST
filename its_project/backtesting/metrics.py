@@ -290,7 +290,12 @@ class BacktestMetrics:
     
     @staticmethod
     def _calculate_sortino_ratio(returns: np.ndarray, risk_free_rate: float = 0.02) -> float:
-        """Calculate Sortino ratio (downside deviation)."""
+        """
+        Calculate Sortino ratio (downside deviation).
+        
+        Sortino Ratio measures risk-adjusted return considering only downside volatility.
+        Formula: (Mean Return - Risk Free Rate) / Downside Deviation
+        """
         if len(returns) == 0:
             return 0.0
         
@@ -299,9 +304,13 @@ class BacktestMetrics:
         downside_returns = excess_returns[excess_returns < 0]
         
         if len(downside_returns) == 0:
-            return 0.0
+            # No downside returns - return very high Sortino or handle edge case
+            return float('inf') if np.mean(excess_returns) > 0 else 0.0
         
         downside_deviation = np.std(downside_returns)
+        if downside_deviation == 0:
+            return 0.0
+        
         return np.mean(excess_returns) / downside_deviation * np.sqrt(252)
     
     @staticmethod

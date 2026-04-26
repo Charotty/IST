@@ -61,12 +61,24 @@ def _safe_stoch(high: np.ndarray, low: np.ndarray, close: np.ndarray, k_period: 
     return k_percent.values, d_percent.values
 
 
+def _safe_sma(prices: np.ndarray, period: int = 20) -> np.ndarray:
+    """Pure Simple Moving Average calculation."""
+    sma = pd.Series(prices).rolling(window=period).mean()
+    return sma.values
+
+
+def _safe_ema(prices: np.ndarray, period: int = 20) -> np.ndarray:
+    """Pure Exponential Moving Average calculation."""
+    ema = pd.Series(prices).ewm(span=period, adjust=False).mean()
+    return ema.values
+
+
 class TechnicalFeatures(BaseFeature):
     """Technical indicators (pure, immutable)."""
 
     def __init__(self, config: Dict[str, Any]) -> None:
         super().__init__(config)
-        self.indicators = config.get("indicators", ["rsi", "macd", "bbands", "atr", "stoch"])
+        self.indicators = config.get("indicators", ["rsi", "macd", "bbands", "atr", "stoch", "sma", "ema"])
         self.rsi_period = config.get("rsi_period", 14)
         self.macd_fast = config.get("macd_fast", 12)
         self.macd_slow = config.get("macd_slow", 26)
@@ -76,6 +88,8 @@ class TechnicalFeatures(BaseFeature):
         self.atr_period = config.get("atr_period", 14)
         self.stoch_k = config.get("stoch_k", 14)
         self.stoch_d = config.get("stoch_d", 3)
+        self.sma_period = config.get("sma_period", 20)
+        self.ema_period = config.get("ema_period", 20)
 
     def calculate(self, data: pd.DataFrame) -> np.ndarray:
         """Pure calculation; returns fixed-shape array."""
@@ -114,6 +128,16 @@ class TechnicalFeatures(BaseFeature):
             k_vals, d_vals = _safe_stoch(high, low, close, self.stoch_k, self.stoch_d)
             feats["stoch_k"] = k_vals
             feats["stoch_d"] = d_vals
+
+        if "sma" in self.indicators:
+            sma_vals = _safe_sma(close, self.sma_period)
+            feats["sma"] = sma_vals
+            feats["sma_diff"] = close - sma_vals  # Price difference from SMA
+
+        if "ema" in self.indicators:
+            ema_vals = _safe_ema(close, self.ema_period)
+            feats["ema"] = ema_vals
+            feats["ema_diff"] = close - ema_vals  # Price difference from EMA
 
         # Stack and fill NaNs
         self._feature_names = list(feats.keys())

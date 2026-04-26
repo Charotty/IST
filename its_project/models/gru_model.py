@@ -115,7 +115,7 @@ class GRUModel(BaseModel):
             self.num_classes
         )
     
-    def fit(self, X: np.ndarray, y: np.ndarray) -> "GRUModel":
+    def fit(self, X: np.ndarray, y: np.ndarray, progress_callback=None) -> "GRUModel":
         """Fit the GRU model."""
         self.validate_input(X, y)
         
@@ -155,6 +155,10 @@ class GRUModel(BaseModel):
             
             avg_loss = total_loss / num_batches
             
+            # Call progress callback if provided
+            if progress_callback:
+                progress_callback(epoch + 1, self.epochs, avg_loss)
+            
             # Early stopping
             if avg_loss < best_loss:
                 best_loss = avg_loss
@@ -174,12 +178,12 @@ class GRUModel(BaseModel):
         if hasattr(self, 'best_state_dict'):
             self.model.load_state_dict(self.best_state_dict)
         
-        self._fitted = True
+        self._is_fitted = True
         return self
     
     def predict(self, X: np.ndarray) -> np.ndarray:
         """Make predictions."""
-        if not self._fitted:
+        if not self._is_fitted:
             raise ValueError("Model must be fitted before prediction")
         
         self.validate_input(X)
@@ -225,7 +229,7 @@ class GRUModel(BaseModel):
         state = {
             'model_state_dict': self.model.state_dict(),
             'config': self.config,
-            'fitted': self._fitted,
+            'fitted': self._is_fitted,
             'feature_names': self._feature_names
         }
         torch.save(state, path)
@@ -236,10 +240,6 @@ class GRUModel(BaseModel):
         state = torch.load(path, map_location='cpu')
         model = cls(state['config'])
         model.model.load_state_dict(state['model_state_dict'])
-        model._fitted = state['fitted']
-        model._feature_names = state.get('feature_names')
+        model._is_fitted = state.get('fitted', False)
+        model._feature_names = state.get('feature_names', None)
         return model
-    
-    @property
-    def is_fitted(self) -> bool:
-        return self._fitted

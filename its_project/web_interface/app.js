@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeTabs();
     initializeForms();
     checkBackendHealth();
+    loadSavedModels();
     setInterval(checkBackendHealth, 5000);
 });
 
@@ -56,6 +57,7 @@ function initializeForms() {
     // Model Training
     document.getElementById('trainModelBtn').addEventListener('click', trainModel);
     document.getElementById('saveModelBtn').addEventListener('click', saveModel);
+    document.getElementById('loadModelBtn').addEventListener('click', loadSelectedModel);
     document.getElementById('trainTestSplit').addEventListener('input', (e) => {
         document.getElementById('trainTestSplitValue').textContent = `${Math.round(e.target.value * 100)}% train`;
     });
@@ -226,8 +228,11 @@ async function trainModel() {
     
     statusElement.querySelector('.value').textContent = 'Training...';
     progressElement.style.display = 'block';
+    progressFill.style.width = '0%';
+    progressText.textContent = 'Initializing...';
     
-    const result = await apiRequest('/api/models/train', 'POST', {
+    // Start training in background
+    const startResult = await apiRequest('/api/models/train', 'POST', {
         model_type: modelType,
         sequence_length: sequenceLength,
         hidden_layers: hiddenLayers,
@@ -238,29 +243,130 @@ async function trainModel() {
         train_test_split: trainTestSplit
     });
     
+    if (!startResult.success) {
+        statusElement.querySelector('.value').textContent = `Error: ${startResult.message}`;
+        progressElement.style.display = 'none';
+        return;
+    }
+    
+    // Poll for progress until training completes
+    const progressInterval = setInterval(async () => {
+        try {
+            const progressResult = await apiRequest('/api/models/training-progress', 'GET');
+            if (progressResult.success && progressResult.data) {
+                const progress = progressResult.data;
+                const percentage = progress.percentage || 0;
+                const currentEpoch = progress.current_epoch || 0;
+                const totalEpochs = progress.total_epochs || 0;
+                const currentLoss = progress.current_loss || 0;
+                
+                if (totalEpochs > 0) {
+                    progressFill.style.width = `${percentage}%`;
+                    progressText.textContent = `${Math.round(percentage)}% (Epoch ${currentEpoch}/${totalEpochs}, Loss: ${currentLoss.toFixed(4)})`;
+                } else {
+                    progressText.textContent = 'Initializing...';
+                }
+                
+                // Check if training is complete
+                if (!progress.is_training && currentEpoch > 0) {
+                    clearInterval(progressInterval);
+                    modelTrained = true;
+                    statusElement.querySelector('.value').textContent = 'Model trained successfully';
+                    progressFill.style.width = '100%';
+                    progressText.textContent = '100%';
+                    document.getElementById('saveModelBtn').disabled = false;
+                    document.getElementById('runBacktestBtn').disabled = false;
+                    document.getElementById('deployModelBtn').disabled = false;
+                    
+                    // Get final metrics from backend
+                    const metricsResult = await apiRequest('/api/models/metrics', 'GET');
+                    if (metricsResult.success && metricsResult.data) {
+                        document.getElementById('metricAccuracy').textContent = metricsResult.data.accuracy.toFixed(3);
+                        document.getElementById('metricPrecision').textContent = metricsResult.data.precision.toFixed(3);
+                        document.getElementById('metricRecall').textContent = metricsResult.data.recall.toFixed(3);
+                        document.getElementById('metricF1').textContent = metricsResult.data.f1.toFixed(3);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching progress:', error);
+        }
+    }, 500);
+}
+
+async function saveModel() {
+    const modelName = prompt('Enter model name:', 'my_model');
+    if (!modelName) return;
+    
+    const result = await apiRequest('/api/models/save', 'POST', {
+        model_name: modelName
+    });
+    
+    if (result.success) {
+        alert(`Model saved as ${result.data.filename}`);
+        loadSavedModels(); // Refresh model list
+    } else {
+        alert(`Error saving model: ${result.message}`);
+    }
+}
+
+async function loadSavedModels() {
+    const result = await apiRequest('/api/models/list', 'GET');
+    if (result.success) {
+        // Update Deployment dropdown
+        const deploySelect = document.getElementById('savedModelSelect');
+        deploySelect.innerHTML = '<option value="">-- Select saved model --</option>';
+        
+        // Update Backtesting dropdown
+        const backtestSelect = document.getElementById('backtestModel');
+        backtestSelect.innerHTML = '<option value="">Выберите обученную модель...</option>';
+        
+        result.data.forEach(model => {
+            // Add to Deployment dropdown
+            const deployOption = document.createElement('option');
+            deployOption.value = model.filename;
+            deployOption.textContent = `${model.model_type} - ${new Date(model.trained_at).toLocaleString()} (acc: ${model.accuracy.toFixed(3)})`;
+            deployOption.dataset.metadata = JSON.stringify(model);
+            deploySelect.appendChild(deployOption);
+            
+            // Add to Backtesting dropdown
+            const backtestOption = document.createElement('option');
+            backtestOption.value = model.filename;
+            backtestOption.textContent = `${model.model_type} - ${new Date(model.trained_at).toLocaleString()} (acc: ${model.accuracy.toFixed(3)})`;
+            backtestOption.dataset.metadata = JSON.stringify(model);
+            backtestSelect.appendChild(backtestOption);
+        });
+    }
+}
+
+async function loadSelectedModel() {
+    const select = document.getElementById('savedModelSelect');
+    const filename = select.value;
+    
+    if (!filename) {
+        alert('Please select a model to load');
+        return;
+    }
+    
+    const result = await apiRequest('/api/models/load', 'POST', {
+        filename: filename
+    });
+    
     if (result.success) {
         modelTrained = true;
-        statusElement.querySelector('.value').textContent = 'Model trained successfully';
-        progressFill.style.width = '100%';
-        progressText.textContent = '100%';
-        document.getElementById('saveModelBtn').disabled = false;
         document.getElementById('runBacktestBtn').disabled = false;
         document.getElementById('deployModelBtn').disabled = false;
         
-        // Update evaluation metrics
+        // Update metrics
         document.getElementById('metricAccuracy').textContent = result.data.accuracy.toFixed(3);
         document.getElementById('metricPrecision').textContent = result.data.precision.toFixed(3);
         document.getElementById('metricRecall').textContent = result.data.recall.toFixed(3);
         document.getElementById('metricF1').textContent = result.data.f1.toFixed(3);
+        
+        alert('Model loaded successfully');
     } else {
-        statusElement.querySelector('.value').textContent = `Error: ${result.message}`;
-        progressElement.style.display = 'none';
+        alert(`Error loading model: ${result.message}`);
     }
-}
-
-async function saveModel() {
-    // TODO: Implement model saving
-    alert('Model saved successfully');
 }
 
 // Backtesting

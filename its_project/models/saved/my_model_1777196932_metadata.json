@@ -1,0 +1,17 @@
+{
+  "model_type": "lstm",
+  "feature_cols": [
+    "sma_20",
+    "sma_50",
+    "ema_12",
+    "ema_26"
+  ],
+  "sequence_length": 60,
+  "accuracy": 0.6343825665859564,
+  "precision": 0.0,
+  "recall": 0.0,
+  "f1": 0.0,
+  "trained_at": 1777196922911,
+  "filename": "my_model_1777196932.pt",
+  "model_name": "my_model"
+}

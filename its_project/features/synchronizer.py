@@ -69,11 +69,6 @@ def synchronize_marketdata(
     for data_type in df["type"].unique():
         type_data = df[df["type"] == data_type].copy()
         
-        # Apply lookback window if specified
-        if lookback_window:
-            # Only use data within lookback window from each time point
-            lookback_delta = pd.Timedelta(lookback_window)
-        
         if method == "ffill":
             # Forward fill with max gap constraint
             # IMPORTANT: Only use past data, never future data
@@ -110,6 +105,18 @@ def synchronize_marketdata(
             
         else:
             raise ValueError(f"Unknown method: {method}")
+        
+        # Apply lookback window if specified
+        if lookback_window:
+            lookback_delta = pd.Timedelta(lookback_window)
+            # Create rolling window features using only past data
+            window_data = resampled["data"].rolling(window=lookback_delta, min_periods=1)
+            
+            # Add window statistics as additional columns
+            synchronized[f"{data_type}_mean"] = window_data.mean()
+            synchronized[f"{data_type}_std"] = window_data.std()
+            synchronized[f"{data_type}_min"] = window_data.min()
+            synchronized[f"{data_type}_max"] = window_data.max()
         
         # Store only data column
         synchronized[data_type] = resampled["data"]

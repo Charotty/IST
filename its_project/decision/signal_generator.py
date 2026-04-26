@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
 
 import numpy as np
 
 from its_project.decision.decision import Action, Signal
+
+if TYPE_CHECKING:
+    from its_project.models.base import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -34,10 +37,18 @@ class SignalGenerator:
         self.prediction_history = []
         self.return_history = []
     
-    def set_models(self, regression_model: Any, classification_model: Any) -> None:
-        """Set the regression and classification models."""
+    def set_models(self, regression_model: Optional[BaseModel], classification_model: Optional[BaseModel]) -> None:
+        """
+        Set the regression and classification models.
+        
+        Args:
+            regression_model: Model for predicting price changes (ΔP_hat)
+            classification_model: Model for predicting direction with confidence
+        """
         self.regression_model = regression_model
         self.classification_model = classification_model
+        logger.info(f"Models set: regression={type(regression_model).__name__ if regression_model else None}, "
+                   f"classification={type(classification_model).__name__ if classification_model else None}")
     
     def generate_signal(
         self,

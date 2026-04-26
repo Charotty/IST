@@ -25,6 +25,8 @@ class TelegramConfig:
     enabled: bool = True
     notifications: bool = True
     commands: bool = True
+    whitelist: List[str] = None  # List of allowed user IDs
+    require_whitelist: bool = False
 
 
 class TelegramBot:
@@ -32,9 +34,15 @@ class TelegramBot:
     
     def __init__(self, config: TelegramConfig) -> None:
         self.config = config
+        if self.config.whitelist is None:
+            self.config.whitelist = []
         self._running = False
         self._bot = None
         self._message_queue = asyncio.Queue()
+        self._application = None
+        self._system_status = "stopped"  # Current system status
+        self._start_callback = None  # Callback for start command
+        self._stop_callback = None  # Callback for stop command
         
     async def start(self) -> None:
         """Start the Telegram bot."""
@@ -44,16 +52,32 @@ class TelegramBot:
         
         try:
             # Try to import telegram library
-            from telegram import Bot
-            from telegram.ext import Application, CommandHandler, MessageHandler, filters
+            from telegram import Bot, Update
+            from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
             
             self._bot = Bot(token=self.config.token)
             self._running = True
             
+            # Create application with command handlers
+            self._application = Application.builder().token(self.config.token).build()
+            
+            # Register command handlers
+            self._application.add_handler(CommandHandler("start", self._handle_start_command))
+            self._application.add_handler(CommandHandler("stop", self._handle_stop_command))
+            self._application.add_handler(CommandHandler("status", self._handle_status_command))
+            self._application.add_handler(CommandHandler("help", self._handle_help_command))
+            
             # Start message processor
             asyncio.create_task(self._process_messages())
             
-            logger.info("Telegram bot started successfully")
+            # Start the application (polling)
+            if self.config.commands:
+                await self._application.initialize()
+                await self._application.start()
+                await self._application.updater.start_polling()
+                logger.info("Telegram bot started with command handlers")
+            else:
+                logger.info("Telegram bot started (commands disabled)")
             
         except ImportError:
             logger.warning("python-telegram-bot not installed, Telegram bot disabled")
@@ -66,6 +90,15 @@ class TelegramBot:
     async def stop(self) -> None:
         """Stop the Telegram bot."""
         self._running = False
+        
+        if self._application:
+            try:
+                await self._application.updater.stop()
+                await self._application.stop()
+                await self._application.shutdown()
+            except Exception as e:
+                logger.error(f"Error stopping Telegram application: {e}")
+        
         logger.info("Telegram bot stopped")
     
     async def send_notification(
@@ -199,6 +232,151 @@ class TelegramBot:
         """Check if bot is running."""
         return self._running
 
+    def _check_whitelist(self, user_id: str) -> bool:
+        """
+        Check if user is in whitelist.
+        
+        Args:
+            user_id: Telegram user ID
+            
+        Returns:
+            True if user is allowed, False otherwise
+        """
+        if not self.config.require_whitelist:
+            return True
+        
+        return str(user_id) in self.config.whitelist
+
+    def set_callbacks(self, start_callback=None, stop_callback=None) -> None:
+        """
+        Set callbacks for start/stop commands.
+        
+        Args:
+            start_callback: Async callback for start command
+            stop_callback: Async callback for stop command
+        """
+        self._start_callback = start_callback
+        self._stop_callback = stop_callback
+
+    def set_system_status(self, status: str) -> None:
+        """Set current system status."""
+        self._system_status = status
+
+    async def _handle_start_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Handle /start command."""
+        user_id = update.effective_user.id
+        
+        if not self._check_whitelist(user_id):
+            await update.message.reply_text("⛔ You are not authorized to use this bot.")
+            logger.warning(f"Unauthorized access attempt by user {user_id}")
+            return
+        
+        if self._system_status == "running":
+            await update.message.reply_text("⚠️ System is already running.")
+            return
+        
+        await update.message.reply_text("🚀 Starting trading system...")
+        
+        if self._start_callback:
+            try:
+                await self._start_callback()
+                self._system_status = "running"
+                await update.message.reply_text("✅ Trading system started successfully.")
+            except Exception as e:
+                await update.message.reply_text(f"❌ Failed to start: {e}")
+                logger.error(f"Start callback error: {e}")
+        else:
+            self._system_status = "running"
+            await update.message.reply_text("✅ Trading system started (no callback set).")
+
+    async def _handle_stop_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Handle /stop command."""
+        user_id = update.effective_user.id
+        
+        if not self._check_whitelist(user_id):
+            await update.message.reply_text("⛔ You are not authorized to use this bot.")
+            logger.warning(f"Unauthorized access attempt by user {user_id}")
+            return
+        
+        if self._system_status == "stopped":
+            await update.message.reply_text("⚠️ System is already stopped.")
+            return
+        
+        await update.message.reply_text("🛑 Stopping trading system...")
+        
+        if self._stop_callback:
+            try:
+                await self._stop_callback()
+                self._system_status = "stopped"
+                await update.message.reply_text("✅ Trading system stopped successfully.")
+            except Exception as e:
+                await update.message.reply_text(f"❌ Failed to stop: {e}")
+                logger.error(f"Stop callback error: {e}")
+        else:
+            self._system_status = "stopped"
+            await update.message.reply_text("✅ Trading system stopped (no callback set).")
+
+    async def _handle_status_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Handle /status command."""
+        user_id = update.effective_user.id
+        
+        if not self._check_whitelist(user_id):
+            await update.message.reply_text("⛔ You are not authorized to use this bot.")
+            logger.warning(f"Unauthorized access attempt by user {user_id}")
+            return
+        
+        status_emoji = "🟢" if self._system_status == "running" else "🔴"
+        
+        message = f"""
+📊 <b>System Status</b>
+
+{status_emoji} <b>Status:</b> {self._system_status.upper()}
+🤖 <b>Bot:</b> {'Running' if self._running else 'Stopped'}
+📨 <b>Notifications:</b> {'Enabled' if self.config.notifications else 'Disabled'}
+🎛️ <b>Commands:</b> {'Enabled' if self.config.commands else 'Disabled'}
+🔒 <b>Whitelist:</b> {'Active' if self.config.require_whitelist else 'Inactive'}
+⏰ <b>Time:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+        
+        await update.message.reply_text(message, parse_mode="HTML")
+
+    async def _handle_help_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Handle /help command."""
+        user_id = update.effective_user.id
+        
+        if not self._check_whitelist(user_id):
+            await update.message.reply_text("⛔ You are not authorized to use this bot.")
+            logger.warning(f"Unauthorized access attempt by user {user_id}")
+            return
+        
+        help_message = """
+🤖 <b>ITS Trading Bot Commands</b>
+
+<b>Available Commands:</b>
+/start - Start the trading system
+/stop - Stop the trading system
+/status - Get current system status
+/help - Show this help message
+
+<b>Notifications:</b>
+You will receive notifications for:
+• Trade executions
+• System status changes
+• Alerts and warnings
+
+⏰ <b>Time:</b> {time}
+""".format(time=datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        
+        await update.message.reply_text(help_message, parse_mode="HTML")
+
 
 class TelegramNotifier:
     """Simple notification interface for trading system."""
@@ -247,7 +425,9 @@ def create_telegram_bot(config: Dict[str, Any]) -> TelegramBot:
         chat_id=config.get("chat_id", ""),
         enabled=config.get("enabled", False),
         notifications=config.get("notifications", True),
-        commands=config.get("commands", True)
+        commands=config.get("commands", True),
+        whitelist=config.get("whitelist", []),
+        require_whitelist=config.get("require_whitelist", False)
     )
     
     return TelegramBot(telegram_config)
