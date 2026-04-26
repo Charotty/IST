@@ -37,6 +37,12 @@ class ModelTrainingDialog(QDialog):
         self.selected_timeframes = [timeframe]
         self.selected_indicators = []
         self.selected_models = []
+        self.available_models = None
+        if parent is not None and hasattr(parent, "get_available_models"):
+            try:
+                self.available_models = parent.get_available_models()
+            except Exception:
+                self.available_models = None
         self.init_ui()
     
     def init_ui(self) -> None:
@@ -103,9 +109,12 @@ class ModelTrainingDialog(QDialog):
         model_layout = QVBoxLayout()
         
         self.model_list = QListWidget()
-        self.model_list.addItems([
-            "GRU-LSTM", "LSTM", "Transformer", "Ensemble", "Regression"
-        ])
+        if self.available_models:
+            self.model_list.addItems(self.available_models)
+        else:
+            self.model_list.addItems([
+                "GRU-LSTM", "LSTM", "Transformer", "Ensemble", "Regression"
+            ])
         self.model_list.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
         # Select all models by default
         for i in range(self.model_list.count()):
@@ -315,6 +324,13 @@ class ITSMainWindow(QMainWindow):
         self.model_predictions_data = {}  # Store predictions per model
         self.okx_rest_client = None  # OKX REST client for real data
         self.okx_ws_client = None  # OKX WebSocket client for live price
+        self.ohlcv_data = []  # last loaded candles [[ts,o,h,l,c,v], ...]
+        self.active_trained_model = None  # selected trained model instance
+        self.active_model_key = None
+        self._torch_warning_shown = False
+        self._last_order_ts = None
+        self._last_order_side = None
+        self._min_order_interval_sec = 30
         
         self.signal_receiver = SignalReceiver()
         self.signal_receiver.signal_received.connect(self.on_signal_received)
@@ -370,6 +386,26 @@ class ITSMainWindow(QMainWindow):
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Система готова")
 
+    def get_available_models(self) -> list[str]:
+        """Return list of models available in current environment."""
+        import importlib
+
+        sklearn_only = ["Ensemble", "Boosting", "Regression"]
+
+        try:
+            torch = importlib.import_module("torch")
+            _ = getattr(torch, "__version__", None)
+        except Exception:
+            if not getattr(self, "_torch_warning_shown", False):
+                self._torch_warning_shown = True
+                try:
+                    self.log_message("Torch недоступен в окружении: LSTM/GRU/Transformer скрыты (нужна установка/починка torch на Windows)")
+                except Exception:
+                    pass
+            return sklearn_only
+
+        return ["GRU-LSTM", "LSTM", "Transformer", "Ensemble", "Boosting", "Regression"]
+
     def create_top_bar(self) -> QGroupBox:
         """Create top control bar."""
         group = QGroupBox("Управление")
@@ -394,7 +430,10 @@ class ITSMainWindow(QMainWindow):
         # Model selector
         layout.addWidget(QLabel("Модель:"))
         self.model_combo = QComboBox()
-        self.model_combo.addItems(["GRU-LSTM", "LSTM", "Transformer", "Ensemble", "Regression"])
+        available = self.get_available_models()
+        self.model_combo.addItems(available)
+        if self.model_name not in available:
+            self.model_name = available[0]
         self.model_combo.setCurrentText(self.model_name)
         self.model_combo.currentTextChanged.connect(self.on_model_changed)
         layout.addWidget(self.model_combo)
@@ -752,6 +791,10 @@ class ITSMainWindow(QMainWindow):
         # Update model information if training results exist for this model
         if model in self.model_training_results:
             self.update_model_info_from_results(model, self.model_training_results[model])
+            trained_obj = self.model_training_results[model].get("model")
+            if trained_obj is not None:
+                self.active_trained_model = trained_obj
+                self.active_model_key = self.model_training_results[model].get("model_key")
         else:
             self.log_message(f"Нет данных обучения для модели {model}")
     
@@ -773,15 +816,55 @@ class ITSMainWindow(QMainWindow):
                 start_ts = int(self.date_start.startOfDay().toPyDateTime().timestamp() * 1000)
                 end_ts = int(self.date_end.endOfDay().toPyDateTime().timestamp() * 1000)
                 
-                self.log_message(f"Загрузка OHLC данных из OKX...")
-                ohlcv_data = self.okx_rest_client.get_historical_ohlcv(
-                    self.current_symbol,
-                    self.current_timeframe,
-                    since=start_ts,
-                    limit=1000
-                )
+                self.log_message("Загрузка OHLC данных из OKX...")
+
+                # Batch-load full date range (ccxt/OKX has per-request limits)
+                tf_ms_map = {
+                    "1m": 60_000,
+                    "5m": 300_000,
+                    "15m": 900_000,
+                    "1h": 3_600_000,
+                    "4h": 14_400_000,
+                    "1d": 86_400_000,
+                }
+                tf_ms = tf_ms_map.get(self.current_timeframe, 3_600_000)
+
+                ohlcv_data = []
+                cursor_since = start_ts
+                max_limit = 1000
+                safety_iters = 0
+
+                while cursor_since < end_ts and safety_iters < 50:
+                    safety_iters += 1
+                    chunk = self.okx_rest_client.get_historical_ohlcv(
+                        self.current_symbol,
+                        self.current_timeframe,
+                        since=cursor_since,
+                        limit=max_limit,
+                    )
+                    if not chunk:
+                        break
+
+                    # Deduplicate by ts
+                    existing_ts = set(c[0] for c in ohlcv_data)
+                    for c in chunk:
+                        if c[0] not in existing_ts:
+                            ohlcv_data.append(c)
+                            existing_ts.add(c[0])
+
+                    last_ts = int(chunk[-1][0])
+                    cursor_since = last_ts + tf_ms
+
+                    self.load_progress.setValue(min(99, int(100 * (cursor_since - start_ts) / max(1, (end_ts - start_ts)))))
+                    from PyQt6.QtWidgets import QApplication
+                    QApplication.processEvents()
+
+                # Filter strictly within date range and sort
+                ohlcv_data = [c for c in ohlcv_data if start_ts <= int(c[0]) <= end_ts]
+                ohlcv_data.sort(key=lambda x: x[0])
                 
                 if ohlcv_data:
+                    self.ohlcv_data = ohlcv_data
                     self.loaded_bars = len(ohlcv_data)
                     self.data_date_range = f"{self.date_start.toString('dd.MM.yyyy')} - {self.date_end.toString('dd.MM.yyyy')}"
                     self.loaded_bars_label.setText(f"{self.loaded_bars} баров")
@@ -792,6 +875,9 @@ class ITSMainWindow(QMainWindow):
                     
                     # Update price chart with real data
                     self.update_price_chart_with_data(ohlcv_data)
+
+                    # Disable random price chart updates
+                    self.update_price_chart()
                     
                     self.log_message(f"Загружено {self.loaded_bars} свечей из OKX")
                 else:
@@ -887,10 +973,205 @@ class ITSMainWindow(QMainWindow):
         if dialog.exec() == QDialog.DialogCode.Accepted:
             config = dialog.get_config()
             self.log_message(f"Конфигурация обучения сохранена: {config}")
-            # Simulate training
-            self.simulate_model_training(config)
+            # Train models
+            self.train_models(config)
             # Open model comparison dialog
             self.open_model_comparison_dialog()
+
+    def _build_datasets_from_ohlcv(self) -> Dict[str, Any]:
+        """Build regression + classification datasets from last loaded OHLCV."""
+        import numpy as np
+
+        if not self.ohlcv_data:
+            raise RuntimeError("No OHLCV data loaded")
+
+        ohlcv_data = self.ohlcv_data
+        closes = np.array([c[4] for c in ohlcv_data], dtype=float)
+        highs = np.array([c[2] for c in ohlcv_data], dtype=float)
+        lows = np.array([c[3] for c in ohlcv_data], dtype=float)
+        opens = np.array([c[1] for c in ohlcv_data], dtype=float)
+        vols = np.array([c[5] for c in ohlcv_data], dtype=float)
+
+        # Features aligned to t
+        X_all = np.column_stack([
+            closes,
+            highs - lows,
+            closes - opens,
+            vols,
+        ])
+
+        # Targets are defined for t -> t+1
+        y_reg = (closes[1:] - closes[:-1]) / closes[:-1]
+        X_reg = X_all[:-1]
+
+        # Classification from next return
+        thr = float(0.001)
+        y_cls = np.full_like(y_reg, 1, dtype=int)
+        y_cls[y_reg > thr] = 2
+        y_cls[y_reg < -thr] = 0
+        X_cls = X_reg
+
+        return {
+            "X_reg": X_reg,
+            "y_reg": y_reg,
+            "X_cls": X_cls,
+            "y_cls": y_cls,
+            "threshold": thr,
+        }
+
+    def train_models(self, config: Dict[str, Any]) -> None:
+        """Train selected models (only real training; no simulation)."""
+        from PyQt6.QtWidgets import QProgressDialog, QApplication
+        import numpy as np
+        from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error, mean_squared_error, r2_score
+
+        try:
+            from its_project.models import ModelRegistry
+        except Exception as e:
+            self.log_message(f"Ошибка импорта ModelRegistry: {e}")
+            return
+
+        if not self.ohlcv_data:
+            self.log_message("Ошибка: сначала загрузите свечи (Загрузить данные)")
+            return
+
+        datasets = self._build_datasets_from_ohlcv()
+        X_reg = datasets["X_reg"]
+        y_reg = datasets["y_reg"]
+        X_cls = datasets["X_cls"]
+        y_cls = datasets["y_cls"]
+
+        def split_last_20(X: np.ndarray, y: np.ndarray):
+            n = len(X)
+            n_train = max(1, int(n * 0.8))
+            return X[:n_train], y[:n_train], X[n_train:], y[n_train:]
+
+        selected_models = config.get("models", [])
+        total_models = len(selected_models)
+        progress_dialog = QProgressDialog("Обучение моделей...", "Отмена", 0, max(1, total_models), self)
+        progress_dialog.setWindowTitle("Прогресс обучения")
+        progress_dialog.setWindowModality(Qt.WindowModality.WindowModal)
+        progress_dialog.show()
+
+        # reset
+        self.trained_models = []
+        self.model_training_results = {}
+
+        # map GUI labels -> registry keys
+        def to_key(gui_name: str) -> str | None:
+            n = gui_name.strip().lower()
+            if n in {"regression", "регрессия"}:
+                return "regression"
+            if n in {"ensemble", "ансамбль"}:
+                return "ensemble"
+            if n in {"boosting", "градиентный бустинг", "gradient boosting"}:
+                return "boosting"
+            if n in {"lstm"}:
+                return "lstm"
+            if n in {"transformer"}:
+                return "transformer"
+            if n in {"gru", "gru-lstm", "gru_lstm"}:
+                return "gru"
+            if n in {"cnn", "cnn_lob", "cnn-lob"}:
+                return "cnn_lob"
+            return None
+
+        available_keys = set(ModelRegistry.list_models())
+
+        for idx, gui_model_name in enumerate(selected_models):
+            progress_dialog.setValue(idx)
+            progress_dialog.setLabelText(f"Обучение модели {idx + 1}/{total_models}: {gui_model_name}...")
+            QApplication.processEvents()
+            if progress_dialog.wasCanceled():
+                self.log_message("Обучение отменено пользователем")
+                break
+
+            model_key = to_key(gui_model_name)
+            if model_key is None:
+                self.log_message(f"Пропуск: неизвестная модель '{gui_model_name}'")
+                continue
+            if model_key not in available_keys:
+                self.log_message(f"Пропуск: модель '{gui_model_name}' недоступна в окружении")
+                continue
+
+            try:
+                if model_key == "regression":
+                    Xtr, ytr, Xte, yte = split_last_20(X_reg, y_reg)
+                    model = ModelRegistry.get_model("regression", {
+                        "model_type": "gradient_boosting",
+                        "n_estimators": 200,
+                        "learning_rate": 0.05,
+                        "max_depth": 3,
+                        "random_state": 42,
+                    })
+                    model.fit(Xtr, ytr)
+                    pred_te = model.predict(Xte)
+                    r2 = float(r2_score(yte, pred_te)) if len(yte) else 0.0
+                    mae = float(mean_absolute_error(yte, pred_te)) if len(yte) else 0.0
+                    if len(yte):
+                        mse = float(mean_squared_error(yte, pred_te))
+                        rmse = float(np.sqrt(mse))
+                    else:
+                        rmse = 0.0
+
+                    preds_for_chart = model.predict(X_reg[-50:]) if len(X_reg) >= 50 else model.predict(X_reg)
+
+                    result = {
+                        "trained": True,
+                        "samples": int(len(Xtr)),
+                        "model": model,
+                        "model_key": model_key,
+                        "metrics": {"r2": r2, "mae": mae, "rmse": rmse},
+                        "predictions": preds_for_chart,
+                        "score": r2,
+                    }
+                    self.log_message(f"{gui_model_name}: R²={r2:.4f}, MAE={mae:.6f}, RMSE={rmse:.6f}")
+
+                else:
+                    Xtr, ytr, Xte, yte = split_last_20(X_cls, y_cls)
+                    model = ModelRegistry.get_model(model_key, {})
+                    model.fit(Xtr, ytr)
+                    pred_te = model.predict(Xte)
+                    acc = float(accuracy_score(yte, pred_te)) if len(yte) else 0.0
+                    f1 = float(f1_score(yte, pred_te, average="macro")) if len(yte) else 0.0
+
+                    # proba for live confidence
+                    proba_last = None
+                    try:
+                        proba_last = model.predict_proba(X_cls[-1:])
+                    except Exception:
+                        proba_last = None
+
+                    result = {
+                        "trained": True,
+                        "samples": int(len(Xtr)),
+                        "model": model,
+                        "model_key": model_key,
+                        "metrics": {"accuracy": acc, "f1_macro": f1},
+                        "predictions": pred_te[-50:] if len(pred_te) >= 50 else pred_te,
+                        "proba_last": proba_last,
+                        "score": f1,
+                    }
+                    self.log_message(f"{gui_model_name}: ACC={acc:.4f}, F1(macro)={f1:.4f}")
+
+                # store
+                self.trained_models.append(gui_model_name)
+                self.model_training_results[gui_model_name] = result
+
+                if self.active_trained_model is None:
+                    self.active_trained_model = model
+                    self.active_model_key = model_key
+
+            except Exception as e:
+                self.log_message(f"Ошибка обучения {gui_model_name}: {type(e).__name__}: {e}")
+                self.model_training_results[gui_model_name] = {"trained": False, "error": str(e)}
+
+        progress_dialog.setValue(max(1, total_models))
+        progress_dialog.close()
+
+        self.update_system_info_after_training(self.model_training_results)
+        self.update_prediction_chart()
+        self.log_message("Обучение завершено")
     
     def simulate_model_training(self, config: Dict[str, Any]) -> None:
         """Train models using real implementation with detailed progress."""
@@ -1065,34 +1346,56 @@ class ITSMainWindow(QMainWindow):
             self.model_name = self.trained_models[0]
             self.model_label.setText(self.model_name)
             # Update model combo to match
-            self.model_combo.setCurrentText(self.model_name)
+            if hasattr(self, "model_combo"):
+                self.model_combo.setCurrentText(self.model_name)
         
         # Update last update time
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.model_update_label.setText(now)
         
         # Update training samples for current model
-        if self.model_name in results:
+        if self.model_name in results and isinstance(results[self.model_name], dict):
             self.samples_label.setText(str(results[self.model_name].get("samples", 0)))
         else:
-            total_samples = sum(r.get("samples", 0) for r in results.values())
+            total_samples = sum((r.get("samples", 0) if isinstance(r, dict) else 0) for r in results.values())
             self.samples_label.setText(str(total_samples))
         
         # Update retrain count
         self.retrain_count_label.setText(str(len(self.trained_models)))
         
-        # Update performance metrics for current model
-        if self.model_name in results and "score" in results[self.model_name]:
-            score = results[self.model_name]["score"]
-            self.sharpe_label.setText(f"{score * 2:.2f}")
-            self.sortino_label.setText(f"{score * 1.5:.2f}")
-            self.win_rate_label.setText(f"{score * 0.6 + 0.3:.2%}")
+        # Update performance metrics for current model (show real metrics when possible)
+        metrics = {}
+        if self.model_name in results and isinstance(results[self.model_name], dict):
+            metrics = results[self.model_name].get("metrics", {}) or {}
+
+        # Keep existing labels meaning but populate with something real:
+        # - Sharpe label: use R2 or Accuracy as proxy
+        # - Sortino label: use F1 or (1 - RMSE) proxy
+        # - Win rate label: use Accuracy when available
+        if "accuracy" in metrics:
+            acc = float(metrics.get("accuracy", 0.0))
+            f1 = float(metrics.get("f1_macro", 0.0))
+            self.sharpe_label.setText(f"{acc:.4f}")
+            self.sortino_label.setText(f"{f1:.4f}")
+            self.win_rate_label.setText(f"{acc:.2%}")
+        elif "r2" in metrics:
+            r2 = float(metrics.get("r2", 0.0))
+            rmse = float(metrics.get("rmse", 0.0))
+            self.sharpe_label.setText(f"{r2:.4f}")
+            self.sortino_label.setText(f"{rmse:.6f}")
+            self.win_rate_label.setText("N/A")
         else:
-            total_score = sum(r.get("score", 0) for r in results.values() if "score" in r)
-            avg_score = total_score / len(results) if results else 0
-            self.sharpe_label.setText(f"{avg_score * 2:.2f}")
-            self.sortino_label.setText(f"{avg_score * 1.5:.2f}")
-            self.win_rate_label.setText(f"{avg_score * 0.6 + 0.3:.2%}")
+            # fallback
+            total_score = 0.0
+            cnt = 0
+            for r in results.values():
+                if isinstance(r, dict) and "score" in r:
+                    total_score += float(r.get("score", 0.0))
+                    cnt += 1
+            avg = (total_score / cnt) if cnt else 0.0
+            self.sharpe_label.setText(f"{avg:.4f}")
+            self.sortino_label.setText("N/A")
+            self.win_rate_label.setText("N/A")
         
         self.trades_label.setText(str(np.random.randint(50, 200)))
         
@@ -1190,18 +1493,26 @@ class ITSMainWindow(QMainWindow):
             return
         
         import numpy as np
+
+        try:
+            self.log_message("Обновление графика предсказаний...")
+        except Exception:
+            pass
         
         # Use real price data from loaded candles if available
-        if self.price_history:
-            actual_prices = self.price_history[-50:]  # Last 50 prices
-            base_price = actual_prices[0] if actual_prices else 42000.0
+        if self.ohlcv_data:
+            actual_prices = [c[4] for c in self.ohlcv_data[-51:]]
+        elif self.price_history:
+            actual_prices = self.price_history[-51:]
         else:
-            base_price = 42000.0
-            actual_prices = [base_price]
-            for _ in range(50):
-                change = np.random.uniform(-100, 100)
-                actual_prices.append(actual_prices[-1] + change)
-        
+            actual_prices = [42000.0]
+
+        # Ensure length >= 2
+        if len(actual_prices) < 2:
+            return
+
+        base_price = float(actual_prices[0])
+
         self.pred_chart_ax.clear()
         
         # Plot actual prices
@@ -1210,20 +1521,82 @@ class ITSMainWindow(QMainWindow):
         # Plot model predictions from training results
         colors = ['r', 'g', 'b', 'm', 'c']
         
-        # Get trained models with predictions
-        models_with_predictions = [
-            (name, result) for name, result in self.model_training_results.items()
-            if "predictions" in result and result["trained"]
-        ]
+        # Recompute predictions from trained model objects on latest data
+        models_with_predictions = []
+
+        # Prefer OHLCV-based dataset; otherwise build lightweight features from live price history
+        datasets = None
+        if self.ohlcv_data:
+            try:
+                datasets = self._build_datasets_from_ohlcv()
+            except Exception:
+                datasets = None
+
+        X_live = None
+        if datasets is None and self.price_history and len(self.price_history) >= 3:
+            closes = np.array(self.price_history, dtype=float)
+            # Minimal feature set compatible with sklearn models
+            # [close, range(0), delta_close, volume(0)]
+            deltas = np.diff(closes, prepend=closes[0])
+            X_live = np.column_stack([closes, np.zeros_like(closes), deltas, np.zeros_like(closes)])
+
+        for name, result in self.model_training_results.items():
+            if not isinstance(result, dict) or not result.get("trained"):
+                continue
+            model = result.get("model")
+            if model is None:
+                continue
+            model_key = result.get("model_key")
+
+            # Build input to match the plot horizon
+            horizon = max(1, len(actual_prices) - 1)
+            predictions = None
+            try:
+                if model_key == "regression" and datasets is not None:
+                    X_reg = datasets.get("X_reg")
+                    if X_reg is not None and len(X_reg) >= horizon:
+                        predictions = model.predict(X_reg[-horizon:])
+                elif datasets is not None:
+                    X_cls = datasets.get("X_cls")
+                    if X_cls is not None and len(X_cls) >= horizon:
+                        predictions = model.predict(X_cls[-horizon:])
+                elif X_live is not None and len(X_live) >= horizon:
+                    predictions = model.predict(X_live[-horizon:])
+            except Exception:
+                predictions = result.get("predictions")
+
+            if predictions is None:
+                continue
+
+            models_with_predictions.append((name, {**result, "predictions": predictions}))
         
+        # We plot on same x-axis length as actual_prices
+        x = list(range(len(actual_prices)))
+
         for i, (model_name, result) in enumerate(models_with_predictions[:3]):
-            predictions = result["predictions"]
-            # Convert predictions to price changes
+            predictions = result.get("predictions")
+            model_key = result.get("model_key")
+            if predictions is None:
+                continue
+
+            # Build predicted price path aligned to actual
             pred_prices = [base_price]
-            for pred in predictions:
-                pred_prices.append(pred_prices[-1] + pred * 100)  # Scale to price
-            
-            self.pred_chart_ax.plot(pred_prices, colors[i % len(colors)] + '--', linewidth=1, label=model_name, alpha=0.7)
+
+            if model_key == "regression":
+                # predictions are returns
+                for r in list(predictions)[: len(actual_prices) - 1]:
+                    pred_prices.append(pred_prices[-1] * (1.0 + float(r)))
+            else:
+                # predictions are classes 0/1/2 -> map to small returns
+                class_to_ret = {0: -0.001, 1: 0.0, 2: 0.001}
+                for cls in list(predictions)[: len(actual_prices) - 1]:
+                    pred_prices.append(pred_prices[-1] * (1.0 + class_to_ret.get(int(cls), 0.0)))
+
+            # Pad if shorter
+            if len(pred_prices) < len(actual_prices):
+                pred_prices.extend([pred_prices[-1]] * (len(actual_prices) - len(pred_prices)))
+
+            self.pred_chart_ax.plot(x, pred_prices[: len(actual_prices)], colors[i % len(colors)] + '--', linewidth=1, label=model_name, alpha=0.7)
         
         # If no predictions available, show message
         if not models_with_predictions:
@@ -1238,6 +1611,11 @@ class ITSMainWindow(QMainWindow):
         self.pred_chart_ax.legend(loc='upper left', fontsize='small')
         self.pred_chart_ax.grid(True)
         self.pred_canvas.draw()
+
+        try:
+            self.log_message("График предсказаний обновлён")
+        except Exception:
+            pass
     
     def save_orders(self) -> None:
         """Save current orders to file."""
@@ -1296,14 +1674,13 @@ class ITSMainWindow(QMainWindow):
         """Update the price chart with current data."""
         if not MATPLOTLIB_AVAILABLE:
             return
-        
-        # Generate sample price data based on loaded bars
-        import random
-        base_price = 42000.0
-        prices = [base_price]
-        for _ in range(min(50, self.loaded_bars)):
-            change = random.uniform(-100, 100)
-            prices.append(prices[-1] + change)
+
+        if self.price_history:
+            prices = self.price_history[-100:]
+        elif self.ohlcv_data:
+            prices = [c[4] for c in self.ohlcv_data[-100:]]
+        else:
+            return
         
         self.price_chart_ax.clear()
         self.price_chart_ax.plot(prices, 'b-', linewidth=1)
@@ -1375,28 +1752,79 @@ class ITSMainWindow(QMainWindow):
     
     def generate_trading_signal(self) -> None:
         """Generate trading signal from trained models."""
-        if not self.model_training_results or not self.price_history:
+        if self.active_trained_model is None:
             return
-        
+
         import numpy as np
-        
-        # Get latest price data for prediction
-        if len(self.price_history) < 5:
-            return
-        
-        # Simple signal generation based on price trend
-        recent_prices = self.price_history[-5:]
-        trend = recent_prices[-1] - recent_prices[0]
-        
-        if trend > 0:
-            signal = "BUY"
-            confidence = min(0.9, 0.5 + abs(trend) / self.price_history[-1] * 10)
-        elif trend < 0:
-            signal = "SELL"
-            confidence = min(0.9, 0.5 + abs(trend) / self.price_history[-1] * 10)
+
+        # Build latest feature vector compatible with our OHLCV dataset builder
+        if self.ohlcv_data and len(self.ohlcv_data) >= 1:
+            last = self.ohlcv_data[-1]
+            _, o, h, l, c, v = last
+            x = np.array([[c, h - l, c - o, v]], dtype=float)
+        elif self.price_history:
+            c = float(self.price_history[-1])
+            x = np.array([[c, 0.0, 0.0, 0.0]], dtype=float)
         else:
-            signal = "HOLD"
-            confidence = 0.3
+            return
+
+        model = self.active_trained_model
+        signal = "HOLD"
+        confidence = 0.0
+
+        # Regression model: use predicted return
+        try:
+            pred = model.predict(x)
+            if hasattr(pred, "__len__"):
+                pred_val = float(pred[0])
+            else:
+                pred_val = float(pred)
+
+            # If active model is regression, do NOT use dummy predict_proba.
+            if self.active_model_key == "regression":
+                thr = 0.001
+                if pred_val > thr:
+                    signal = "BUY"
+                    confidence = min(0.99, abs(pred_val) * 100)
+                elif pred_val < -thr:
+                    signal = "SELL"
+                    confidence = min(0.99, abs(pred_val) * 100)
+                else:
+                    signal = "HOLD"
+                    confidence = 0.3
+
+            # Otherwise, if model supports predict_proba -> treat as classifier
+            elif hasattr(model, "predict_proba"):
+                try:
+                    proba = model.predict_proba(x)
+                    confidence = float(np.max(proba))
+                    cls = int(np.argmax(proba))
+                    signal = "SELL" if cls == 0 else ("HOLD" if cls == 1 else "BUY")
+                except Exception:
+                    # regression fallback
+                    thr = 0.001
+                    if pred_val > thr:
+                        signal = "BUY"
+                        confidence = min(0.99, abs(pred_val) * 100)
+                    elif pred_val < -thr:
+                        signal = "SELL"
+                        confidence = min(0.99, abs(pred_val) * 100)
+                    else:
+                        signal = "HOLD"
+                        confidence = 0.3
+            else:
+                thr = 0.001
+                if pred_val > thr:
+                    signal = "BUY"
+                    confidence = min(0.99, abs(pred_val) * 100)
+                elif pred_val < -thr:
+                    signal = "SELL"
+                    confidence = min(0.99, abs(pred_val) * 100)
+                else:
+                    signal = "HOLD"
+                    confidence = 0.3
+        except Exception:
+            return
         
         # Emit signal
         signal_data = {
@@ -1409,18 +1837,53 @@ class ITSMainWindow(QMainWindow):
     
     def react_to_signal(self, signal: str, confidence: float, price: float) -> None:
         """React to trading signal by creating orders or updating positions."""
+        from datetime import datetime
+
+        def has_open_order(symbol: str, side: str) -> bool:
+            for row in range(self.orders_table.rowCount()):
+                try:
+                    sym_item = self.orders_table.item(row, 1)
+                    side_item = self.orders_table.item(row, 2)
+                    status_item = self.orders_table.item(row, 4)
+                    if not sym_item or not side_item or not status_item:
+                        continue
+                    if sym_item.text() == symbol and side_item.text() == side and status_item.text() == "open":
+                        return True
+                except Exception:
+                    continue
+            return False
+
+        now = datetime.now()
+        if self._last_order_ts is not None:
+            try:
+                delta = (now - self._last_order_ts).total_seconds()
+            except Exception:
+                delta = 0
+            if delta < float(self._min_order_interval_sec):
+                return
+
         if signal == "BUY" and confidence > 0.6:
-            # Create buy order
+            if has_open_order(self.current_symbol, "buy"):
+                return
+            if self._last_order_side == "buy":
+                return
             order_id = f"ORD-{len(self.live_price_data)}"
             self.create_order(order_id, self.current_symbol, "buy", 0.1, "open")
+            self._last_order_ts = now
+            self._last_order_side = "buy"
             self.log_message(f"Создан ордер на покупку: {order_id}")
         elif signal == "SELL" and confidence > 0.6:
-            # Create sell order
+            if has_open_order(self.current_symbol, "sell"):
+                return
+            if self._last_order_side == "sell":
+                return
             order_id = f"ORD-{len(self.live_price_data)}"
             self.create_order(order_id, self.current_symbol, "sell", 0.1, "open")
+            self._last_order_ts = now
+            self._last_order_side = "sell"
             self.log_message(f"Создан ордер на продажу: {order_id}")
         elif signal == "HOLD":
-            self.log_message("Сигнал HOLD - никаких действий")
+            return
     
     def create_order(self, order_id: str, symbol: str, side: str, size: float, status: str) -> None:
         """Create and display an order."""
