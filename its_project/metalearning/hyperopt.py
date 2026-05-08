@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from typing import Dict, Any, Type, Optional
 import numpy as np
-import optuna
 from sklearn.metrics import accuracy_score, f1_score
+
+try:
+    import optuna
+except ImportError:  # pragma: no cover - exercised only when optional dep is absent
+    optuna = None
 
 from its_project.models.base import BaseModel
 from its_project.metalearning.metrics import TradingMetrics
@@ -81,6 +85,8 @@ class HyperparameterOptimizer:
         price_returns: Optional[np.ndarray] = None,
     ) -> Dict[str, Any]:
         """Run optimization."""
+        if optuna is None:
+            raise RuntimeError("optuna is required for HyperparameterOptimizer.optimize")
         study = optuna.create_study(
             direction="maximize", sampler=optuna.samplers.TPESampler(seed=42)
         )

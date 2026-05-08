@@ -447,8 +447,14 @@ def evaluate_lstm(ohlcv: np.ndarray, prob_threshold: float = 0.6) -> Dict[str, A
         feature_engineer = FeatureEngineer(n_lags=10, volatility_window=10, include_volume=True, include_indicators=True)
         X, y = feature_engineer.build_features_from_ohlcv(ohlcv, lookback=20)
 
-        # Prepare classification targets
-        y_labels = prepare_classification_targets(y, threshold=0.001, use_three_classes=True)
+        # Prepare classification targets with enhanced logic
+        y_labels = prepare_classification_targets(
+            y, 
+            threshold=0.001, 
+            use_three_classes=True,
+            adaptive_threshold=True,
+            volatility_window=20
+        )
 
         # Split data
         split_idx = int(len(X) * 0.8)
@@ -587,8 +593,14 @@ def evaluate_ensemble(ohlcv: np.ndarray, prob_threshold: float = 0.55) -> Dict[s
         feature_engineer = FeatureEngineer(n_lags=10, volatility_window=10, include_volume=True, include_indicators=True)
         X, y = feature_engineer.build_features_from_ohlcv(ohlcv, lookback=20)
 
-        # Prepare classification targets
-        y_labels = prepare_classification_targets(y, threshold=0.001, use_three_classes=True)
+        # Prepare classification targets with enhanced logic
+        y_labels = prepare_classification_targets(
+            y, 
+            threshold=0.001, 
+            use_three_classes=True,
+            adaptive_threshold=True,
+            volatility_window=20
+        )
 
         # Split data
         split_idx = int(len(X) * 0.8)

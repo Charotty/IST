@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Tuple, cast
+from typing import Dict, List, Tuple, Optional, Callable, Any, cast
 
 import numpy as np
 import pandas as pd
@@ -217,3 +217,105 @@ def extract_ohlcv_from_synced(synced: pd.DataFrame) -> pd.DataFrame:
         "volume": vol_series.resample("1s").sum(),
     }).dropna()
     return ohlcv
+
+
+def _extract_numeric_payload(value: Any) -> float:
+    if isinstance(value, dict):
+        for key in ("price", "p", "close", "value"):
+            if key in value:
+                return float(value[key])
+        numeric_values = [v for v in value.values() if isinstance(v, (int, float))]
+        return float(numeric_values[0]) if numeric_values else np.nan
+    if isinstance(value, (int, float, np.number)):
+        return float(value)
+    return np.nan
+
+
+def create_unified_timestep_pipeline(
+    freq: str = "1s",
+    method: str = "ffill",
+    max_gap: str = "5s",
+) -> Callable[[List[MarketData]], pd.DataFrame]:
+    """Return a callable that aligns MarketData to a fixed timestep grid."""
+
+    def pipeline(market_data: List[MarketData]) -> pd.DataFrame:
+        if not market_data:
+            return pd.DataFrame()
+        try:
+            synchronized = synchronize_marketdata(market_data, freq=freq, method=method, max_gap=max_gap)
+            for column in synchronized.columns:
+                synchronized[column] = synchronized[column].map(_extract_numeric_payload)
+                if method == "interpolate":
+                    synchronized[column] = synchronized[column].interpolate(method="linear")
+            synchronized = synchronized.ffill()
+            try:
+                synchronized = synchronized.asfreq(freq)
+            except ValueError:
+                pass
+            return synchronized
+        except ValueError:
+            return synchronize_marketdata(market_data, freq="1s", method="ffill", max_gap=max_gap)
+
+    return pipeline
+
+
+def create_window_pipeline(
+    window_size: str = "10s",
+    step_size: str = "5s",
+    aggregation: str | List[str] = "mean",
+) -> Callable[[List[MarketData]], pd.DataFrame]:
+    """Return a callable that builds rolling window aggregates from MarketData."""
+
+    def pipeline(market_data: List[MarketData]) -> pd.DataFrame:
+        if not market_data:
+            return pd.DataFrame()
+
+        base = create_unified_timestep_pipeline(freq="1s", method="ffill")(market_data)
+        if base.empty:
+            return base
+
+        numeric = base.applymap(_extract_numeric_payload) if base.dtypes.eq(object).any() else base
+        window = pd.Timedelta(window_size)
+        step = pd.Timedelta(step_size)
+        starts = pd.date_range(numeric.index.min(), numeric.index.max(), freq=step)
+        rows = []
+        indices = []
+
+        aggregations = [aggregation] if isinstance(aggregation, str) else aggregation
+        for start in starts:
+            end = start + window
+            chunk = numeric[(numeric.index >= start) & (numeric.index < end)]
+            if chunk.empty:
+                continue
+            row = {}
+            for column in chunk.columns:
+                series = chunk[column].dropna()
+                if series.empty:
+                    continue
+                if aggregation == "ohlcv":
+                    row[f"{column}_open"] = series.iloc[0]
+                    row[f"{column}_high"] = series.max()
+                    row[f"{column}_low"] = series.min()
+                    row[f"{column}_close"] = series.iloc[-1]
+                    row[f"{column}_volume"] = float(len(series))
+                    continue
+                for agg in aggregations:
+                    if agg == "mean":
+                        row[f"{column}_mean"] = series.mean()
+                    elif agg == "std":
+                        row[f"{column}_std"] = series.std()
+                    elif agg == "min":
+                        row[f"{column}_min"] = series.min()
+                    elif agg == "max":
+                        row[f"{column}_max"] = series.max()
+            rows.append(row)
+            indices.append(start)
+
+        result = pd.DataFrame(rows, index=pd.DatetimeIndex(indices))
+        try:
+            result = result.asfreq(step)
+        except ValueError:
+            pass
+        return result
+
+    return pipeline

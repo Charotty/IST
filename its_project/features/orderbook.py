@@ -43,6 +43,32 @@ def _volume_imbalance(bids: np.ndarray, asks: np.ndarray, levels: int = 10) -> f
     return (bid_vol - ask_vol) / (total + 1e-10)
 
 
+def _depth_imbalance(bids: np.ndarray, asks: np.ndarray, levels: int = 10) -> float:
+    """Depth imbalance across available top-N levels."""
+    if bids.size == 0 and asks.size == 0:
+        return np.nan
+    bid_levels = min(levels, bids.shape[0]) if bids.ndim == 2 else 0
+    ask_levels = min(levels, asks.shape[0]) if asks.ndim == 2 else 0
+    bid_volume = bids[:bid_levels, 1].sum() if bid_levels else 0.0
+    ask_volume = asks[:ask_levels, 1].sum() if ask_levels else 0.0
+    total = bid_volume + ask_volume
+    if total == 0:
+        return 0.0
+    return float((bid_volume - ask_volume) / total)
+
+
+def _microprice(bids: np.ndarray, asks: np.ndarray) -> float:
+    """Top-of-book microprice weighted by opposing queue volume."""
+    if bids.size == 0 or asks.size == 0:
+        return np.nan
+    bid_price, bid_volume = bids[0, 0], bids[0, 1]
+    ask_price, ask_volume = asks[0, 0], asks[0, 1]
+    total_volume = bid_volume + ask_volume
+    if total_volume == 0:
+        return np.nan
+    return float((bid_price * ask_volume + ask_price * bid_volume) / total_volume)
+
+
 def _depth_measures(bids: np.ndarray, asks: np.ndarray, levels: int = 10) -> Dict[str, float]:
     """Pure depth measures (cumulative volume, weighted price)."""
     n = min(levels, bids.shape[0], asks.shape[0])

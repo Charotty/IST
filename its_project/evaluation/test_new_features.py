@@ -129,8 +129,14 @@ def test_ensemble_with_new_features(ohlcv: np.ndarray, orderbooks: List[Dict]):
     print(f"Features shape: {X.shape}")
     print(f"Feature names: {feature_engineer.get_feature_names()[:10]}...")
 
-    # Prepare classification targets
-    y_labels = prepare_classification_targets(y, threshold=0.001, use_three_classes=True)
+    # Prepare classification targets with enhanced logic
+    y_labels = prepare_classification_targets(
+        y, 
+        threshold=0.001, 
+        use_three_classes=True,
+        adaptive_threshold=True,
+        volatility_window=20
+    )
 
     # Split data
     split_idx = int(len(X) * 0.8)
@@ -301,8 +307,14 @@ def test_xgboost_with_smote(ohlcv: np.ndarray, orderbooks: List[Dict]):
 
     print(f"Features shape: {X.shape}")
 
-    # Prepare classification targets
-    y_labels = prepare_classification_targets(y, threshold=0.001, use_three_classes=True)
+    # Prepare classification targets with enhanced logic
+    y_labels = prepare_classification_targets(
+        y, 
+        threshold=0.001, 
+        use_three_classes=True,
+        adaptive_threshold=True,
+        volatility_window=20
+    )
 
     # Split data
     split_idx = int(len(X) * 0.8)

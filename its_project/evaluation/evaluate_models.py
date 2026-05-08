@@ -186,8 +186,13 @@ def evaluate_model(
     if is_regression:
         y_train = y_test
     else:
-        # Convert returns to classification labels for classifiers
-        y_train = prepare_classification_targets(y_test, use_three_classes=True)
+        # Convert returns to classification labels for classifiers with enhanced logic
+        y_train = prepare_classification_targets(
+            y_test, 
+            use_three_classes=True,
+            adaptive_threshold=True,
+            volatility_window=20
+        )
 
     # Get model from registry
     try:

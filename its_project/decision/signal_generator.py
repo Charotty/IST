@@ -58,7 +58,7 @@ class SignalGenerator:
         symbol: str = "BTCUSDT"
     ) -> Optional[Signal]:
         """
-        Generate trading signal using regression + classification filter.
+        Generate trading signal using regression + classification filter with ΔP_hat logic.
         
         Args:
             features: Feature array
@@ -74,49 +74,65 @@ class SignalGenerator:
             return None
         
         try:
-            # Step 1: Get regression prediction (price change)
-            price_change = self._predict_price_change(features)
+            # Step 1: Get regression prediction (ΔP_hat)
+            delta_p_hat = self._predict_price_change(features)
             
             # Step 2: Get classification prediction (direction confidence)
             class_proba = self.classification_model.predict_proba(features)
             class_pred = self.classification_model.predict(features)
+            p_hat = float(np.max(class_proba[0]))  # Maximum probability as confidence
             
-            # Step 3: Apply classification filter
-            if not self._classification_filter(class_pred, class_proba):
-                return None
+            # Step 3: Apply enhanced decision logic
+            action = self._delta_p_to_action(delta_p_hat)
             
-            # Step 4: Convert regression prediction to action
-            action = self._price_change_to_action(price_change)
-            
-            # Step 5: Apply threshold
+            # Step 4: Apply confidence filtering
             threshold = self._get_threshold()
-            confidence = self._calculate_confidence(price_change, class_proba)
+            confidence = self._calculate_confidence(delta_p_hat, class_proba)
             
             if confidence < threshold:
                 return None
             
-            # Step 6: Create signal
+            # Step 5: Create enhanced signal with ΔP_hat metadata
             signal = Signal(
                 action=action,
                 confidence=confidence,
                 timestamp=timestamp_ms,
                 symbol=symbol,
                 metadata={
-                    "price_change": price_change,
+                    "delta_p_hat": delta_p_hat,  # Predicted price change
+                    "p_hat": p_hat,  # Maximum probability
                     "classification": int(class_pred[0]),
                     "threshold": threshold,
-                    "threshold_strategy": self.threshold_strategy
+                    "threshold_strategy": self.threshold_strategy,
+                    "action_logic": "sign(delta_p_hat)" if abs(delta_p_hat) > 0.0005 else "threshold_based"
                 }
             )
             
             # Update history
-            self._update_history(price_change, confidence)
+            self._update_history(delta_p_hat, confidence)
             
             return signal
             
         except Exception as e:
             logger.error(f"Error generating signal: {e}")
             return None
+    
+    def _delta_p_to_action(self, delta_p_hat: float) -> Action:
+        """
+        Convert ΔP_hat to action using sign logic.
+        
+        Args:
+            delta_p_hat: Predicted price change
+            
+        Returns:
+            Action based on sign of ΔP_hat
+        """
+        if delta_p_hat > 0:
+            return Action.BUY
+        elif delta_p_hat < 0:
+            return Action.SELL
+        else:
+            return Action.HOLD
     
     def _predict_price_change(self, features: np.ndarray) -> float:
         """Predict price change using regression model."""
@@ -139,6 +155,30 @@ class SignalGenerator:
             return False
         
         return True
+    
+    def _calculate_confidence(self, delta_p_hat: float, class_proba: np.ndarray) -> float:
+        """
+        Calculate confidence based on ΔP_hat and classification probabilities.
+        
+        Args:
+            delta_p_hat: Predicted price change
+            class_proba: Classification probabilities
+            
+        Returns:
+            Combined confidence score
+        """
+        # Base confidence from classification
+        classification_confidence = float(np.max(class_proba))
+        
+        # Adjust confidence based on ΔP_hat magnitude
+        # Larger predicted moves increase confidence
+        move_magnitude = abs(delta_p_hat)
+        magnitude_factor = min(move_magnitude / 0.001, 2.0)  # Normalize around 0.1%
+        
+        # Combined confidence: weighted average
+        combined_confidence = 0.7 * classification_confidence + 0.3 * magnitude_factor
+        
+        return min(combined_confidence, 1.0)
     
     def _price_change_to_action(self, price_change: float) -> Action:
         """Convert price change prediction to trading action."""

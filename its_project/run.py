@@ -1,451 +1,233 @@
 #!/usr/bin/env python3
-"""
-Intelligent Trading System - Unified Launcher
-============================================
+"""Single entry point for the ITS research pipeline.
 
-This is the main entry point for the ITS application.
-Use this script to launch different components of the trading system.
+The project is intentionally kept as a pipeline-first package:
 
-Usage:
-    python run.py gui                    # Launch GUI application
-    python run.py gui --demo             # Launch GUI in demo mode
-    python run.py gui --async           # Launch GUI with async integration
-    python run.py gui --realtime        # Launch GUI with real-time storage
-    python run.py backend                # Start backend services
-    python run.py data                    # Run data processing
-    python run.py test                    # Run system tests
-    python run.py check                   # System health check
-    python run.py setup                   # Initial setup
+data -> features -> targets -> models -> decision -> backtesting/execution
+
+UI launchers and demo dashboards were removed from this entry point so the
+core system can be tested, refactored, and reasoned about as one flow.
 """
 
-import sys
-import os
+from __future__ import annotations
+
 import argparse
-import subprocess
+import json
 import logging
+import subprocess
+import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Any
 
-# Add project root to Python path
-PROJECT_ROOT = Path(__file__).parent
-sys.path.insert(0, str(PROJECT_ROOT))
+import numpy as np
+import pandas as pd
 
-# Ensure logs directory exists
-logs_dir = PROJECT_ROOT / 'logs'
-logs_dir.mkdir(exist_ok=True)
+PROJECT_ROOT = Path(__file__).resolve().parent
+REPO_ROOT = PROJECT_ROOT.parent
 
-# Configure logging using project module
-try:
-    from common.logging import configure_logging
-    configure_logging(logging.INFO)
-except ImportError:
-    # Fallback logging configuration
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+logger = logging.getLogger("its_project")
+
+
+CORE_LAYERS: dict[str, list[str]] = {
+    "common": ["types.py", "config.py", "logging.py", "rate_limiter.py"],
+    "data_layer": ["base.py", "ccxt_source.py", "okx_source.py", "real_market_data.py"],
+    "storage": ["base.py", "parquet.py", "parquet_store.py", "timescale.py", "storage_manager.py"],
+    "features": ["base.py", "pipeline.py", "technical.py", "economic_features.py", "microstructure_features.py"],
+    "targets": ["economic_target.py", "returns_target.py"],
+    "models": ["base.py", "boosting_model.py", "economic_boosting_model.py", "ensemble.py", "registry.py"],
+    "metalearning": ["cv.py", "hyperopt.py", "selector.py", "weighted_ensemble.py"],
+    "decision": ["decision.py", "signal_generator.py", "simple.py", "enhanced_decision.py", "economic_decision_maker.py"],
+    "execution": ["base.py", "paper.py", "live.py", "manager.py", "kill_switch.py", "pnl_tracker.py"],
+    "backtesting": ["base.py", "economic_backtester.py", "walkforward_validator.py", "baseline_strategies.py"],
+    "system": ["config_system.py", "structured_logging.py"],
+    "mlops": ["drift_detection.py", "experiment_tracking.py", "versioning.py"],
+}
+
+
+def configure_logging() -> None:
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler(logs_dir / 'system.log', mode='a')
-        ]
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
 
-logger = logging.getLogger(__name__)
+
+def make_demo_ohlcv(n_samples: int = 600, seed: int = 42) -> pd.DataFrame:
+    """Create deterministic OHLCV data for a smoke-testable pipeline run."""
+    rng = np.random.default_rng(seed)
+    index = pd.date_range("2024-01-01", periods=n_samples, freq="1min")
+    returns = rng.normal(0.0001, 0.01, n_samples)
+    close = 100.0 * np.exp(np.cumsum(returns))
+    open_ = np.r_[close[0], close[:-1]]
+    high = np.maximum(open_, close) * (1.0 + rng.uniform(0.0, 0.003, n_samples))
+    low = np.minimum(open_, close) * (1.0 - rng.uniform(0.0, 0.003, n_samples))
+    volume = rng.lognormal(mean=8.0, sigma=0.35, size=n_samples)
+
+    return pd.DataFrame(
+        {
+            "open": open_,
+            "high": high,
+            "low": low,
+            "close": close,
+            "volume": volume,
+        },
+        index=index,
+    )
 
 
-class ITSLauncher:
-    """Unified launcher for ITS components."""
-    
-    def __init__(self):
-        self.project_root = PROJECT_ROOT
-        self.gui_dir = self.project_root / 'gui'
-        self.logs_dir = self.project_root / 'logs'
-        self.data_dir = self.project_root / 'data'
-        
-        # Ensure directories exist
-        self._ensure_directories()
-    
-    def _ensure_directories(self):
-        """Create necessary directories."""
-        for directory in [self.logs_dir, self.data_dir]:
-            directory.mkdir(exist_ok=True)
-    
-    def run_gui(self, mode: str = 'production', demo: bool = False, with_backend: bool = False) -> int:
-        """Launch GUI application."""
-        logger.info(f"Starting GUI in {mode} mode (demo={demo}, with_backend={with_backend})")
-        
-        # Determine which GUI to launch
-        if mode == 'realtime':
-            gui_script = self.gui_dir / 'realtime_main_window.py'
-        elif mode == 'async':
-            gui_script = self.gui_dir / 'async_main_window.py'
-        elif mode == 'production':
-            gui_script = self.gui_dir / 'production_main_window.py'
-        elif mode == 'integrated':
-            gui_script = self.gui_dir / 'integrated_main_window.py'
-        else:
-            gui_script = self.gui_dir / 'main_window.py'
-        
-        if not gui_script.exists():
-            logger.error(f"GUI script not found: {gui_script}")
-            return 1
-        
-        # Start backend service if requested
-        backend_thread = None
-        if with_backend:
-            logger.info("Starting backend service in-process...")
-            try:
-                from backend import create_service
-                service = create_service(host="127.0.0.1", port=5050)
-                backend_thread = service.run(block=False)
-                logger.info("Backend service started")
-            except ImportError as e:
-                logger.error(f"Failed to import backend module: {e}")
-                logger.error("Install backend dependencies: pip install flask flask-socketio ccxt websockets")
-                return 1
-            except Exception as e:
-                logger.error(f"Failed to start backend: {e}")
-                return 1
-        
-        # Prepare command with proper Python path
-        env = os.environ.copy()
-        env['PYTHONPATH'] = str(self.project_root) + os.pathsep + env.get('PYTHONPATH', '')
-        
-        cmd = [sys.executable, str(gui_script)]
-        if demo:
-            cmd.append('--demo')
-        
-        # Change to GUI directory
-        original_cwd = os.getcwd()
-        os.chdir(self.gui_dir)
-        
-        try:
-            # Launch GUI with proper environment
-            process = subprocess.Popen(cmd, env=env)
-            return process.wait()
-        except Exception as e:
-            logger.error(f"Failed to start GUI: {e}")
-            return 1
-        finally:
-            os.chdir(original_cwd)
-            if backend_thread:
-                logger.info("Stopping backend service...")
-                try:
-                    from backend import get_service
-                    get_service().stop()
-                except:
-                    pass
-    
-    def run_backend(self, host: str = "127.0.0.1", port: int = 5050) -> int:
-        """Start backend services."""
-        logger.info(f"Starting backend services on {host}:{port}")
-        
-        try:
-            from backend import create_service
-            service = create_service(host=host, port=port)
-            service.run(block=True)
-            return 0
-        except ImportError as e:
-            logger.error(f"Failed to import backend module: {e}")
-            logger.error("Make sure backend dependencies are installed (flask, flask-socketio, ccxt, websockets)")
-            return 1
-        except Exception as e:
-            logger.error(f"Failed to start backend: {e}")
-            return 1
-    
-    def run_data_processing(self) -> int:
-        """Run data processing pipeline."""
-        logger.info("Starting data processing")
-        
-        # This would run data processing
-        logger.info("Data processing placeholder - implement as needed")
-        return 0
-    
-    def run_tests(self, test_type: str = 'all') -> int:
-        """Run system tests."""
-        logger.info(f"Running {test_type} tests")
-        
-        # Test commands
-        test_commands = {
-            'all': ['python', '-m', 'pytest', 'tests/', '-v'],
-            'unit': ['python', '-m', 'pytest', 'tests/unit/', '-v'],
-            'integration': ['python', '-m', 'pytest', 'tests/integration/', '-v'],
-            'gui': ['python', '-m', 'pytest', 'tests/gui/', '-v']
+def run_demo(args: argparse.Namespace) -> int:
+    """Run the canonical local pipeline on synthetic data."""
+    from its_project.features.economic_features import EconomicFeatures
+    from its_project.features.microstructure_features import MicrostructureFeatures
+    from its_project.models.economic_boosting_model import EconomicBoostingModel
+    from its_project.targets.economic_target import EconomicTargetCalculator
+
+    data = make_demo_ohlcv(args.samples)
+
+    target_calculator = EconomicTargetCalculator(
+        {
+            "horizon": args.horizon,
+            "threshold": args.threshold,
+            "target_type": "direction",
         }
-        
-        cmd = test_commands.get(test_type, test_commands['all'])
-        
-        try:
-            result = subprocess.run(cmd, cwd=self.project_root)
-            return result.returncode
-        except Exception as e:
-            logger.error(f"Failed to run tests: {e}")
-            return 1
-    
-    def run_health_check(self) -> int:
-        """Run system health check."""
-        logger.info("Running system health check")
-        
-        # Import health check
-        try:
-            from scripts.health_check import SystemHealthChecker
-            checker = SystemHealthChecker()
-            return checker.run_all_checks()
-        except ImportError:
-            logger.warning("Health check module not found, running basic checks")
-            return self._basic_health_check()
-    
-    def _basic_health_check(self) -> int:
-        """Basic health check without external dependencies."""
-        issues = []
-        
-        # Check Python version
-        if sys.version_info < (3, 8):
-            issues.append("Python 3.8+ required")
-        
-        # Check directories
-        required_dirs = ['gui', 'storage', 'models', 'features', 'decision']
-        for dir_name in required_dirs:
-            dir_path = self.project_root / dir_name
-            if not dir_path.exists():
-                issues.append(f"Missing directory: {dir_name}")
-        
-        # Check key files
-        key_files = [
-            'gui/main_window.py',
-            'storage/data_loader.py',
-            'models/base.py',
-            'decision/signal_generator.py'
-        ]
-        
-        for file_path in key_files:
-            full_path = self.project_root / file_path
-            if not full_path.exists():
-                issues.append(f"Missing file: {file_path}")
-        
-        # Report results
-        if issues:
-            logger.error("Health check failed:")
-            for issue in issues:
-                logger.error(f"  - {issue}")
-            return 1
-        else:
-            logger.info("Basic health check passed")
-            return 0
-    
-    def run_setup(self) -> int:
-        """Run initial setup."""
-        logger.info("Running initial setup")
-        
-        # Create directories
-        directories = [
-            'logs',
-            'data/parquet',
-            'data/raw',
-            'models/saved',
-            'cache',
-            'tests/unit',
-            'tests/integration',
-            'tests/gui',
-            'scripts'
-        ]
-        
-        for dir_path in directories:
-            full_path = self.project_root / dir_path
-            full_path.mkdir(parents=True, exist_ok=True)
-            logger.info(f"Created directory: {dir_path}")
-        
-        # Create basic config files
-        self._create_basic_configs()
-        
-        # Test setup
-        logger.info("Testing setup...")
-        test_result = self._test_setup()
-        
-        if test_result == 0:
-            logger.info("✅ Initial setup completed successfully!")
-            logger.info("You can now run: python run.py gui")
-        else:
-            logger.warning("⚠️ Setup completed with warnings")
-        
-        return test_result
-    
-    def _test_setup(self) -> int:
-        """Test that setup was successful."""
-        issues = []
-        
-        # Check GUI files exist
-        gui_files = [
-            'gui/main_window.py',
-            'gui/production_main_window.py',
-            'gui/async_main_window.py',
-            'gui/realtime_main_window.py',
-            'gui/integrated_main_window.py'
-        ]
-        
-        for gui_file in gui_files:
-            full_path = self.project_root / gui_file
-            if not full_path.exists():
-                issues.append(f"Missing GUI file: {gui_file}")
-        
-        # Check common module
-        common_files = ['common/__init__.py', 'common/config.py', 'common/logging.py']
-        for common_file in common_files:
-            full_path = self.project_root / common_file
-            if not full_path.exists():
-                issues.append(f"Missing common file: {common_file}")
-        
-        if issues:
-            logger.warning("Setup test found issues:")
-            for issue in issues:
-                logger.warning(f"  - {issue}")
-            return 1
-        else:
-            logger.info("✅ All critical files present")
-            return 0
-    
-    def _create_basic_configs(self):
-        """Create basic configuration files."""
-        # Create requirements.txt
-        requirements_file = self.project_root / 'requirements.txt'
-        if not requirements_file.exists():
-            requirements_content = """
-# Core dependencies
-numpy>=1.21.0
-pandas>=1.3.0
-scikit-learn>=1.0.0
-
-# GUI
-PyQt6>=6.0.0
-
-# Storage
-pyarrow>=6.0.0
-psycopg2-binary>=2.9.0
-asyncpg>=0.24.0
-
-# ML
-torch>=1.9.0
-tensorflow>=2.6.0
-
-# Testing
-pytest>=6.2.0
-pytest-qt>=4.0.0
-
-# Development
-black>=21.0.0
-flake8>=3.9.0
-"""
-            requirements_file.write_text(requirements_content.strip())
-            logger.info("Created requirements.txt")
-        
-        # Create basic config
-        config_file = self.project_root / 'config.yaml'
-        if not config_file.exists():
-            config_content = """
-# ITS Configuration
-database:
-  timescale_dsn: "postgresql://user:pass@localhost/its"
-  parquet_path: "data/parquet"
-
-trading:
-  initial_balance: 10000.0
-  commission_rate: 0.001
-  max_position_size: 0.1
-
-models:
-  default_model: "GRU-LSTM"
-  model_weights: [0.4, 0.3, 0.3]
-
-logging:
-  level: "INFO"
-  file: "logs/system.log"
-"""
-            config_file.write_text(config_content.strip())
-            logger.info("Created config.yaml")
-
-
-def main():
-    """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Intelligent Trading System Launcher",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  python run.py setup                    # Initial setup
-  python run.py gui                      # Launch production GUI
-  python run.py gui --mode async         # Launch async GUI
-  python run.py gui --demo               # Launch GUI in demo mode
-  python run.py check                    # System health check
-  python run.py test --type gui          # Run GUI tests
-        """
     )
-    
-    # Subcommands
-    subparsers = parser.add_subparsers(dest='command', help='Available commands', metavar='COMMAND')
-    
-    # Setup command
-    setup_parser = subparsers.add_parser('setup', help='Run initial setup and create directories')
-    
-    # GUI command
-    gui_parser = subparsers.add_parser('gui', help='Launch GUI application')
-    gui_parser.add_argument('--mode', choices=['basic', 'integrated', 'production', 'async', 'realtime'],
-                           default='production', help='GUI mode (default: production)')
-    gui_parser.add_argument('--demo', action='store_true', help='Run in demo mode with sample data')
-    gui_parser.add_argument('--with-backend', action='store_true', help='Start backend service in-process with GUI')
-    
-    # Backend command
-    backend_parser = subparsers.add_parser('backend', help='Start backend services')
-    
-    # Data command
-    data_parser = subparsers.add_parser('data', help='Run data processing pipeline')
-    
-    # Test command
-    test_parser = subparsers.add_parser('test', help='Run system tests')
-    test_parser.add_argument('--type', choices=['all', 'unit', 'integration', 'gui'],
-                            default='all', help='Test type (default: all)')
-    
-    # Health check command
-    check_parser = subparsers.add_parser('check', help='Run system health check')
-    
-    # Parse arguments
-    try:
-        args = parser.parse_args()
-    except argparse.ArgumentError as e:
-        logger.error(f"Argument error: {e}")
-        parser.print_help()
+    target, target_metadata = target_calculator.calculate_target(data)
+
+    economic_features = EconomicFeatures(
+        {
+            "return_periods": [1, 5, 15],
+            "volatility_windows": [5, 15],
+            "use_risk_features": True,
+        }
+    ).calculate(data)
+    microstructure_features = MicrostructureFeatures(
+        {
+            "use_order_book": False,
+            "impact_window": 20,
+            "efficiency_window": 50,
+        }
+    ).calculate(data)
+
+    features = np.hstack([economic_features, microstructure_features])
+    valid_mask = target.notna().to_numpy()
+    X = features[valid_mask]
+    y = target.to_numpy()[valid_mask].astype(int)
+
+    split = int(len(X) * 0.8)
+    X_train, X_test = X[:split], X[split:]
+    y_train, y_test = y[:split], y[split:]
+
+    model = EconomicBoostingModel(
+        {
+            "n_estimators": args.estimators,
+            "learning_rate": 0.05,
+            "max_depth": 3,
+            "use_class_weights": True,
+            "early_stopping_rounds": 5,
+        }
+    )
+    model.fit(X_train, y_train)
+
+    train_metrics = model.evaluate_economic_metrics(X_train, y_train)
+    test_metrics = model.evaluate_economic_metrics(X_test, y_test)
+
+    result: dict[str, Any] = {
+        "samples": int(len(data)),
+        "usable_samples": int(len(X)),
+        "feature_shape": list(X.shape),
+        "target_distribution": {
+            str(k): int(v) for k, v in target_metadata["class_distribution"].items()
+        },
+        "train_accuracy": round(float(train_metrics["accuracy"]), 4),
+        "test_accuracy": round(float(test_metrics["accuracy"]), 4),
+        "test_buy_signal_frequency": round(float(test_metrics["buy_signal_frequency"]), 4),
+        "test_sell_signal_frequency": round(float(test_metrics["sell_signal_frequency"]), 4),
+    }
+
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+    return 0
+
+
+def run_check(_: argparse.Namespace) -> int:
+    """Check that core layer directories and files are present."""
+    missing: list[str] = []
+    for layer, files in CORE_LAYERS.items():
+        layer_dir = PROJECT_ROOT / layer
+        if not layer_dir.exists():
+            missing.append(f"{layer}/")
+            continue
+        for file_name in files:
+            if not (layer_dir / file_name).exists():
+                missing.append(f"{layer}/{file_name}")
+
+    if missing:
+        print("Missing core files:")
+        for item in missing:
+            print(f"  - {item}")
         return 1
-    
-    if not args.command:
-        print("Error: No command specified")
-        parser.print_help()
-        return 1
-    
-    # Create launcher
-    launcher = ITSLauncher()
-    
-    # Execute command
+
+    print("Core pipeline structure is present.")
+    return 0
+
+
+def run_layers(_: argparse.Namespace) -> int:
+    """Print the canonical core layer map."""
+    print(json.dumps(CORE_LAYERS, indent=2, ensure_ascii=False))
+    return 0
+
+
+def run_tests(args: argparse.Namespace) -> int:
+    """Run pytest with repository-local paths."""
+    cmd = [
+        sys.executable,
+        "-m",
+        "pytest",
+        str(PROJECT_ROOT / "tests"),
+        "-q",
+        "-p",
+        "no:cacheprovider",
+    ]
+    if args.collect_only:
+        cmd.append("--collect-only")
+    return subprocess.run(cmd, cwd=str(REPO_ROOT), check=False).returncode
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="ITS single pipeline launcher")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    check_parser = subparsers.add_parser("check", help="Validate core pipeline structure")
+    check_parser.set_defaults(func=run_check)
+
+    layers_parser = subparsers.add_parser("layers", help="Print canonical layer map")
+    layers_parser.set_defaults(func=run_layers)
+
+    demo_parser = subparsers.add_parser("demo", help="Run synthetic end-to-end pipeline demo")
+    demo_parser.add_argument("--samples", type=int, default=600)
+    demo_parser.add_argument("--horizon", type=int, default=5)
+    demo_parser.add_argument("--threshold", type=float, default=0.002)
+    demo_parser.add_argument("--estimators", type=int, default=50)
+    demo_parser.set_defaults(func=run_demo)
+
+    test_parser = subparsers.add_parser("test", help="Run tests")
+    test_parser.add_argument("--collect-only", action="store_true")
+    test_parser.set_defaults(func=run_tests)
+
+    return parser
+
+
+def main() -> int:
+    configure_logging()
+    parser = build_parser()
+    args = parser.parse_args()
     try:
-        if args.command == 'gui':
-            return launcher.run_gui(mode=args.mode, demo=args.demo, with_backend=args.with_backend)
-        elif args.command == 'backend':
-            return launcher.run_backend()
-        elif args.command == 'data':
-            return launcher.run_data_processing()
-        elif args.command == 'test':
-            return launcher.run_tests(test_type=args.type)
-        elif args.command == 'check':
-            return launcher.run_health_check()
-        elif args.command == 'setup':
-            return launcher.run_setup()
-        else:
-            logger.error(f"Unknown command: {args.command}")
-            return 1
+        return args.func(args)
     except KeyboardInterrupt:
-        logger.info("Operation cancelled by user")
+        logger.info("Interrupted")
         return 130
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-        return 1
 
 
-if __name__ == '__main__':
-    sys.exit(main())
+if __name__ == "__main__":
+    raise SystemExit(main())

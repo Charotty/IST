@@ -1,0 +1,25 @@
+{
+  "model_type": "GradientBoosting",
+  "accuracy": 1.0,
+  "features": [
+    "RSI",
+    "MACD",
+    "BB_Upper",
+    "BB_Lower",
+    "Volume",
+    "Price_Change",
+    "Bid_Ask_Spread",
+    "Order_Imbalance",
+    "Sentiment"
+  ],
+  "deployment_time": "2026-05-06T13:23:34.232923",
+  "test_prediction": {
+    "signal": "BUY",
+    "confidence": 0.999590469762294,
+    "probabilities": {
+      "SELL": 6.125128503117344e-06,
+      "HOLD": 0.0004034051092027883,
+      "BUY": 0.999590469762294
+    }
+  }
+}

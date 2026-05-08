@@ -147,10 +147,39 @@ class FeatureEngineer:
         closes = ohlcv[:, 3]
         volumes = ohlcv[:, 4]
 
-        # Calculate returns
+        # Calculate enhanced returns (Δreturn) with multiple methods
         returns = np.zeros(n - 1)
         for i in range(n - 1):
-            returns[i] = (closes[i + 1] - closes[i]) / closes[i]
+            # Basic price return
+            basic_return = (closes[i + 1] - closes[i]) / closes[i]
+            
+            # Enhanced return calculation considering:
+            # 1. Log returns for better statistical properties
+            # 2. High-low range for volatility adjustment
+            # 3. Volume-weighted price if available
+            
+            # Log return (more symmetric)
+            log_return = np.log(closes[i + 1] / closes[i])
+            
+            # Range-adjusted return (accounts for intraday volatility)
+            range_adjustment = (highs[i] - lows[i]) / closes[i]
+            adjusted_return = basic_return / (1 + range_adjustment)
+            
+            # Volume-weighted average price (VWAP) approximation
+            if volumes[i] > 0:
+                typical_price = (highs[i] + lows[i] + closes[i]) / 3
+                vwap_return = (typical_price - closes[i]) / closes[i]
+            else:
+                vwap_return = basic_return
+            
+            # Weighted combination: 40% log return, 30% adjusted return, 30% VWAP return
+            enhanced_return = 0.4 * log_return + 0.3 * adjusted_return + 0.3 * vwap_return
+            
+            # Outlier detection and clipping (extreme returns are often noise)
+            if abs(enhanced_return) > 0.05:  # Clip at 5% return
+                enhanced_return = np.sign(enhanced_return) * 0.05
+            
+            returns[i] = enhanced_return
 
         # Build features
         features_list = []
@@ -290,10 +319,39 @@ class FeatureEngineer:
         closes = ohlcv[:, 3]
         volumes = ohlcv[:, 4]
 
-        # Calculate returns
+        # Calculate enhanced returns (Δreturn) with multiple methods
         returns = np.zeros(n - 1)
         for i in range(n - 1):
-            returns[i] = (closes[i + 1] - closes[i]) / closes[i]
+            # Basic price return
+            basic_return = (closes[i + 1] - closes[i]) / closes[i]
+            
+            # Enhanced return calculation considering:
+            # 1. Log returns for better statistical properties
+            # 2. High-low range for volatility adjustment
+            # 3. Volume-weighted price if available
+            
+            # Log return (more symmetric)
+            log_return = np.log(closes[i + 1] / closes[i])
+            
+            # Range-adjusted return (accounts for intraday volatility)
+            range_adjustment = (highs[i] - lows[i]) / closes[i]
+            adjusted_return = basic_return / (1 + range_adjustment)
+            
+            # Volume-weighted average price (VWAP) approximation
+            if volumes[i] > 0:
+                typical_price = (highs[i] + lows[i] + closes[i]) / 3
+                vwap_return = (typical_price - closes[i]) / closes[i]
+            else:
+                vwap_return = basic_return
+            
+            # Weighted combination: 40% log return, 30% adjusted return, 30% VWAP return
+            enhanced_return = 0.4 * log_return + 0.3 * adjusted_return + 0.3 * vwap_return
+            
+            # Outlier detection and clipping (extreme returns are often noise)
+            if abs(enhanced_return) > 0.05:  # Clip at 5% return
+                enhanced_return = np.sign(enhanced_return) * 0.05
+            
+            returns[i] = enhanced_return
 
         # Build features
         features_list = []
@@ -446,28 +504,90 @@ class FeatureEngineer:
 
 def prepare_classification_targets(
     returns: np.ndarray,
-    threshold: float = 0.0015,
-    use_three_classes: bool = True
+    threshold: float = None,
+    use_three_classes: bool = True,
+    adaptive_threshold: bool = True,
+    volatility_window: int = 20
 ) -> np.ndarray:
     """
-    Convert returns to classification labels.
+    Convert returns to classification labels with enhanced logic.
 
     Args:
         returns: Array of returns
-        threshold: Threshold for BUY/SELL signals
+        threshold: Fixed threshold for BUY/SELL signals (if None, uses adaptive)
         use_three_classes: If True, use 3 classes (SELL/HOLD/BUY), else 2 (SELL/BUY)
+        adaptive_threshold: If True, use volatility-adjusted thresholds
+        volatility_window: Window for volatility calculation
 
     Returns:
         Array of labels
     """
-    if use_three_classes:
-        labels = np.ones(len(returns), dtype=int)
-        labels[returns < -threshold] = 0  # SELL
-        labels[returns > threshold] = 2   # BUY
-        # HOLD = 1
+    n = len(returns)
+    
+    # Calculate adaptive threshold based on recent volatility
+    if adaptive_threshold or threshold is None:
+        if threshold is None:
+            threshold = 0.0015  # Default fallback
+        
+        # Use rolling volatility to adjust threshold
+        adaptive_thresholds = np.ones(n) * threshold
+        for i in range(volatility_window, n):
+            recent_returns = returns[i-volatility_window:i]
+            recent_vol = np.std(recent_returns)
+            # Adjust threshold based on volatility (higher vol = higher threshold)
+            adaptive_thresholds[i] = threshold * (1 + recent_vol / 0.01)  # Normalize around 1% vol
+        
+        thresholds = adaptive_thresholds
     else:
-        labels = np.zeros(len(returns), dtype=int)
-        labels[returns > 0] = 1  # BUY
-        # SELL = 0
+        thresholds = np.ones(n) * threshold
+    
+    if use_three_classes:
+        labels = np.ones(n, dtype=int)
+        
+        # Enhanced classification with momentum consideration
+        for i in range(n):
+            if i > 0:  # Consider previous return for momentum
+                prev_return = returns[i-1]
+                current_return = returns[i]
+                current_threshold = thresholds[i]
+                
+                # Momentum-adjusted classification
+                if current_return < -current_threshold:
+                    # Strong negative signal
+                    if prev_return < -current_threshold * 0.5:  # Continuing downtrend
+                        labels[i] = 0  # SELL
+                    else:
+                        labels[i] = 1  # HOLD (possible reversal)
+                elif current_return > current_threshold:
+                    # Strong positive signal
+                    if prev_return > current_threshold * 0.5:  # Continuing uptrend
+                        labels[i] = 2  # BUY
+                    else:
+                        labels[i] = 1  # HOLD (possible reversal)
+                else:
+                    # Small movement - consider volatility
+                    if abs(current_return) > current_threshold * 0.3:
+                        labels[i] = 1  # HOLD
+                    else:
+                        # Very low volatility - keep previous trend
+                        if i > 1:
+                            labels[i] = labels[i-1]
+                        else:
+                            labels[i] = 1  # HOLD
+            else:
+                # First observation
+                if returns[i] < -thresholds[i]:
+                    labels[i] = 0  # SELL
+                elif returns[i] > thresholds[i]:
+                    labels[i] = 2  # BUY
+                else:
+                    labels[i] = 1  # HOLD
+    else:
+        labels = np.zeros(n, dtype=int)
+        for i in range(n):
+            if returns[i] > thresholds[i]:
+                labels[i] = 1  # BUY
+            else:
+                labels[i] = 0  # SELL
 
     return labels

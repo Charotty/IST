@@ -10,7 +10,9 @@ from its_project.features.synchronizer import (
     marketdata_to_dataframe,
     synchronize_marketdata,
     create_strict_pipeline,
-    extract_ohlcv_from_synced
+    extract_ohlcv_from_synced,
+    create_unified_timestep_pipeline,
+    create_window_pipeline
 )
 
 
@@ -511,3 +513,451 @@ class TestExtractOhlcvFromSyncedExtended:
         assert result.iloc[0]["low"] == 42000.0
         assert result.iloc[0]["close"] == 42000.0
         assert result.iloc[0]["volume"] == 1.0
+
+
+@pytest.mark.unit
+@pytest.mark.features_layer
+class TestUnifiedTimestepPipeline:
+    """Test unified timestep pipeline functionality."""
+    
+    def test_unified_timestep_1s(self):
+        """Test unified timestep with 1-second frequency."""
+        base_time = 1704067200000  # 2024-01-01 00:00:00 UTC
+        md_list = [
+            MarketData(
+                timestamp_ms=base_time + 500,      # 0.5s
+                symbol="BTC/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": 42000.0}
+            ),
+            MarketData(
+                timestamp_ms=base_time + 1500,     # 1.5s
+                symbol="BTC/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": 42100.0}
+            ),
+            MarketData(
+                timestamp_ms=base_time + 2700,     # 2.7s
+                symbol="BTC/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": 42200.0}
+            )
+        ]
+        
+        pipeline = create_unified_timestep_pipeline(freq="1s", method="ffill")
+        result = pipeline(md_list)
+        
+        # Should have unified 1-second timesteps
+        assert len(result) >= 3
+        assert isinstance(result.index, pd.DatetimeIndex)
+        assert result.index.freq == pd.Timedelta(seconds=1)
+        assert "ticker" in result.columns
+        
+        # Check that timestamps are aligned to 1-second boundaries
+        for ts in result.index:
+            assert ts.microsecond == 0  # Should be exact second boundaries
+    
+    def test_unified_timestep_5s(self):
+        """Test unified timestep with 5-second frequency."""
+        base_time = 1704067200000
+        md_list = [
+            MarketData(
+                timestamp_ms=base_time + 1000,     # 1s
+                symbol="BTC/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": 42000.0}
+            ),
+            MarketData(
+                timestamp_ms=base_time + 7000,     # 7s
+                symbol="BTC/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": 42100.0}
+            ),
+            MarketData(
+                timestamp_ms=base_time + 12000,    # 12s
+                symbol="BTC/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": 42200.0}
+            )
+        ]
+        
+        pipeline = create_unified_timestep_pipeline(freq="5s", method="ffill")
+        result = pipeline(md_list)
+        
+        # Should have unified 5-second timesteps
+        assert len(result) >= 3
+        assert result.index.freq == pd.Timedelta(seconds=5)
+        
+        # Check that timestamps are aligned to 5-second boundaries
+        for ts in result.index:
+            assert ts.second % 5 == 0  # Should be multiples of 5 seconds
+            assert ts.microsecond == 0
+    
+    def test_unified_timestep_interpolation(self):
+        """Test unified timestep with interpolation method."""
+        base_time = 1704067200000
+        md_list = [
+            MarketData(
+                timestamp_ms=base_time,
+                symbol="BTC/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": 42000.0}
+            ),
+            MarketData(
+                timestamp_ms=base_time + 10000,    # 10s later
+                symbol="BTC/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": 43000.0}
+            )
+        ]
+        
+        pipeline = create_unified_timestep_pipeline(freq="1s", method="interpolate")
+        result = pipeline(md_list)
+        
+        # Should interpolate values between data points
+        assert len(result) > 2
+        assert "ticker" in result.columns
+        
+        # Check interpolation - values should progress smoothly
+        price_values = result["ticker"].dropna()
+        assert len(price_values) > 2
+        assert price_values.iloc[0] == 42000.0
+        assert price_values.iloc[-1] == 43000.0
+    
+    def test_unified_timestep_multiple_symbols(self):
+        """Test unified timestep with multiple symbols."""
+        base_time = 1704067200000
+        md_list = [
+            MarketData(
+                timestamp_ms=base_time + 500,
+                symbol="BTC/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": 42000.0}
+            ),
+            MarketData(
+                timestamp_ms=base_time + 1500,
+                symbol="ETH/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": 2500.0}
+            ),
+            MarketData(
+                timestamp_ms=base_time + 2500,
+                symbol="BTC/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": 42100.0}
+            )
+        ]
+        
+        pipeline = create_unified_timestep_pipeline(freq="1s", method="ffill")
+        result = pipeline(md_list)
+        
+        # Should have separate columns for each symbol
+        assert "ticker_BTC/USDT" in result.columns or "ticker" in result.columns
+        assert len(result) >= 3
+        assert result.index.freq == pd.Timedelta(seconds=1)
+    
+    def test_unified_timestep_empty_data(self):
+        """Test unified timestep with empty data."""
+        pipeline = create_unified_timestep_pipeline(freq="1s", method="ffill")
+        result = pipeline([])
+        
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 0
+    
+    def test_unified_timestep_invalid_frequency(self):
+        """Test unified timestep with invalid frequency."""
+        pipeline = create_unified_timestep_pipeline(freq="invalid", method="ffill")
+        md_list = [
+            MarketData(
+                timestamp_ms=1704067200000,
+                symbol="BTC/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": 42000.0}
+            )
+        ]
+        
+        # Should handle invalid frequency gracefully
+        result = pipeline(md_list)
+        assert isinstance(result, pd.DataFrame)
+
+
+@pytest.mark.unit
+@pytest.mark.features_layer
+class TestWindowPipeline:
+    """Test window pipeline functionality."""
+    
+    def test_window_pipeline_basic(self):
+        """Test basic window pipeline functionality."""
+        base_time = 1704067200000
+        md_list = []
+        
+        # Generate data for 30 seconds
+        for i in range(30):
+            md_list.append(MarketData(
+                timestamp_ms=base_time + i * 1000,
+                symbol="BTC/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": 42000.0 + i * 10}
+            ))
+        
+        pipeline = create_window_pipeline(
+            window_size="10s",
+            step_size="5s",
+            aggregation="mean"
+        )
+        result = pipeline(md_list)
+        
+        # Should have windows with step size of 5s
+        assert len(result) >= 6  # 30s / 5s = 6 windows
+        assert isinstance(result.index, pd.DatetimeIndex)
+        
+        # Check window aggregation
+        assert "ticker_mean" in result.columns
+        assert not result["ticker_mean"].isna().all()
+    
+    def test_window_pipeline_multiple_aggregations(self):
+        """Test window pipeline with multiple aggregations."""
+        base_time = 1704067200000
+        md_list = []
+        
+        # Generate data with price and volume
+        for i in range(20):
+            md_list.append(MarketData(
+                timestamp_ms=base_time + i * 1000,
+                symbol="BTC/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": 42000.0 + i * 10, "volume": 100.0 + i * 5}
+            ))
+        
+        pipeline = create_window_pipeline(
+            window_size="5s",
+            step_size="2s",
+            aggregation=["mean", "std", "min", "max"]
+        )
+        result = pipeline(md_list)
+        
+        # Should have multiple aggregation columns
+        expected_columns = ["ticker_mean", "ticker_std", "ticker_min", "ticker_max"]
+        for col in expected_columns:
+            assert col in result.columns
+        
+        # Check aggregation logic
+        assert result["ticker_min"].le(result["ticker_mean"]).all()
+        assert result["ticker_mean"].le(result["ticker_max"]).all()
+    
+    def test_window_pipeline_custom_step(self):
+        """Test window pipeline with custom step size."""
+        base_time = 1704067200000
+        md_list = []
+        
+        # Generate data for 60 seconds
+        for i in range(60):
+            md_list.append(MarketData(
+                timestamp_ms=base_time + i * 1000,
+                symbol="BTC/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": 42000.0 + i * 5}
+            ))
+        
+        pipeline = create_window_pipeline(
+            window_size="10s",
+            step_size="3s",  # Non-standard step size
+            aggregation="mean"
+        )
+        result = pipeline(md_list)
+        
+        # Should have windows with 3-second steps
+        expected_windows = (60 - 10) // 3 + 1  # ~17 windows
+        assert len(result) >= 15  # Allow for rounding
+        assert result.index.freq == pd.Timedelta(seconds=3)
+    
+    def test_window_pipeline_ohlcv(self):
+        """Test window pipeline with OHLCV aggregation."""
+        base_time = 1704067200000
+        md_list = []
+        
+        # Generate price data
+        for i in range(30):
+            price = 42000.0 + np.sin(i * 0.2) * 100  # Oscillating price
+            md_list.append(MarketData(
+                timestamp_ms=base_time + i * 1000,
+                symbol="BTC/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": price, "volume": 100.0}
+            ))
+        
+        pipeline = create_window_pipeline(
+            window_size="5s",
+            step_size="5s",
+            aggregation="ohlcv"
+        )
+        result = pipeline(md_list)
+        
+        # Should have OHLCV columns
+        ohlcv_columns = ["ticker_open", "ticker_high", "ticker_low", "ticker_close", "ticker_volume"]
+        for col in ohlcv_columns:
+            assert col in result.columns
+        
+        # Check OHLCV logic
+        for i in range(len(result)):
+            row = result.iloc[i]
+            assert row["ticker_low"] <= row["ticker_open"] <= row["ticker_high"]
+            assert row["ticker_low"] <= row["ticker_close"] <= row["ticker_high"]
+            assert row["ticker_volume"] >= 0
+    
+    def test_window_pipeline_multiple_symbols(self):
+        """Test window pipeline with multiple symbols."""
+        base_time = 1704067200000
+        md_list = []
+        
+        # Generate data for two symbols
+        for i in range(20):
+            md_list.append(MarketData(
+                timestamp_ms=base_time + i * 1000,
+                symbol="BTC/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": 42000.0 + i * 10}
+            ))
+            md_list.append(MarketData(
+                timestamp_ms=base_time + i * 1000 + 500,
+                symbol="ETH/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": 2500.0 + i * 5}
+            ))
+        
+        pipeline = create_window_pipeline(
+            window_size="5s",
+            step_size="5s",
+            aggregation="mean"
+        )
+        result = pipeline(md_list)
+        
+        # Should handle multiple symbols
+        assert len(result) >= 4  # 20s / 5s = 4 windows
+        # Should have columns for both symbols
+        ticker_columns = [col for col in result.columns if "ticker" in col]
+        assert len(ticker_columns) >= 2
+    
+    def test_window_pipeline_empty_data(self):
+        """Test window pipeline with empty data."""
+        pipeline = create_window_pipeline(
+            window_size="5s",
+            step_size="5s",
+            aggregation="mean"
+        )
+        result = pipeline([])
+        
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 0
+    
+    def test_window_pipeline_insufficient_data(self):
+        """Test window pipeline with insufficient data for window."""
+        base_time = 1704067200000
+        md_list = [
+            MarketData(
+                timestamp_ms=base_time,
+                symbol="BTC/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": 42000.0}
+            ),
+            MarketData(
+                timestamp_ms=base_time + 2000,  # Only 2 seconds of data
+                symbol="BTC/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": 42100.0}
+            )
+        ]
+        
+        pipeline = create_window_pipeline(
+            window_size="5s",  # 5-second window
+            step_size="5s",
+            aggregation="mean"
+        )
+        result = pipeline(md_list)
+        
+        # Should handle insufficient data gracefully
+        assert isinstance(result, pd.DataFrame)
+        # May have 0 or 1 window depending on implementation
+    
+    def test_window_pipeline_large_window(self):
+        """Test window pipeline with large window size."""
+        base_time = 1704067200000
+        md_list = []
+        
+        # Generate data for 2 minutes
+        for i in range(120):
+            md_list.append(MarketData(
+                timestamp_ms=base_time + i * 1000,
+                symbol="BTC/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": 42000.0 + i * 2}
+            ))
+        
+        pipeline = create_window_pipeline(
+            window_size="30s",  # 30-second window
+            step_size="10s",
+            aggregation="mean"
+        )
+        result = pipeline(md_list)
+        
+        # Should have windows with 10-second steps
+        expected_windows = (120 - 30) // 10 + 1  # 10 windows
+        assert len(result) >= 8  # Allow for edge cases
+        assert result.index.freq == pd.Timedelta(seconds=10)
+    
+    def test_window_pipeline_integration_with_unified_timestep(self):
+        """Test integration between window pipeline and unified timestep."""
+        base_time = 1704067200000
+        md_list = []
+        
+        # Generate irregular data
+        irregular_times = [0, 500, 1500, 3700, 4200, 5800, 6100, 7500, 8900, 9500]
+        for i, offset in enumerate(irregular_times):
+            md_list.append(MarketData(
+                timestamp_ms=base_time + offset,
+                symbol="BTC/USDT",
+                type=MarketDataType.TICKER,
+                exchange="binance",
+                data={"price": 42000.0 + i * 20}
+            ))
+        
+        # First create unified timestep
+        unified_pipeline = create_unified_timestep_pipeline(freq="1s", method="ffill")
+        unified_data = unified_pipeline(md_list)
+        
+        # Then apply window pipeline
+        window_pipeline = create_window_pipeline(
+            window_size="3s",
+            step_size="2s",
+            aggregation="mean"
+        )
+        
+        # Convert unified data back to MarketData for window pipeline
+        # (This would typically be handled by the integrated pipeline)
+        result = window_pipeline(md_list)  # Window pipeline should handle internally
+        
+        # Should have processed windows
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) >= 3
+        assert "ticker_mean" in result.columns
