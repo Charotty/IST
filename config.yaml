@@ -1,0 +1,43 @@
+# Intelligent Trading System Configuration
+
+app:
+  name: "Intelligent Trading System"
+  version: "1.0.0"
+  debug: true
+  log_level: "INFO"
+
+# Data Layer Configuration
+data_layer:
+  connectors:
+    okx:
+      api_key: "${OKX_API_KEY}"
+      secret_key: "${OKX_SECRET_KEY}"
+      passphrase: "${OKX_PASSPHRASE}"
+      sandbox: true
+      rate_limit: 20
+      base_url: "https://www.okx.cab/api/v5"
+  
+  storage:
+    parquet:
+      path: "./data/parquet"
+      compression: "snappy"
+  
+  streaming:
+    buffer_size: 10000
+    batch_size: 100
+    flush_interval: 5
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  handlers:
+    console:
+      enabled: true
+      level: "INFO"
+    file:
+      enabled: true
+      level: "DEBUG"
+      filename: "trading_system.log"
+      max_size: "10MB"
+      backup_count: 5
