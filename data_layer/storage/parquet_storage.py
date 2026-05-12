@@ -80,15 +80,15 @@ class ParquetStorage:
             # Сохранение в Parquet
             table = pa.Table.from_pandas(data_copy)
             
-            write_dataset_kwargs = {
-                'compression': self.compression,
-                'existing_data_behavior': 'overwrite_or_ignore'
+            # Используем write_table вместо write_dataset для совместимости
+            write_table_kwargs = {
+                'compression': self.compression
             }
             
-            pq.write_dataset(
+            pq.write_table(
                 table,
-                root_path=str(file_path),
-                **write_dataset_kwargs
+                str(file_path),
+                **write_table_kwargs
             )
             
             self.logger.info(f"Saved {len(data_copy)} OHLCV records to {file_path}")

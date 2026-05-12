@@ -299,7 +299,15 @@ class OKXOfficialConnector(BaseConnector):
                     
                 except Exception as e:
                     self.logger.error(f"Error in real streaming loop: {e}")
-                    await asyncio.sleep(5)  # Backoff при ошибке
+                    
+                    # Exponential backoff для реконнекта
+                    if not hasattr(self, '_backoff_time'):
+                        self._backoff_time = 1
+                    else:
+                        self._backoff_time = min(self._backoff_time * 2, 30)  # Max 30 секунд
+                    
+                    self.logger.info(f"Waiting {self._backoff_time}s before retry...")
+                    await asyncio.sleep(self._backoff_time)
                     
         except Exception as e:
             self.logger.error(f"Error in stream_data: {e}")

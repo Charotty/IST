@@ -27,6 +27,35 @@ data_layer:
     batch_size: 100
     flush_interval: 5
 
+# Synchronization Layer Configuration
+synchronization:
+  base_timestep: "1s"
+  max_gap_size: 5
+  
+  ohlcv:
+    ohlcv_method: "standard"
+  
+  trades:
+    aggregation_method: "vwap"
+    min_trade_size: 0.001
+  
+  orderbook:
+    depth: 5
+    calculate_spreads: true
+    calculate_imbalance: true
+  
+  gap_handling:
+    method: "adaptive"
+    max_gap_size: 60
+    forward_fill_threshold: 5
+    linear_threshold: 30
+
+# Aggregation Configuration
+aggregation:
+  base_timestep: "1s"
+  aggregation_method: "standard"
+  max_buffer_size: 10000
+
 # Logging Configuration
 logging:
   level: "INFO"

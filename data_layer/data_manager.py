@@ -16,6 +16,16 @@ from .processors.ohlcv_processor import OHLCVProcessor
 from .storage.parquet_storage import ParquetStorage
 from .streamers.websocket_streamer import WebSocketStreamer
 
+# Импорт Synchronization Layer
+try:
+    from ..synchronization.sync_manager import SyncManager
+except ImportError:
+    # Fallback для случаев, когда Synchronization Layer не в той же директории
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+    from synchronization.sync_manager import SyncManager
+
 
 @dataclass
 class DataSource:
@@ -45,6 +55,7 @@ class DataManager:
         self._processors = {}
         self._storage = None
         self._streamers = {}
+        self._sync_manager = None
         
         # Состояние системы
         self._running = False
@@ -70,6 +81,13 @@ class DataManager:
             # Подключение всех коннекторов
             await self._connect_all_sources()
             
+            # Запуск Synchronization Manager
+            if self._sync_manager:
+                await self._sync_manager.start()
+                
+                # Добавление источников данных в синхронизацию
+                await self._setup_synchronization_sources()
+            
             # Инициализация хранилища
             await self._initialize_storage()
             
@@ -92,6 +110,10 @@ class DataManager:
             
             # Отписка от всех потоков
             await self._unsubscribe_all()
+            
+            # Остановка Synchronization Manager
+            if self._sync_manager:
+                await self._sync_manager.stop()
             
             # Отключение всех коннекторов
             await self._disconnect_all_sources()
@@ -185,8 +207,18 @@ class DataManager:
             
             # Потоковая передача данных
             async for data in connector.stream_data(symbol, data_type):
-                # Обработка данных
-                processed_data = await self._process_data(data, data_type)
+                # Синхронизация данных (если включена)
+                if self._sync_manager:
+                    # Используем имя коннектора из конфигурации
+                    connector_name = 'okx'  # или можно получить из data_sources
+                    source_name = f"{connector_name}_{data_type}"
+                    synchronized_data = await self._sync_manager.synchronize_data(data, source_name)
+                    if synchronized_data:
+                        processed_data = await self._process_data(synchronized_data, data_type)
+                    else:
+                        processed_data = await self._process_data(data, data_type)
+                else:
+                    processed_data = await self._process_data(data, data_type)
                 
                 # Сохранение в хранилище (асинхронно)
                 if self._storage:
@@ -295,6 +327,9 @@ class DataManager:
             # Инициализация процессоров
             self._initialize_processors()
             
+            # Инициализация Synchronization Manager
+            self._initialize_synchronization()
+            
             # Инициализация хранилища
             storage_config = self.config.get('data_layer', {}).get('storage', {})
             if storage_config:
@@ -302,6 +337,35 @@ class DataManager:
             
         except Exception as e:
             self.logger.error(f"Error initializing components: {e}")
+    
+    async def _setup_synchronization_sources(self) -> None:
+        """Настройка источников данных для синхронизации"""
+        try:
+            # Добавление источников данных в SyncManager
+            for source in self._data_sources:
+                if source.enabled:
+                    for data_type in source.data_types:
+                        source_name = f"{source.name}_{data_type}"
+                        await self._sync_manager.add_data_source(
+                            source_name, data_type, data_type
+                        )
+                        self.logger.info(f"Added sync source: {source_name}")
+            
+        except Exception as e:
+            self.logger.error(f"Error setting up synchronization sources: {e}")
+    
+    def _initialize_synchronization(self) -> None:
+        """Инициализация Synchronization Manager"""
+        try:
+            sync_config = self.config.get('synchronization', {})
+            if sync_config:
+                self._sync_manager = SyncManager(sync_config)
+                self.logger.info("Synchronization Manager initialized")
+            else:
+                self.logger.info("Synchronization disabled in config")
+        except Exception as e:
+            self.logger.error(f"Error initializing synchronization: {e}")
+            self._sync_manager = None
     
     def _initialize_connectors(self) -> None:
         """Инициализация коннекторов"""
@@ -505,3 +569,81 @@ class DataManager:
             self._metrics['errors_count'] += 1
         elif event_type == 'historical_request':
             self._metrics['last_update'] = datetime.utcnow()
+    
+    async def get_synchronized_data(
+        self,
+        data_type: str,
+        timestamp: Optional[datetime] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Получение синхронизированных данных
+        
+        Args:
+            data_type: Тип данных
+            timestamp: Временная метка
+            
+        Returns:
+            List[Dict]: Синхронизированные данные
+        """
+        if not self._sync_manager:
+            return []
+        
+        return await self._sync_manager.get_aggregated_data(data_type, timestamp)
+    
+    async def get_synchronized_stream(self) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        Получение синхронизированного потока данных
+        
+        Yields:
+            Dict: Синхронизированные данные
+        """
+        if not self._sync_manager:
+            return
+        
+        async for data in self._sync_manager.get_synchronized_streams():
+            yield data
+    
+    def get_synchronization_metrics(self) -> Dict[str, Any]:
+        """
+        Получение метрик синхронизации
+        
+        Returns:
+            Dict: Метрики синхронизации
+        """
+        if not self._sync_manager:
+            return {'synchronization': 'disabled'}
+        
+        return self._sync_manager.get_metrics()
+    
+    async def get_data_status(self) -> Dict[str, Any]:
+        """
+        Получение статуса данных
+        
+        Returns:
+            Dict: Статус данных
+        """
+        status = {
+            'data_manager': {
+                'running': self._running,
+                'connected_sources': self._metrics['connected_sources'],
+                'messages_processed': self._metrics['messages_processed'],
+                'errors_count': self._metrics['errors_count'],
+                'last_update': self._metrics['last_update']
+            },
+            'connectors': {}
+        }
+        
+        # Статус коннекторов
+        for name, connector in self._connectors.items():
+            status['connectors'][name] = {
+                'connected': connector.is_connected,
+                'mock_mode': getattr(connector, 'mock_mode', False)
+            }
+        
+        # Метрики синхронизации
+        if self._sync_manager:
+            status['synchronization'] = self.get_synchronization_metrics()
+        else:
+            status['synchronization'] = {'status': 'disabled'}
+        
+        return status
