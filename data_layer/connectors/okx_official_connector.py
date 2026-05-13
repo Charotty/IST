@@ -117,9 +117,11 @@ class OKXOfficialConnector(BaseConnector):
         symbol: str, 
         timeframe: str, 
         start_time: datetime, 
-        end_time: datetime
+        end_time: datetime,
+        limit: int = 1000,
+        before: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Получение исторических OHLCV данных"""
+        """Получение исторических OHLCV данных (один запрос)"""
         try:
             if self.mock_mode:
                 return await self._get_mock_historical_data(symbol, timeframe, start_time, end_time)
@@ -130,63 +132,32 @@ class OKXOfficialConnector(BaseConnector):
             # Конвертация таймфрейма
             okx_timeframe = self._convert_timeframe(timeframe)
             
-            # Сначала пробуем исторические данные
-            try:
-                # Конвертация времени
-                since = str(int(start_time.timestamp() * 1000))
-                until = str(int(end_time.timestamp() * 1000))
-                
-                # Получение исторических данных (синхронный вызов)
-                import asyncio
-                loop = asyncio.get_event_loop()
+            import asyncio
+            loop = asyncio.get_event_loop()
+            
+            # Получаем данные с параметром before (если указан)
+            if before:
                 result = await loop.run_in_executor(
                     None, 
-                    lambda: self.market_api.get_history_candlesticks(
+                    lambda: self.market_api.get_candlesticks(
                         instId=symbol,
                         bar=okx_timeframe,
-                        after=since,
-                        before=until,
-                        limit=100
+                        before=before,
+                        limit=limit
                     )
                 )
-                
-                if result.get('code') == '0' and result.get('data'):
-                    # Конвертация данных
-                    data = []
-                    for candle in result.get('data', []):
-                        data.append({
-                            'timestamp': datetime.fromtimestamp(int(candle[0]) / 1000),
-                            'open': float(candle[1]),
-                            'high': float(candle[2]),
-                            'low': float(candle[3]),
-                            'close': float(candle[4]),
-                            'volume': float(candle[5]),
-                            'symbol': symbol
-                        })
-                    
-                    return {
-                        'data': data,
-                        'symbol': symbol,
-                        'timeframe': timeframe,
-                        'start_time': start_time,
-                        'end_time': end_time,
-                        'source': 'okx_official'
-                    }
-                    
-            except Exception as e:
-                self.logger.warning(f"Failed to get historical data, trying latest candles: {e}")
-            
-            # Fallback: получаем последние свечи как исторические данные
-            self.logger.info(f"Using latest candles as historical data for {symbol}")
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                None, 
-                lambda: self.market_api.get_candlesticks(
-                    instId=symbol,
-                    bar=okx_timeframe,
-                    limit=100
+            else:
+                # Если before не указан, используем end_time
+                before_ts = str(int(end_time.timestamp() * 1000))
+                result = await loop.run_in_executor(
+                    None, 
+                    lambda: self.market_api.get_candlesticks(
+                        instId=symbol,
+                        bar=okx_timeframe,
+                        before=before_ts,
+                        limit=limit
+                    )
                 )
-            )
             
             if result.get('code') != '0':
                 raise Exception(f"API error: {result}")
@@ -210,7 +181,7 @@ class OKXOfficialConnector(BaseConnector):
                 'timeframe': timeframe,
                 'start_time': start_time,
                 'end_time': end_time,
-                'source': 'okx_official_latest'
+                'source': 'okx_official'
             }
             
         except Exception as e:

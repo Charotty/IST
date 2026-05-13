@@ -79,7 +79,8 @@ class OKXConnector(BaseConnector):
         symbol: str, 
         timeframe: str, 
         start_time: datetime, 
-        end_time: datetime
+        end_time: datetime,
+        limit: int = 300
     ) -> Dict[str, Any]:
         """Получение исторических OHLCV данных"""
         try:
@@ -91,7 +92,8 @@ class OKXConnector(BaseConnector):
                 'instId': symbol,
                 'bar': okx_timeframe,
                 'before': str(int(start_time.timestamp() * 1000)),
-                'after': str(int(end_time.timestamp() * 1000))
+                'after': str(int(end_time.timestamp() * 1000)),
+                'limit': str(limit)  # OKX поддерживает до 300 свечей за запрос
             }
             
             # Запрос данных

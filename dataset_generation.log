@@ -1,0 +1,544 @@
+2026-05-12 16:09:04,413 - __main__ - INFO - Initializing Dataset Generator...
+2026-05-12 16:09:04,413 - SyncManager - INFO - Initialized 3 synchronizers
+2026-05-12 16:09:04,414 - SyncManager - INFO - Initialized 1 aggregators
+2026-05-12 16:09:04,415 - SyncManager - INFO - Initialized 1 handlers
+2026-05-12 16:09:04,415 - DataManager - INFO - Synchronization Manager initialized
+2026-05-12 16:09:04,416 - DataManager - INFO - Starting Data Manager...
+2026-05-12 16:09:05,309 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/tickers?instType=SPOT "HTTP/2 200 OK"
+2026-05-12 16:09:05,314 - OKXOfficialConnector - INFO - Connected to OKX API successfully
+2026-05-12 16:09:05,314 - DataManager - INFO - Connected to source: okx
+2026-05-12 16:09:05,315 - OHLCVSynchronizer - INFO - Started OHLCVSynchronizer
+2026-05-12 16:09:05,315 - SyncManager - INFO - Started ohlcv synchronizer
+2026-05-12 16:09:05,315 - TradesSynchronizer - INFO - Started TradesSynchronizer
+2026-05-12 16:09:05,315 - SyncManager - INFO - Started trades synchronizer
+2026-05-12 16:09:05,316 - OrderBookSynchronizer - INFO - Started OrderBookSynchronizer
+2026-05-12 16:09:05,316 - SyncManager - INFO - Started orderbook synchronizer
+2026-05-12 16:09:05,317 - SyncManager - INFO - Sync Manager started successfully
+2026-05-12 16:09:05,317 - SyncManager - INFO - Added data source: okx_ohlcv (ohlcv)
+2026-05-12 16:09:05,317 - DataManager - INFO - Added sync source: okx_ohlcv
+2026-05-12 16:09:05,317 - SyncManager - INFO - Added data source: okx_trades (trades)
+2026-05-12 16:09:05,318 - DataManager - INFO - Added sync source: okx_trades
+2026-05-12 16:09:05,318 - SyncManager - INFO - Added data source: okx_orderbook (orderbook)
+2026-05-12 16:09:05,319 - DataManager - INFO - Added sync source: okx_orderbook
+2026-05-12 16:09:05,319 - DataManager - INFO - Data Manager started successfully
+2026-05-12 16:09:05,320 - __main__ - INFO - Dataset Generator initialized successfully
+2026-05-12 16:09:05,321 - __main__ - INFO - Starting dataset generation for 8 symbols
+2026-05-12 16:09:05,321 - __main__ - INFO - Timeframes: ['1m', '5m', '15m', '1h', '4h']
+2026-05-12 16:09:05,321 - __main__ - INFO - Data types: ['ohlcv']
+2026-05-12 16:09:05,321 - __main__ - INFO - Days back: 30
+2026-05-12 16:09:05,321 - __main__ - INFO - Loading OHLCV data for BTC-USDT 1m
+2026-05-12 16:09:05,592 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=BTC-USDT&after=1775988545321&before=1778580545321&bar=1m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:05,594 - OKXOfficialConnector - INFO - Using latest candles as historical data for BTC-USDT
+2026-05-12 16:09:05,857 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=BTC-USDT&bar=1m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:05,880 - ParquetStorage - INFO - Saved 99 OHLCV records to data\parquet\ohlcv\BTC-USDT_1m.parquet
+2026-05-12 16:09:05,880 - __main__ - INFO - Loaded 99 records for BTC-USDT 1m
+2026-05-12 16:09:05,881 - __main__ - INFO - Loading OHLCV data for BTC-USDT 5m
+2026-05-12 16:09:06,149 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=BTC-USDT&after=1775988545321&before=1778580545321&bar=5m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:06,150 - OKXOfficialConnector - INFO - Using latest candles as historical data for BTC-USDT
+2026-05-12 16:09:06,412 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=BTC-USDT&bar=5m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:06,426 - ParquetStorage - INFO - Saved 100 OHLCV records to data\parquet\ohlcv\BTC-USDT_5m.parquet
+2026-05-12 16:09:06,426 - __main__ - INFO - Loaded 100 records for BTC-USDT 5m
+2026-05-12 16:09:06,428 - __main__ - INFO - Loading OHLCV data for BTC-USDT 15m
+2026-05-12 16:09:06,698 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=BTC-USDT&after=1775988545321&before=1778580545321&bar=15m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:06,699 - OKXOfficialConnector - INFO - Using latest candles as historical data for BTC-USDT
+2026-05-12 16:09:06,964 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=BTC-USDT&bar=15m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:06,999 - ParquetStorage - INFO - Saved 100 OHLCV records to data\parquet\ohlcv\BTC-USDT_15m.parquet
+2026-05-12 16:09:06,999 - __main__ - INFO - Loaded 100 records for BTC-USDT 15m
+2026-05-12 16:09:06,999 - __main__ - INFO - Loading OHLCV data for BTC-USDT 1h
+2026-05-12 16:09:07,265 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=BTC-USDT&after=1775988545321&before=1778580545321&bar=1H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:07,265 - OKXOfficialConnector - INFO - Using latest candles as historical data for BTC-USDT
+2026-05-12 16:09:07,533 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=BTC-USDT&bar=1H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:07,548 - ParquetStorage - INFO - Saved 100 OHLCV records to data\parquet\ohlcv\BTC-USDT_1h.parquet
+2026-05-12 16:09:07,549 - __main__ - INFO - Loaded 100 records for BTC-USDT 1h
+2026-05-12 16:09:07,550 - __main__ - INFO - Loading OHLCV data for BTC-USDT 4h
+2026-05-12 16:09:07,848 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=BTC-USDT&after=1775988545321&before=1778580545321&bar=4H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:07,850 - OKXOfficialConnector - INFO - Using latest candles as historical data for BTC-USDT
+2026-05-12 16:09:08,120 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=BTC-USDT&bar=4H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:08,136 - ParquetStorage - INFO - Saved 100 OHLCV records to data\parquet\ohlcv\BTC-USDT_4h.parquet
+2026-05-12 16:09:08,136 - __main__ - INFO - Loaded 100 records for BTC-USDT 4h
+2026-05-12 16:09:08,137 - __main__ - INFO - Loading OHLCV data for ETH-USDT 1m
+2026-05-12 16:09:08,409 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=ETH-USDT&after=1775988545321&before=1778580545321&bar=1m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:08,413 - OKXOfficialConnector - INFO - Using latest candles as historical data for ETH-USDT
+2026-05-12 16:09:08,674 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=ETH-USDT&bar=1m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:08,688 - ParquetStorage - INFO - Saved 99 OHLCV records to data\parquet\ohlcv\ETH-USDT_1m.parquet
+2026-05-12 16:09:08,688 - __main__ - INFO - Loaded 99 records for ETH-USDT 1m
+2026-05-12 16:09:08,689 - __main__ - INFO - Loading OHLCV data for ETH-USDT 5m
+2026-05-12 16:09:08,960 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=ETH-USDT&after=1775988545321&before=1778580545321&bar=5m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:08,961 - OKXOfficialConnector - INFO - Using latest candles as historical data for ETH-USDT
+2026-05-12 16:09:09,229 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=ETH-USDT&bar=5m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:09,247 - ParquetStorage - INFO - Saved 100 OHLCV records to data\parquet\ohlcv\ETH-USDT_5m.parquet
+2026-05-12 16:09:09,247 - __main__ - INFO - Loaded 100 records for ETH-USDT 5m
+2026-05-12 16:09:09,249 - __main__ - INFO - Loading OHLCV data for ETH-USDT 15m
+2026-05-12 16:09:09,516 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=ETH-USDT&after=1775988545321&before=1778580545321&bar=15m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:09,517 - OKXOfficialConnector - INFO - Using latest candles as historical data for ETH-USDT
+2026-05-12 16:09:09,783 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=ETH-USDT&bar=15m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:09,808 - ParquetStorage - INFO - Saved 100 OHLCV records to data\parquet\ohlcv\ETH-USDT_15m.parquet
+2026-05-12 16:09:09,808 - __main__ - INFO - Loaded 100 records for ETH-USDT 15m
+2026-05-12 16:09:09,809 - __main__ - INFO - Loading OHLCV data for ETH-USDT 1h
+2026-05-12 16:09:10,067 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=ETH-USDT&after=1775988545321&before=1778580545321&bar=1H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:10,069 - OKXOfficialConnector - INFO - Using latest candles as historical data for ETH-USDT
+2026-05-12 16:09:10,331 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=ETH-USDT&bar=1H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:10,346 - ParquetStorage - INFO - Saved 100 OHLCV records to data\parquet\ohlcv\ETH-USDT_1h.parquet
+2026-05-12 16:09:10,347 - __main__ - INFO - Loaded 100 records for ETH-USDT 1h
+2026-05-12 16:09:10,347 - __main__ - INFO - Loading OHLCV data for ETH-USDT 4h
+2026-05-12 16:09:10,610 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=ETH-USDT&after=1775988545321&before=1778580545321&bar=4H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:10,611 - OKXOfficialConnector - INFO - Using latest candles as historical data for ETH-USDT
+2026-05-12 16:09:10,876 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=ETH-USDT&bar=4H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:10,900 - ParquetStorage - INFO - Saved 100 OHLCV records to data\parquet\ohlcv\ETH-USDT_4h.parquet
+2026-05-12 16:09:10,901 - __main__ - INFO - Loaded 100 records for ETH-USDT 4h
+2026-05-12 16:09:10,901 - __main__ - INFO - Loading OHLCV data for SOL-USDT 1m
+2026-05-12 16:09:11,174 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=SOL-USDT&after=1775988545321&before=1778580545321&bar=1m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:11,176 - OKXOfficialConnector - INFO - Using latest candles as historical data for SOL-USDT
+2026-05-12 16:09:11,441 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=SOL-USDT&bar=1m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:11,466 - ParquetStorage - INFO - Saved 95 OHLCV records to data\parquet\ohlcv\SOL-USDT_1m.parquet
+2026-05-12 16:09:11,466 - __main__ - INFO - Loaded 95 records for SOL-USDT 1m
+2026-05-12 16:09:11,467 - __main__ - INFO - Loading OHLCV data for SOL-USDT 5m
+2026-05-12 16:09:11,744 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=SOL-USDT&after=1775988545321&before=1778580545321&bar=5m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:11,746 - OKXOfficialConnector - INFO - Using latest candles as historical data for SOL-USDT
+2026-05-12 16:09:12,008 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=SOL-USDT&bar=5m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:12,051 - ParquetStorage - INFO - Saved 100 OHLCV records to data\parquet\ohlcv\SOL-USDT_5m.parquet
+2026-05-12 16:09:12,051 - __main__ - INFO - Loaded 100 records for SOL-USDT 5m
+2026-05-12 16:09:12,052 - __main__ - INFO - Loading OHLCV data for SOL-USDT 15m
+2026-05-12 16:09:12,411 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=SOL-USDT&after=1775988545321&before=1778580545321&bar=15m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:12,412 - OKXOfficialConnector - INFO - Using latest candles as historical data for SOL-USDT
+2026-05-12 16:09:12,671 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=SOL-USDT&bar=15m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:12,689 - ParquetStorage - INFO - Saved 98 OHLCV records to data\parquet\ohlcv\SOL-USDT_15m.parquet
+2026-05-12 16:09:12,690 - __main__ - INFO - Loaded 98 records for SOL-USDT 15m
+2026-05-12 16:09:12,690 - __main__ - INFO - Loading OHLCV data for SOL-USDT 1h
+2026-05-12 16:09:12,956 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=SOL-USDT&after=1775988545321&before=1778580545321&bar=1H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:12,957 - OKXOfficialConnector - INFO - Using latest candles as historical data for SOL-USDT
+2026-05-12 16:09:13,217 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=SOL-USDT&bar=1H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:13,236 - ParquetStorage - INFO - Saved 100 OHLCV records to data\parquet\ohlcv\SOL-USDT_1h.parquet
+2026-05-12 16:09:13,237 - __main__ - INFO - Loaded 100 records for SOL-USDT 1h
+2026-05-12 16:09:13,237 - __main__ - INFO - Loading OHLCV data for SOL-USDT 4h
+2026-05-12 16:09:13,504 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=SOL-USDT&after=1775988545321&before=1778580545321&bar=4H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:13,506 - OKXOfficialConnector - INFO - Using latest candles as historical data for SOL-USDT
+2026-05-12 16:09:13,769 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=SOL-USDT&bar=4H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:13,794 - ParquetStorage - INFO - Saved 100 OHLCV records to data\parquet\ohlcv\SOL-USDT_4h.parquet
+2026-05-12 16:09:13,794 - __main__ - INFO - Loaded 100 records for SOL-USDT 4h
+2026-05-12 16:09:13,796 - __main__ - INFO - Loading OHLCV data for BNB-USDT 1m
+2026-05-12 16:09:14,068 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=BNB-USDT&after=1775988545321&before=1778580545321&bar=1m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:14,069 - OKXOfficialConnector - INFO - Using latest candles as historical data for BNB-USDT
+2026-05-12 16:09:14,330 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=BNB-USDT&bar=1m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:14,385 - ParquetStorage - INFO - Saved 69 OHLCV records to data\parquet\ohlcv\BNB-USDT_1m.parquet
+2026-05-12 16:09:14,386 - __main__ - INFO - Loaded 69 records for BNB-USDT 1m
+2026-05-12 16:09:14,386 - __main__ - INFO - Loading OHLCV data for BNB-USDT 5m
+2026-05-12 16:09:14,660 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=BNB-USDT&after=1775988545321&before=1778580545321&bar=5m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:14,661 - OKXOfficialConnector - INFO - Using latest candles as historical data for BNB-USDT
+2026-05-12 16:09:14,922 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=BNB-USDT&bar=5m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:14,936 - ParquetStorage - INFO - Saved 74 OHLCV records to data\parquet\ohlcv\BNB-USDT_5m.parquet
+2026-05-12 16:09:14,937 - __main__ - INFO - Loaded 74 records for BNB-USDT 5m
+2026-05-12 16:09:14,938 - __main__ - INFO - Loading OHLCV data for BNB-USDT 15m
+2026-05-12 16:09:15,282 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=BNB-USDT&after=1775988545321&before=1778580545321&bar=15m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:15,297 - OKXOfficialConnector - INFO - Using latest candles as historical data for BNB-USDT
+2026-05-12 16:09:15,587 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=BNB-USDT&bar=15m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:15,600 - ParquetStorage - INFO - Saved 93 OHLCV records to data\parquet\ohlcv\BNB-USDT_15m.parquet
+2026-05-12 16:09:15,600 - __main__ - INFO - Loaded 93 records for BNB-USDT 15m
+2026-05-12 16:09:15,601 - __main__ - INFO - Loading OHLCV data for BNB-USDT 1h
+2026-05-12 16:09:15,864 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=BNB-USDT&after=1775988545321&before=1778580545321&bar=1H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:15,865 - OKXOfficialConnector - INFO - Using latest candles as historical data for BNB-USDT
+2026-05-12 16:09:16,131 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=BNB-USDT&bar=1H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:16,153 - ParquetStorage - INFO - Saved 100 OHLCV records to data\parquet\ohlcv\BNB-USDT_1h.parquet
+2026-05-12 16:09:16,153 - __main__ - INFO - Loaded 100 records for BNB-USDT 1h
+2026-05-12 16:09:16,156 - __main__ - INFO - Loading OHLCV data for BNB-USDT 4h
+2026-05-12 16:09:16,425 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=BNB-USDT&after=1775988545321&before=1778580545321&bar=4H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:16,426 - OKXOfficialConnector - INFO - Using latest candles as historical data for BNB-USDT
+2026-05-12 16:09:16,693 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=BNB-USDT&bar=4H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:16,728 - ParquetStorage - INFO - Saved 100 OHLCV records to data\parquet\ohlcv\BNB-USDT_4h.parquet
+2026-05-12 16:09:16,729 - __main__ - INFO - Loaded 100 records for BNB-USDT 4h
+2026-05-12 16:09:16,729 - __main__ - INFO - Loading OHLCV data for XRP-USDT 1m
+2026-05-12 16:09:17,004 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=XRP-USDT&after=1775988545321&before=1778580545321&bar=1m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:17,005 - OKXOfficialConnector - INFO - Using latest candles as historical data for XRP-USDT
+2026-05-12 16:09:17,272 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=XRP-USDT&bar=1m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:17,291 - ParquetStorage - INFO - Saved 93 OHLCV records to data\parquet\ohlcv\XRP-USDT_1m.parquet
+2026-05-12 16:09:17,292 - __main__ - INFO - Loaded 93 records for XRP-USDT 1m
+2026-05-12 16:09:17,292 - __main__ - INFO - Loading OHLCV data for XRP-USDT 5m
+2026-05-12 16:09:17,570 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=XRP-USDT&after=1775988545321&before=1778580545321&bar=5m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:17,571 - OKXOfficialConnector - INFO - Using latest candles as historical data for XRP-USDT
+2026-05-12 16:09:17,835 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=XRP-USDT&bar=5m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:17,847 - ParquetStorage - INFO - Saved 77 OHLCV records to data\parquet\ohlcv\XRP-USDT_5m.parquet
+2026-05-12 16:09:17,849 - __main__ - INFO - Loaded 77 records for XRP-USDT 5m
+2026-05-12 16:09:17,849 - __main__ - INFO - Loading OHLCV data for XRP-USDT 15m
+2026-05-12 16:09:18,130 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=XRP-USDT&after=1775988545321&before=1778580545321&bar=15m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:18,132 - OKXOfficialConnector - INFO - Using latest candles as historical data for XRP-USDT
+2026-05-12 16:09:18,392 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=XRP-USDT&bar=15m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:18,406 - ParquetStorage - INFO - Saved 95 OHLCV records to data\parquet\ohlcv\XRP-USDT_15m.parquet
+2026-05-12 16:09:18,407 - __main__ - INFO - Loaded 95 records for XRP-USDT 15m
+2026-05-12 16:09:18,407 - __main__ - INFO - Loading OHLCV data for XRP-USDT 1h
+2026-05-12 16:09:18,674 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=XRP-USDT&after=1775988545321&before=1778580545321&bar=1H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:18,674 - OKXOfficialConnector - INFO - Using latest candles as historical data for XRP-USDT
+2026-05-12 16:09:18,938 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=XRP-USDT&bar=1H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:18,962 - ParquetStorage - INFO - Saved 100 OHLCV records to data\parquet\ohlcv\XRP-USDT_1h.parquet
+2026-05-12 16:09:18,963 - __main__ - INFO - Loaded 100 records for XRP-USDT 1h
+2026-05-12 16:09:18,963 - __main__ - INFO - Loading OHLCV data for XRP-USDT 4h
+2026-05-12 16:09:19,233 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=XRP-USDT&after=1775988545321&before=1778580545321&bar=4H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:19,234 - OKXOfficialConnector - INFO - Using latest candles as historical data for XRP-USDT
+2026-05-12 16:09:19,501 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=XRP-USDT&bar=4H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:19,520 - ParquetStorage - INFO - Saved 100 OHLCV records to data\parquet\ohlcv\XRP-USDT_4h.parquet
+2026-05-12 16:09:19,520 - __main__ - INFO - Loaded 100 records for XRP-USDT 4h
+2026-05-12 16:09:19,521 - __main__ - INFO - Loading OHLCV data for ADA-USDT 1m
+2026-05-12 16:09:19,800 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=ADA-USDT&after=1775988545321&before=1778580545321&bar=1m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:19,801 - OKXOfficialConnector - INFO - Using latest candles as historical data for ADA-USDT
+2026-05-12 16:09:20,064 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=ADA-USDT&bar=1m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:20,079 - ParquetStorage - INFO - Saved 42 OHLCV records to data\parquet\ohlcv\ADA-USDT_1m.parquet
+2026-05-12 16:09:20,080 - __main__ - INFO - Loaded 42 records for ADA-USDT 1m
+2026-05-12 16:09:20,081 - __main__ - INFO - Loading OHLCV data for ADA-USDT 5m
+2026-05-12 16:09:20,430 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=ADA-USDT&after=1775988545321&before=1778580545321&bar=5m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:20,431 - OKXOfficialConnector - INFO - Using latest candles as historical data for ADA-USDT
+2026-05-12 16:09:20,692 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=ADA-USDT&bar=5m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:20,705 - ParquetStorage - INFO - Saved 58 OHLCV records to data\parquet\ohlcv\ADA-USDT_5m.parquet
+2026-05-12 16:09:20,705 - __main__ - INFO - Loaded 58 records for ADA-USDT 5m
+2026-05-12 16:09:20,706 - __main__ - INFO - Loading OHLCV data for ADA-USDT 15m
+2026-05-12 16:09:20,974 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=ADA-USDT&after=1775988545321&before=1778580545321&bar=15m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:20,975 - OKXOfficialConnector - INFO - Using latest candles as historical data for ADA-USDT
+2026-05-12 16:09:21,240 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=ADA-USDT&bar=15m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:21,253 - ParquetStorage - INFO - Saved 94 OHLCV records to data\parquet\ohlcv\ADA-USDT_15m.parquet
+2026-05-12 16:09:21,253 - __main__ - INFO - Loaded 94 records for ADA-USDT 15m
+2026-05-12 16:09:21,254 - __main__ - INFO - Loading OHLCV data for ADA-USDT 1h
+2026-05-12 16:09:21,526 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=ADA-USDT&after=1775988545321&before=1778580545321&bar=1H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:21,527 - OKXOfficialConnector - INFO - Using latest candles as historical data for ADA-USDT
+2026-05-12 16:09:21,793 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=ADA-USDT&bar=1H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:21,806 - ParquetStorage - INFO - Saved 100 OHLCV records to data\parquet\ohlcv\ADA-USDT_1h.parquet
+2026-05-12 16:09:21,807 - __main__ - INFO - Loaded 100 records for ADA-USDT 1h
+2026-05-12 16:09:21,807 - __main__ - INFO - Loading OHLCV data for ADA-USDT 4h
+2026-05-12 16:09:22,071 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=ADA-USDT&after=1775988545321&before=1778580545321&bar=4H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:22,072 - OKXOfficialConnector - INFO - Using latest candles as historical data for ADA-USDT
+2026-05-12 16:09:22,335 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=ADA-USDT&bar=4H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:22,349 - ParquetStorage - INFO - Saved 100 OHLCV records to data\parquet\ohlcv\ADA-USDT_4h.parquet
+2026-05-12 16:09:22,349 - __main__ - INFO - Loaded 100 records for ADA-USDT 4h
+2026-05-12 16:09:22,349 - __main__ - INFO - Loading OHLCV data for DOT-USDT 1m
+2026-05-12 16:09:22,625 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=DOT-USDT&after=1775988545321&before=1778580545321&bar=1m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:22,626 - OKXOfficialConnector - INFO - Using latest candles as historical data for DOT-USDT
+2026-05-12 16:09:22,892 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=DOT-USDT&bar=1m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:22,907 - ParquetStorage - INFO - Saved 29 OHLCV records to data\parquet\ohlcv\DOT-USDT_1m.parquet
+2026-05-12 16:09:22,908 - __main__ - INFO - Loaded 29 records for DOT-USDT 1m
+2026-05-12 16:09:22,908 - __main__ - INFO - Loading OHLCV data for DOT-USDT 5m
+2026-05-12 16:09:23,270 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=DOT-USDT&after=1775988545321&before=1778580545321&bar=5m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:23,272 - OKXOfficialConnector - INFO - Using latest candles as historical data for DOT-USDT
+2026-05-12 16:09:23,533 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=DOT-USDT&bar=5m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:23,546 - ParquetStorage - INFO - Saved 56 OHLCV records to data\parquet\ohlcv\DOT-USDT_5m.parquet
+2026-05-12 16:09:23,547 - __main__ - INFO - Loaded 56 records for DOT-USDT 5m
+2026-05-12 16:09:23,548 - __main__ - INFO - Loading OHLCV data for DOT-USDT 15m
+2026-05-12 16:09:23,887 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=DOT-USDT&after=1775988545321&before=1778580545321&bar=15m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:23,888 - OKXOfficialConnector - INFO - Using latest candles as historical data for DOT-USDT
+2026-05-12 16:09:24,148 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=DOT-USDT&bar=15m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:24,163 - ParquetStorage - INFO - Saved 86 OHLCV records to data\parquet\ohlcv\DOT-USDT_15m.parquet
+2026-05-12 16:09:24,164 - __main__ - INFO - Loaded 86 records for DOT-USDT 15m
+2026-05-12 16:09:24,164 - __main__ - INFO - Loading OHLCV data for DOT-USDT 1h
+2026-05-12 16:09:24,454 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=DOT-USDT&after=1775988545321&before=1778580545321&bar=1H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:24,455 - OKXOfficialConnector - INFO - Using latest candles as historical data for DOT-USDT
+2026-05-12 16:09:24,719 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=DOT-USDT&bar=1H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:24,732 - ParquetStorage - INFO - Saved 98 OHLCV records to data\parquet\ohlcv\DOT-USDT_1h.parquet
+2026-05-12 16:09:24,733 - __main__ - INFO - Loaded 98 records for DOT-USDT 1h
+2026-05-12 16:09:24,734 - __main__ - INFO - Loading OHLCV data for DOT-USDT 4h
+2026-05-12 16:09:25,064 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=DOT-USDT&after=1775988545321&before=1778580545321&bar=4H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:25,065 - OKXOfficialConnector - INFO - Using latest candles as historical data for DOT-USDT
+2026-05-12 16:09:25,326 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=DOT-USDT&bar=4H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:25,341 - ParquetStorage - INFO - Saved 100 OHLCV records to data\parquet\ohlcv\DOT-USDT_4h.parquet
+2026-05-12 16:09:25,342 - __main__ - INFO - Loaded 100 records for DOT-USDT 4h
+2026-05-12 16:09:25,343 - __main__ - INFO - Loading OHLCV data for LINK-USDT 1m
+2026-05-12 16:09:25,619 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=LINK-USDT&after=1775988545321&before=1778580545321&bar=1m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:25,620 - OKXOfficialConnector - INFO - Using latest candles as historical data for LINK-USDT
+2026-05-12 16:09:25,884 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=LINK-USDT&bar=1m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:25,899 - ParquetStorage - INFO - Saved 89 OHLCV records to data\parquet\ohlcv\LINK-USDT_1m.parquet
+2026-05-12 16:09:25,899 - __main__ - INFO - Loaded 89 records for LINK-USDT 1m
+2026-05-12 16:09:25,900 - __main__ - INFO - Loading OHLCV data for LINK-USDT 5m
+2026-05-12 16:09:26,171 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=LINK-USDT&after=1775988545321&before=1778580545321&bar=5m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:26,172 - OKXOfficialConnector - INFO - Using latest candles as historical data for LINK-USDT
+2026-05-12 16:09:26,434 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=LINK-USDT&bar=5m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:26,447 - ParquetStorage - INFO - Saved 100 OHLCV records to data\parquet\ohlcv\LINK-USDT_5m.parquet
+2026-05-12 16:09:26,447 - __main__ - INFO - Loaded 100 records for LINK-USDT 5m
+2026-05-12 16:09:26,447 - __main__ - INFO - Loading OHLCV data for LINK-USDT 15m
+2026-05-12 16:09:26,825 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=LINK-USDT&after=1775988545321&before=1778580545321&bar=15m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:26,827 - OKXOfficialConnector - INFO - Using latest candles as historical data for LINK-USDT
+2026-05-12 16:09:27,089 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=LINK-USDT&bar=15m&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:27,104 - ParquetStorage - INFO - Saved 97 OHLCV records to data\parquet\ohlcv\LINK-USDT_15m.parquet
+2026-05-12 16:09:27,104 - __main__ - INFO - Loaded 97 records for LINK-USDT 15m
+2026-05-12 16:09:27,106 - __main__ - INFO - Loading OHLCV data for LINK-USDT 1h
+2026-05-12 16:09:27,438 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=LINK-USDT&after=1775988545321&before=1778580545321&bar=1H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:27,439 - OKXOfficialConnector - INFO - Using latest candles as historical data for LINK-USDT
+2026-05-12 16:09:27,701 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=LINK-USDT&bar=1H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:27,716 - ParquetStorage - INFO - Saved 100 OHLCV records to data\parquet\ohlcv\LINK-USDT_1h.parquet
+2026-05-12 16:09:27,716 - __main__ - INFO - Loaded 100 records for LINK-USDT 1h
+2026-05-12 16:09:27,717 - __main__ - INFO - Loading OHLCV data for LINK-USDT 4h
+2026-05-12 16:09:27,983 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/history-candles?instId=LINK-USDT&after=1775988545321&before=1778580545321&bar=4H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:27,984 - OKXOfficialConnector - INFO - Using latest candles as historical data for LINK-USDT
+2026-05-12 16:09:28,247 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/candles?instId=LINK-USDT&bar=4H&limit=100 "HTTP/2 200 OK"
+2026-05-12 16:09:28,264 - ParquetStorage - INFO - Saved 100 OHLCV records to data\parquet\ohlcv\LINK-USDT_4h.parquet
+2026-05-12 16:09:28,266 - __main__ - INFO - Loaded 100 records for LINK-USDT 4h
+2026-05-12 16:09:28,267 - __main__ - INFO - Dataset generation completed. Total records: 3641
+2026-05-12 16:09:28,268 - __main__ - INFO - Starting streaming sample for BTC-USDT - 5 minutes
+2026-05-12 16:09:28,269 - OKXOfficialConnector - INFO - Using real data streaming for trades on BTC-USDT
+2026-05-12 16:09:28,566 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:29,838 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:31,157 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:32,441 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:33,737 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:35,015 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:36,286 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:37,556 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:38,822 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:40,102 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:40,104 - __main__ - INFO - Collected 100 trades
+2026-05-12 16:09:41,373 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:42,650 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:43,918 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:45,188 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:46,455 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:47,724 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:48,989 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:50,249 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:51,551 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:52,823 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:52,824 - __main__ - INFO - Collected 200 trades
+2026-05-12 16:09:54,097 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:55,366 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:56,635 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:57,920 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:09:59,200 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:00,466 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:01,737 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:03,008 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:04,275 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:05,541 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:05,542 - __main__ - INFO - Collected 300 trades
+2026-05-12 16:10:06,809 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:08,079 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:09,346 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:10,620 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:11,941 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:13,212 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:14,485 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:15,774 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:17,117 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:18,378 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:18,379 - __main__ - INFO - Collected 400 trades
+2026-05-12 16:10:19,649 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:20,920 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:22,198 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:23,467 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:24,763 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:26,029 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:27,302 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:28,575 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:29,844 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:31,110 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:31,111 - __main__ - INFO - Collected 500 trades
+2026-05-12 16:10:32,379 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:33,649 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:34,998 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:36,292 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:37,560 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:38,832 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:40,108 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:41,382 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:42,711 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:43,984 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:43,985 - __main__ - INFO - Collected 600 trades
+2026-05-12 16:10:45,259 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:46,527 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:47,789 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:49,060 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:50,328 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:51,589 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:52,856 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:54,123 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:55,392 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:56,743 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:56,744 - __main__ - INFO - Collected 700 trades
+2026-05-12 16:10:58,021 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:10:59,293 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:00,568 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:01,837 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:03,111 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:04,381 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:05,641 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:06,917 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:08,214 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:09,496 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:09,497 - __main__ - INFO - Collected 800 trades
+2026-05-12 16:11:10,760 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:12,031 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:13,298 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:14,563 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:15,847 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:17,120 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:18,389 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:19,680 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:20,943 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:22,210 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:22,211 - __main__ - INFO - Collected 900 trades
+2026-05-12 16:11:23,476 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:24,742 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:26,013 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:27,281 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:28,551 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:29,818 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:31,125 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:32,398 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:33,656 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:34,922 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:34,924 - __main__ - INFO - Collected 1000 trades
+2026-05-12 16:11:36,188 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:37,494 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:38,772 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:40,036 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:41,301 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:42,576 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:43,846 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:45,109 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:46,374 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:47,637 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:47,638 - __main__ - INFO - Collected 1100 trades
+2026-05-12 16:11:48,934 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:50,221 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:51,491 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:52,785 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:54,057 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:55,324 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:56,595 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:57,862 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:11:59,139 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:00,415 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:00,417 - __main__ - INFO - Collected 1200 trades
+2026-05-12 16:12:01,713 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:03,004 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:04,274 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:05,540 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:06,811 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:08,075 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:09,344 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:10,615 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:11,876 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:13,153 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:13,155 - __main__ - INFO - Collected 1300 trades
+2026-05-12 16:12:14,431 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:15,701 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:16,966 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:18,233 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:19,504 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:20,776 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:22,092 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:23,363 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:24,631 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:26,203 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:26,204 - __main__ - INFO - Collected 1400 trades
+2026-05-12 16:12:27,481 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:28,788 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:30,065 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:31,334 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:32,607 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:33,883 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:35,148 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:36,423 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:37,688 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:38,965 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:38,967 - __main__ - INFO - Collected 1500 trades
+2026-05-12 16:12:40,240 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:41,502 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:42,771 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:44,043 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:45,313 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:46,567 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:47,829 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:49,152 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:50,447 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:51,715 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:51,716 - __main__ - INFO - Collected 1600 trades
+2026-05-12 16:12:52,985 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:54,248 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:55,514 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:56,788 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:58,056 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:12:59,318 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:00,586 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:01,853 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:03,120 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:04,394 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:04,395 - __main__ - INFO - Collected 1700 trades
+2026-05-12 16:13:05,665 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:06,937 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:08,206 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:09,476 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:10,743 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:12,054 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:13,314 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:14,580 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:15,842 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:17,120 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:17,123 - __main__ - INFO - Collected 1800 trades
+2026-05-12 16:13:18,395 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:19,708 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:20,978 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:22,246 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:23,516 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:24,782 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:26,056 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:27,330 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:28,599 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:29,898 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:29,899 - __main__ - INFO - Collected 1900 trades
+2026-05-12 16:13:31,165 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:32,435 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:33,705 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:34,978 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:36,246 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:37,509 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:38,787 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:40,096 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:41,375 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:42,653 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:42,654 - __main__ - INFO - Collected 2000 trades
+2026-05-12 16:13:43,928 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:45,198 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:46,472 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:47,747 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:49,015 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:50,292 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:51,565 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:52,831 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:54,098 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:55,366 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:55,367 - __main__ - INFO - Collected 2100 trades
+2026-05-12 16:13:56,636 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:57,907 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:13:59,184 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:00,462 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:01,741 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:03,012 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:04,290 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:05,566 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:06,832 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:08,100 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:08,101 - __main__ - INFO - Collected 2200 trades
+2026-05-12 16:14:09,378 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:10,675 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:11,952 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:13,218 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:14,485 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:15,752 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:17,026 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:18,290 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:19,563 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:20,829 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:20,830 - __main__ - INFO - Collected 2300 trades
+2026-05-12 16:14:22,088 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:23,352 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:24,621 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:25,890 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:27,155 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:28,420 - httpx - INFO - HTTP Request: GET https://www.okx.com/api/v5/market/trades?instId=BTC-USDT&limit=10 "HTTP/2 200 OK"
+2026-05-12 16:14:28,421 - __main__ - INFO - Streaming sample completed. Collected 2350 trades
+2026-05-12 16:14:28,519 - __main__ - INFO - Streaming sample saved to ./data/parquet/trades/BTC-USDT_stream_sample.parquet
+2026-05-12 16:14:28,531 - DataManager - INFO - Stopping Data Manager...
+2026-05-12 16:14:28,532 - OHLCVSynchronizer - INFO - Stopped OHLCVSynchronizer
+2026-05-12 16:14:28,532 - SyncManager - INFO - Stopped ohlcv synchronizer
+2026-05-12 16:14:28,532 - TradesSynchronizer - INFO - Stopped TradesSynchronizer
+2026-05-12 16:14:28,533 - SyncManager - INFO - Stopped trades synchronizer
+2026-05-12 16:14:28,533 - OrderBookSynchronizer - INFO - Stopped OrderBookSynchronizer
+2026-05-12 16:14:28,533 - SyncManager - INFO - Stopped orderbook synchronizer
+2026-05-12 16:14:28,533 - SyncManager - INFO - Sync Manager stopped
+2026-05-12 16:14:28,534 - OKXOfficialConnector - INFO - Disconnected from OKX
+2026-05-12 16:14:28,534 - DataManager - INFO - Disconnected from source: okx
+2026-05-12 16:14:28,534 - DataManager - INFO - Data Manager stopped
+2026-05-12 16:14:28,535 - __main__ - INFO - Data manager stopped

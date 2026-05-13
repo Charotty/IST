@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 from .connectors.base_connector import BaseConnector
 from .connectors.okx_official_connector import OKXOfficialConnector
+from .connectors.ccxt_connector import CCXTConnector
 from .processors.ohlcv_processor import OHLCVProcessor
 from .storage.parquet_storage import ParquetStorage
 from .streamers.websocket_streamer import WebSocketStreamer
@@ -130,7 +131,10 @@ class DataManager:
         timeframe: str,
         start_time: datetime,
         end_time: datetime,
-        source: Optional[str] = None
+        source: Optional[str] = None,
+        limit: int = 300,
+        save_to_storage: bool = False,
+        before: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Получение исторических данных
@@ -142,6 +146,8 @@ class DataManager:
             start_time: Время начала
             end_time: Время окончания
             source: Источник данных (если None, выбирается автоматически)
+            limit: Лимит записей за один запрос (по умолчанию 300)
+            save_to_storage: Сохранять в хранилище (по умолчанию False для пакетной загрузки)
             
         Returns:
             Dict: Исторические данные
@@ -155,14 +161,14 @@ class DataManager:
             
             # Получение данных
             data = await connector.get_historical_data(
-                symbol, timeframe, start_time, end_time
+                symbol, timeframe, start_time, end_time, limit, before
             )
             
             # Обработка данных
             processed_data = await self._process_data(data, data_type)
             
-            # Сохранение в хранилище
-            if self._storage:
+            # Сохранение в хранилище (только если включено)
+            if self._storage and save_to_storage:
                 await self._save_data(processed_data, symbol, data_type, timeframe)
             
             # Обновление метрик
@@ -370,6 +376,22 @@ class DataManager:
     def _initialize_connectors(self) -> None:
         """Инициализация коннекторов"""
         connectors_config = self.config.get('data_layer', {}).get('connectors', {})
+        
+        # CCXT коннектор (Binance по умолчанию)
+        if 'ccxt' in connectors_config:
+            ccxt_config = connectors_config['ccxt']
+            exchange_name = ccxt_config.get('exchange', 'binance')
+            ccxt_connector = CCXTConnector(exchange_name=exchange_name, config=ccxt_config)
+            self._connectors['ccxt'] = ccxt_connector
+            
+            # Добавление в источники данных
+            self._data_sources.append(DataSource(
+                name='ccxt',
+                connector=ccxt_connector,
+                data_types=['ohlcv', 'trades'],
+                priority=0,  # Высший приоритет
+                enabled=True
+            ))
         
         # OKX Official коннектор
         if 'okx' in connectors_config:
