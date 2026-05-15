@@ -2,329 +2,154 @@
 
 ## Назначение
 
-Оптимизация поведения торговой системы с помощью reinforcement learning для управления позицией и исполнением стратегий.
+**Не предсказывает направление рынка.** RL выбирает **уровень риска** (размер экспозиции) поверх готового сигнала `final_signal` / ансамбля. Опционально — расширенное состояние с **OBI** (микроструктура).
 
-## Основная концепция
+Эталон: `TradingEnvironment`, `DQNAgent`, `EnsembleTradingEnv`, `MicrostructureRLenv` в `ist.py`.
 
-RL используется **не** для предсказания рынка, а для **оптимизации поведения системы** на основе предсказаний от ML моделей.
+## Статус
 
-## Observation Space
+| Компонент | Статус |
+|-----------|--------|
+| DQN, discrete risk levels | **Эталон** |
+| EnsembleTradingEnv | **Эталон** |
+| MicrostructureRLenv (+ OBI) | **Эталон** (при live OBI — production) |
+| BUY/SELL/HOLD как actions | **Не используется** |
+| Continuous position [-1,1] | Roadmap |
 
-Наблюдения включают всю релевантную информацию:
+## Концепция
 
-```python
-o_t = [
-    features,        # Технические признаки
-    probabilities,   # Вероятности от ML моделей
-    volatility,      # Текущая волатильность
-    position,        # Текущая позиция
-    balance,         # Баланс счета
-    PnL,            # Прибыль/убыток
-    regime,          # Рыночный режим
-    time_features    # Временные признаки
-]
+```text
+final_signal (от Meta-Learning)  ×  risk_multiplier (от RL)  →  фактическая доходность
 ```
+
+Награда в среде: `reward = signal * price_change * risk_pct * 100`.
 
 ## Action Space
 
-### Дискретный Action Space
+**Дискретный — 3 уровня риска:**
+
+| Action | `risk_multiplier` | Смысл |
+|--------|-------------------|--------|
+| 0 | 0.005 (0.5%) | Low risk |
+| 1 | 0.01 (1%) | Medium |
+| 2 | 0.02 (2%) | High |
 
 ```python
-a_t ∈ {BUY, SELL, HOLD}
+risk_map = {0: 0.005, 1: 0.01, 2: 0.02}
 ```
 
-Простые дискретные действия для базовых стратегий.
+## Observation Space
 
-### Непрерывный Action Space
+### TradingEnvironment (базовый, 10 dim)
 
 ```python
-a_t ∈ [-1, 1]
+state = [
+    rsi, volatility, regime_pred,
+    vol_spike_prob, direction_prob, meta_prob,
+    ema_slope, adx, rsi_15m, rsi_4h
+]
 ```
 
-Непрерывные значения для:
-- -1: полная короткая позиция
-- 0: отсутствие позиции  
-- 1: полная длинная позиция
+### EnsembleTradingEnv (10 dim)
 
-### Multi-dimensional Action Space
+Замена `direction_prob` → **`ensemble_prob`**, остальное как базовый.
+
+### MicrostructureRLenv (11 dim)
+
+Добавлен **`order_book_imbalance`**:
 
 ```python
-a_t = [position_size, stop_loss, take_profit]
+state = [
+    rsi, volatility, regime_pred, vol_spike_prob,
+    ensemble_prob, meta_prob,
+    ema_slope, adx, rsi_15m, rsi_4h,
+    order_book_imbalance
+]
 ```
 
-Сложные действия с параметрами управления риском.
+## DQNAgent
 
-## Reward Function
+| Параметр | Значение |
+|----------|----------|
+| Сеть | Dense(24) → Dense(24) → Linear(actions) |
+| Optimizer | Adam lr=0.001 |
+| `gamma` | 0.95 |
+| `epsilon` | 1.0 → min 0.01, decay 0.995 |
+| Memory | deque maxlen=2000 |
+| Batch | 32 |
 
-Комплексная функция вознаграждения:
+Обучение: episodic, replay из memory, target Q вручную (как в Colab).
+
+## Среда — step
 
 ```python
-R_t = PnL_t - λ * Drawdown_t - γ * Costs_t
+def step(self, action):
+    risk_pct = risk_map[action]
+    signal = df.iloc[step]['final_signal']
+    price_change = (future_close - current_close) / current_close
+    reward = signal * price_change * risk_pct * 100
+    ...
 ```
 
-где:
-- **PnL_t**: прибыль/убыток за период
-- **Drawdown_t**: максимальная просадка
-- **Costs_t**: торговые издержки
-- **λ, γ**: коэффициенты регуляризации
-
-### Components of Reward
-
-#### Profit Component
+## Бэктест RL
 
 ```python
-profit_reward = (current_value - previous_value) / previous_value
+def run_rl_backtest(df, agent):
+    # для каждого бара: action → risk_multiplier
+    # strategy_return = final_signal * pct_change.shift(-1) * risk_multiplier
 ```
 
-#### Risk Component
+Сравнение: **RL dynamic** vs **static 1%** — см. Phase 4 в `ist.py`.
 
-```python
-risk_penalty = λ * max_drawdown + γ * volatility_penalty
-```
+## Выбор реализации
 
-#### Cost Component
+| Сценарий | Среда |
+|----------|--------|
+| Базовый риск-менеджмент | `TradingEnvironment` + `direction_prob`, `meta_prob` |
+| После simple/regime ensemble | `EnsembleTradingEnv` + `ensemble_prob` |
+| С ликвидностью (OBI) | `MicrostructureRLenv` — **предпочтительно при live L2** |
 
-```python
-cost_penalty = transaction_costs + slippage_costs
-```
-
-## RL Алгоритмы
-
-### PPO (Proximal Policy Optimization)
-
-**Рекомендуемый основной алгоритм:**
-
-- Стабильность обучения
-- Хорошая работа с noisy environments
-- Простота реализации
-- Эффективное использование данных
-
-### SAC (Soft Actor-Critic)
-
-Для непрерывных action spaces:
-- Максимальная энтропия
-- Стабильное обучение
-- Хорошая эксплорация
-
-### DQN (Deep Q-Network)
-
-Для дискретных действий:
-- Простота интерпретации
-- Хорошие базовые результаты
-- Стабильное обучение
-
-### A2C (Advantage Actor-Critic)
-
-Легковесный вариант:
-- Быстрое обучение
-- Низкие требования к ресурсам
-- Хорош для prototyping
-
-## Структура модуля
+## Структура модуля (целевая)
 
 ```
 rl_layer/
 ├── __init__.py
-├── environments/
-│   ├── __init__.py
-│   ├── trading_env.py         # Основная среда торговли
-│   ├── portfolio_env.py       # Среда управления портфелем
-│   └── custom_envs.py         # Специализированные среды
-├── agents/
-│   ├── __init__.py
-│   ├── ppo_agent.py           # PPO агент
-│   ├── sac_agent.py           # SAC агент
-│   ├── dqn_agent.py           # DQN агент
-│   └── a2c_agent.py           # A2C агент
-├── training/
-│   ├── __init__.py
-│   ├── rl_trainer.py          # Тренер RL агентов
-│   ├── experience_buffer.py    # Буфер опыта
-│   └── curriculum.py          # Curriculum learning
-├── evaluation/
-│   ├── __init__.py
-│   ├── evaluator.py           # Оценка агентов
-│   ├── metrics.py             # Метрики оценки
-│   └── visualizer.py          # Визуализация результатов
-├── integration/
-│   ├── __init__.py
-│   ├── tensortrade_adapter.py # Адаптер TensorTrade
-│   ├── gym_adapter.py         # Адаптер Gymnasium
-│   └── stable_baselines_adapter.py # Адаптер Stable-Baselines3
-└── rl_manager.py              # Главный менеджер RL
+├── environment.py           # TradingEnvironment
+├── ensemble_environment.py
+├── microstructure_environment.py
+├── dqn_agent.py
+└── rl_backtest.py           # run_rl_backtest
 ```
-
-## Ключевые компоненты
-
-### TradingEnvironment
-
-Основная среда для RL обучения:
-- Симуляция торговли
-- Управление состоянием
-- Расчет вознаграждений
-- Интеграция с рыночными данными
-
-### RLAgent
-
-Базовый класс для всех RL агентов:
-- Стандартизация интерфейсов
-- Общие методы обучения
-- Валидация и логирование
-
-### RLTrainer
-
-Универсальный тренер для RL агентов:
-- Управление процессом обучения
-- Curriculum learning
-- Early stopping и checkpointing
-
-### ExperienceBuffer
-
-Эффективный буфер опыта:
-- Приоритизированный сэмплинг
-- Эффективное использование памяти
-- Параллельная обработка
-
-## TensorTrade Integration
-
-### Почему TensorTrade?
-
-- Специализированная библиотека для trading RL
-- Готовые компоненты для торговли
-- Интеграция с major RL фреймворками
-- Активное развитие
-
-### Интеграция с Stable-Baselines3
-
-```python
-from stable_baselines3 import PPO
-from tensortrade.env.default import TradingEnv
-
-# Создание среды
-env = TradingEnv(
-    portfolio=portfolio,
-    action_scheme="managed-risk",
-    reward_scheme="risk-adjusted"
-)
-
-# Обучение PPO агента
-model = PPO("MlpPolicy", env, verbose=1)
-model.learn(total_timesteps=100000)
-```
-
-## Обучение и валидация
-
-### Curriculum Learning
-
-Постепенное усложнение задач:
-
-1. **Stage 1**: Простая среда с детерминированными данными
-2. **Stage 2**: Добавление стохастичности
-3. **Stage 3**: Реальные рыночные данные
-4. **Stage 4**: Множественные активы
-5. **Stage 5**: Live trading с ограничениями
-
-### Walk-forward Validation
-
-```python
-def rl_walk_forward_validation(agent, data, window_size, step_size):
-    for i in range(0, len(data) - window_size, step_size):
-        train_data = data[i:i+window_size]
-        test_data = data[i+window_size:i+window_size+step_size]
-        
-        # Обучение на train_data
-        agent.train(train_data)
-        
-        # Валидация на test_data
-        performance = agent.evaluate(test_data)
-        
-        # Обновление модели
-        agent.update(performance)
-```
-
-## Технологии
-
-- **Stable-Baselines3** - RL алгоритмы
-- **TensorTrade** - trading среды
-- **Gymnasium** - RL интерфейсы
-- **PyTorch** - deep learning
-- **NumPy** - вычисления
-- **Pandas** - обработка данных
 
 ## Конфигурация
 
 ```yaml
 rl_layer:
-  environment:
-    type: "trading"  # trading, portfolio
-    initial_balance: 10000
-    commission: 0.001
-    max_position_size: 1.0
-    
-  agent:
-    algorithm: "PPO"  # PPO, SAC, DQN, A2C
-    policy: "MlpPolicy"
-    learning_rate: 0.0003
-    n_steps: 2048
-    batch_size: 64
-    
-  training:
-    total_timesteps: 1000000
-    eval_freq: 10000
-    save_freq: 50000
-    curriculum_learning: true
-    
-  reward:
-    type: "risk_adjusted"  # simple, risk_adjusted, sharpe
-    profit_weight: 1.0
-    risk_weight: 0.5
-    cost_weight: 0.1
+  algorithm: dqn
+  action_size: 3
+  risk_multipliers: [0.005, 0.01, 0.02]
+  gamma: 0.95
+  epsilon_decay: 0.995
+  memory_size: 2000
+  batch_size: 32
+  episodes: 5
+  steps_per_episode: 500-2000
+  use_ensemble_state: true
+  use_obi: false              # true когда live OBI
 ```
-
-## Метрики оценки
-
-### Financial Metrics
-
-- **Sharpe Ratio**: риск-скорректированная доходность
-- **Max Drawdown**: максимальная просадка
-- **Win Rate**: процент прибыльных сделок
-- **Profit Factor**: отношение прибыли к убытку
-
-### RL Metrics
-
-- **Average Reward**: среднее вознаграждение
-- **Episode Length**: длительность эпизодов
-- **Exploration**: уровень эксплорации
-- **Convergence**: сходимость обучения
-
-### Stability Metrics
-
-- **Out-of-sample Performance**: производительность на новых данных
-- **Robustness**: устойчивость к изменениям
-- **Transfer Learning**: переносимость между рынками
 
 ## Интеграция
 
-RL Layer получает данные от:
-- **Meta-Learning** - предсказания и вероятности
-- **Feature Engineering** - технические признаки
-- **Risk Management** - ограничения и параметры
+| Откуда | Что |
+|--------|-----|
+| **Meta-Learning** | `final_signal`, `ensemble_prob`, `meta_prob` |
+| **Models** | `regime_pred`, `vol_spike_prob`, probs |
+| **Feature Engineering** | OBI (live) |
+| **Risk Management** | статический `PositionSizer` как baseline vs RL |
+| **Backtesting** | оценка `strategy_return` с multiplier |
 
-И передает решения в:
-- **Decision Layer** - финальные торговые решения
-- **Execution Layer** - параметры исполнения
+## Roadmap
 
-## Требования к реализации
-
-1. **Стабильность** - надежное обучение RL агентов
-2. **Производительность** - быстрые предсказания в real-time
-3. **Масштабируемость** - поддержка множественных стратегий
-4. **Безопасность** - ограничения на риски
-5. **Мониторинг** - отслеживание производительности
-
-## Тестирование
-
-- Unit тесты для компонентов RL
-- Integration тесты с TensorTrade
-- Simulation тесты для различных сценариев
-- Performance тесты для скорости предсказаний
+- Reward: явный штраф за drawdown и costs  
+- Double DQN / Prioritized replay  
+- Не смешивать с генерацией `final_signal` в одной политике  

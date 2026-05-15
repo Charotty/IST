@@ -2,204 +2,117 @@
 
 ## Назначение
 
-Синхронизация разнородных потоков данных от различных источников в единый временной ряд.
+Приведение нескольких OHLCV-таймфреймов к **единому базовому индексу** (по умолчанию `1h`): расчёт MTF-признаков, `resample` + `ffill`, merge с основным рядом.
 
-## Основные задачи
+Реализация **не** отдельный микросервис с субсекундными тиками — это слой выравнивания MTF внутри research/production pipeline (эталон: `MultiTimeframeEngine` в `ist.py`).
 
-- Выравнивание временных меток разных источников
-- Обработка пропусков и аномалий
-- Агрегация данных в единые тimesteps
-- Обеспечение консистентности данных
+## Статус
 
-## Единый timestep
+| Компонент | Статус |
+|-----------|--------|
+| `MultiTimeframeEngine` (resample + ffill → 1h) | **Реализовано** |
+| Gap fill (forward fill) | **Реализовано** |
+| Субсекундная / LOB / trades sync | **Опционально позже** (не ломает текущий дизайн) |
 
-Поддерживаемые интервалы времени:
-- 1 секунда
-- 5 секунд  
-- 1 минута
-- 5 минут
-- 15 минут
+## Базовый timestep
+
+**Целевой индекс:** таймфрейм основного ряда (например `1h`).
+
+Дополнительные TF (`15m`, `4h`) агрегируются к нему:
+
+```python
+df_15_resampled = df_15[cols].resample('1h').last().ffill()
+df_4h_resampled = df_4h[cols].resample('1h').last().ffill()
+df = base_df.join(df_15_resampled).join(df_4h_resampled)
+return df.dropna()
+```
+
+## Эталонная реализация
+
+### MultiTimeframeEngine
+
+```python
+class MultiTimeframeEngine:
+    def __init__(self, loader, symbol, start_date, end_date):
+        ...
+
+    def get_multi_data(self):
+        self.df_15m = loader.fetch_all_ohlcv(symbol, '15m', ...)
+        self.df_4h = loader.fetch_all_ohlcv(symbol, '4h', ...)
+        return self
+
+    def compute_and_merge(self, base_df):
+        # 15m: rsi_15m, ema_slope_15m
+        # 4h:  rsi_4h, adx_4h
+        # resample('1h').last().ffill() → join → dropna()
+```
+
+### MTF-колонки (после merge)
+
+| Колонка | Источник |
+|---------|----------|
+| `rsi_15m` | RSI(14) на 15m |
+| `ema_slope_15m` | pct_change EMA(20) на 15m |
+| `rsi_4h` | RSI(14) на 4h |
+| `adx_4h` | ADX(14) на 4h |
 
 ## Методы обработки пропусков
 
-### Forward Fill
+### Forward Fill (основной)
 
 ```python
-x_t = x_{t-1}
+x_t = x_{t-1}  # после resample().last().ffill()
 ```
 
-Простое заполнение предыдущим значением.
+Используется для MTF-признаков на сетке базового TF.
 
-### Linear Interpolation
+### Linear / Adaptive Fill (roadmap)
 
-```python
-x_t = x_{t-1} + α(x_{t+1} - x_{t-1})
-```
+Допустимы для **других** источников (LOB, funding) без изменения `MultiTimeframeEngine`:
 
-Линейная интерполяция между соседними точками.
+- короткие пропуски — `ffill`  
+- длинные — linear interpolation или пометка `is_gap`  
 
-### Adaptive Fill
+Не применять к OHLCV merge без отдельного ADR.
 
-Комбинация методов в зависимости от типа данных и длины пропуска.
-
-## Структура модуля
+## Структура модуля (целевая)
 
 ```
 synchronization/
 ├── __init__.py
-├── synchronizers/
-│   ├── __init__.py
-│   ├── base_synchronizer.py     # Базовый класс синхронизатора
-│   ├── ohlcv_synchronizer.py   # Синхронизация OHLCV
-│   ├── orderbook_synchronizer.py # Синхронизация order book
-│   └── trades_synchronizer.py  # Синхронизация сделок
-├── aggregators/
-│   ├── __init__.py
-│   ├── time_aggregator.py      # Временная агрегация
-│   ├── price_aggregator.py     # Агрегация цен
-│   └── volume_aggregator.py    # Агрегация объемов
-├── handlers/
-│   ├── __init__.py
-│   ├── gap_handler.py          # Обработка пропусков
-│   ├── outlier_handler.py      # Обработка выбросов
-│   └── anomaly_detector.py     # Детекция аномалий
-└── sync_manager.py             # Главный менеджер синхронизации
+├── multi_timeframe_engine.py   # эталон из ist.py
+└── gap_handler.py              # опционально: adaptive fill для live
 ```
-
-## Ключевые компоненты
-
-### BaseSynchronizer
-
-Абстрактный базовый класс для всех синхронизаторов:
-- Стандартизация интерфейсов
-- Общие методы обработки времени
-- Валидация временных меток
-
-### SyncManager
-
-Центральный компонент управления синхронизацией:
-- Координация всех синхронизаторов
-- Управление буферами данных
-- Обработка конфликтов временных меток
-- Мониторинг качества синхронизации
-
-### TimeAggregator
-
-Агрегация данных в единые временные интервалы:
-- OHLCV агрегация (open, high, low, close, volume)
-- Order book снэпшоты
-- Trade агрегация
-
-### GapHandler
-
-Интеллектуальная обработка пропусков:
-- Детекция типов пропусков
-- Выбор метода заполнения
-- Оценка качества заполнения
-
-## Алгоритмы синхронизации
-
-### Event-driven синхронизация
-
-```python
-async def event_driven_sync():
-    # Реакция на новые события
-    # Минимальная задержка
-    pass
-```
-
-### Time-based синхронизация
-
-```python
-async def time_based_sync():
-    # Периодическая синхронизация
-    # Гарантирует консистентность
-    pass
-```
-
-### Hybrid подход
-
-Комбинация event-driven и time-based для оптимального баланса скорости и надежности.
-
-## Обработка разных типов данных
-
-### OHLCV данные
-
-- Агрегация в тimesteps
-- Forward fill для пропусков
-- Валидация логических соотношений (low ≤ high)
-
-### Order Book
-
-- Снэпшоты в моменты времени
-- Интерполяция для пропусков
-- Расчет производных метрик
-
-### Trades
-
-- Агрегация по временным интервалам
-- Расчет VWAP
-- Фильтрация шумовых сделок
-
-## Технологии
-
-- **pandas** - временные ряды и агрегация
-- **numpy** - численные операции
-- **asyncio** - асинхронная обработка
-- **scipy** - интерполяция и статистика
 
 ## Конфигурация
 
 ```yaml
 synchronization:
-  base_timestep: "1s"  # Базовый интервал
-  
-  gap_handling:
-    max_gap_size: 60    # Максимальный размер пропуска (сек)
-    method: "adaptive"  # forward, linear, adaptive
-    threshold: 0.1      # Порог для детекции аномалий
-  
-  aggregation:
-    ohlcv_method: "standard"  # standard, vwap, twap
-    volume_method: "sum"      # sum, mean
-    
-  buffers:
-    size: 10000        # Размер буфера
-    flush_interval: 5  # Интервал сброса (сек)
+  base_timeframe: "1h"
+  auxiliary_timeframes: ["15m", "4h"]
+  resample_rule: "1h"          # = base_timeframe
+  fill_method: "ffill"
+  drop_na_after_merge: true
 ```
 
-## Метрики качества
+## Расширения (не ломают MTF)
 
-### Скорость синхронизации
-- Latency (мс)
-- Throughput (сообщений/сек)
-- Buffer utilization
+При появлении L2/trades:
 
-### Качество данных
-- Gap ratio (% пропусков)
-- Interpolation error
-- Consistency score
+- отдельный `orderbook_synchronizer` → снэпшоты на `base_timeframe`  
+- `gap_handler`: `max_gap_size`, `method: adaptive`  
+- метрики: gap ratio, consistency score  
 
 ## Интеграция
 
-Synchronization Layer получает данные от:
-- **Data Layer** - сырые потоки данных
-
-И передает данные в:
-- **Feature Engineering** - синхронизированные данные для признаков
-- **Storage** - для сохранения синхронизированных данных
-
-## Требования к реализации
-
-1. **Real-time обработка** - минимальные задержки
-2. **Надежность** - обработка сбоев и пропусков
-3. **Масштабируемость** - поддержка множественных источников
-4. **Точность** - корректная временная синхронизация
-5. **Мониторинг** - метрики качества синхронизации
+| Откуда | Куда |
+|--------|------|
+| **Data Layer** | сырые OHLCV по TF |
+| **Feature Engineering** | единый `df` с MTF-колонками |
+| **Models** | те же строки, что и базовый 1h |
 
 ## Тестирование
 
-- Unit тесты для алгоритмов синхронизации
-- Integration тесты с реальными данными
-- Performance тесты для latency
-- Stress тесты для высокой нагрузки
+- Длина индекса после merge = длина `base_df` (минус `dropna`)  
+- Нет look-ahead: только `resample().last()` на прошлых барах вспомогательного TF  
+- Стабильность `ffill` при редких барах 4h  

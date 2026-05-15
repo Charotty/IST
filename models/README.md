@@ -1,323 +1,542 @@
-# Models Layer
+# models/ — Adaptive Multi-Model Prediction Layer
 
-## Назначение
+## Overview
 
-Модели машинного обучения для прогнозирования рыночного поведения и генерации торговых сигналов.
+The `models/` module contains all predictive architectures used by the adaptive trading system.
 
-## Основные задачи
+Unlike traditional trading systems based on a single predictive model, this architecture uses:
 
-- Классификация направления движения цены
-- Регрессия для предсказания доходности
-- Оценка вероятностей торговых сигналов
-- Ансамблевое комбинирование моделей
+```text
+dynamic model selection based on market regime
+```
 
-## Типы задач
+Different model families are activated under different market conditions.
 
-### 1. Классификация
+The goal is to improve:
 
-Предсказание направления движения:
+- robustness,
+- adaptability,
+- regime specialization,
+- risk-adjusted performance.
+
+---
+
+# Core Architecture
+
+```text
+Market Features
+    ↓
+Regime Detection Layer
+    ↓
+Model Router
+    ↓
+
+Trend Regime
+    → GRU/LSTM Model
+
+Mean Reversion Regime
+    → XGBoost Model
+
+Volatility Breakout Regime
+    → CNN Model
+
+Low Confidence Regime
+    → No Trade
+
+    ↓
+
+Meta Filter
+    ↓
+Position Sizing
+    ↓
+Execution
+```
+
+---
+
+# System Philosophy
+
+The market is non-stationary.
+
+A single model cannot consistently outperform across:
+
+- trending markets,
+- ranging markets,
+- volatility expansions,
+- liquidity shocks.
+
+Therefore, the system dynamically selects specialized models depending on current market structure.
+
+---
+
+# Directory Structure
+
+```text
+models/
+│
+├── regime/
+├── router/
+├── trend/
+├── mean_reversion/
+├── volatility/
+├── meta/
+├── sizing/
+│
+├── calibration/
+├── evaluation/
+├── registry/
+├── training/
+├── inference/
+└── utils/
+```
+
+---
+
+# 1. regime/
+
+## Purpose
+
+Detect current market conditions.
+
+This module determines:
+
+- trend vs flat,
+- bullish vs bearish,
+- high volatility vs low volatility.
+
+---
+
+## Primary Model
+
+### LightGBM
+
+Best suited for:
+- tabular features,
+- regime classification,
+- nonlinear feature interactions.
+
+---
+
+## Alternative Models
+
+- Hidden Markov Models
+- XGBoost
+
+---
+
+## Outputs
 
 ```python
-y_t = {
-    BUY,    # r_{t+h} > τ
-    SELL,   # r_{t+h} < -τ  
-    HOLD    # |r_{t+h}| ≤ τ
+{
+    "market_regime": "trend",
+    "volatility_regime": "high_vol",
+    "trade_allowed": True
 }
 ```
 
-### 2. Регрессия
+---
 
-Предсказание доходности:
+# 2. router/
 
-```python
-ΔP̂_t = f(X_t)
-```
+## Purpose
 
-### 3. Оценка вероятностей
+Dynamic model orchestration layer.
 
-Вероятность торгового сигнала:
+This module selects which predictive model should be used based on current regime conditions.
 
-```python
-P(BUY) = f(X_t)
-P(SELL) = f(X_t)  
-P(HOLD) = f(X_t)
-```
+---
 
-## Используемые модели
-
-### 1. Базовые модели (Boosting)
-
-#### LightGBM
-- Быстрое обучение
-- Хорошая производительность на табличных данных
-- Встроенная обработка пропусков
-
-#### XGBoost
-- Высокая точность
-- Регуляризация для предотвращения overfitting
-- Параллельное обучение
-
-### 2. Временные модели (Deep Learning)
-
-#### GRU (Gated Recurrent Unit)
-- Эффективная обработка временных последовательностей
-- Меньше параметров чем LSTM
-- Быстрое обучение
-
-#### LSTM (Long Short-Term Memory)
-- Долгосрочные зависимости
-- Memory cells для информации
-- Хорошо для долгосрочных паттернов
-
-#### Transformer
-- Attention mechanism
-- Параллельная обработка последовательностей
-- Хорошо для сложных зависимостей
-
-### 3. Специализированные модели
-
-#### CNN-LOB
-- Сверточные сети для order book
-- Извлечение пространственных паттернов
-- Хорошо для микроструктурных данных
-
-## Структура модуля
-
-```
-models/
-├── __init__.py
-├── base/
-│   ├── __init__.py
-│   ├── base_model.py         # Базовый класс модели
-│   ├── model_interface.py    # Интерфейс моделей
-│   └── model_utils.py       # Утилиты моделей
-├── boosting/
-│   ├── __init__.py
-│   ├── lightgbm_model.py     # LightGBM реализация
-│   ├── xgboost_model.py      # XGBoost реализация
-│   └── boosting_utils.py     # Утилиты boosting
-├── deep_learning/
-│   ├── __init__.py
-│   ├── gru_model.py          # GRU реализация
-│   ├── lstm_model.py         # LSTM реализация
-│   ├── transformer_model.py  # Transformer реализация
-│   └── neural_utils.py       # Утилиты нейросетей
-├── specialized/
-│   ├── __init__.py
-│   ├── cnn_lob_model.py      # CNN для Order Book
-│   └── ensemble_model.py     # Ансамбль моделей
-├── training/
-│   ├── __init__.py
-│   ├── trainer.py            # Обучение моделей
-│   ├── validator.py          # Валидация моделей
-│   └── hyperparameter_tuner.py # Оптимизация гиперпараметров
-├── registry/
-│   ├── __init__.py
-│   ├── model_registry.py     # Реестр моделей
-│   ├── version_manager.py    # Управление версиями
-│   └── model_loader.py       # Загрузка моделей
-└── model_manager.py          # Главный менеджер моделей
-```
-
-## Ключевые компоненты
-
-### BaseModel
-
-Абстрактный базовый класс для всех моделей:
-- Стандартизация интерфейсов
-- Общие методы обучения и предсказания
-- Валидация и логирование
-
-### ModelManager
-
-Центральный компонент управления моделями:
-- Координация всех моделей
-- Управление жизненным циклом
-- Версионирование моделей
-- Мониторинг производительности
-
-### ModelRegistry
-
-Реестр моделей с версионированием:
-- Сохранение/загрузка моделей
-- Метаданные моделей
-- Сравнение версий
-
-### Trainer
-
-Универсальный тренер моделей:
-- Обучение с валидацией
-- Early stopping
-- Callbacks для мониторинга
-
-## Архитектура моделей
-
-### GRU Architecture
+## Example
 
 ```python
-class GRUModel(BaseModel):
-    def __init__(self, input_dim, hidden_dim, num_layers, dropout):
-        self.gru = nn.GRU(
-            input_size=input_dim,
-            hidden_size=hidden_dim,
-            num_layers=num_layers,
-            dropout=dropout,
-            batch_first=True
-        )
-        self.fc = nn.Linear(hidden_dim, output_dim)
+if regime == "trend":
+    active_model = GRUModel()
+
+elif regime == "range":
+    active_model = XGBoostModel()
+
+elif regime == "breakout":
+    active_model = CNNModel()
+
+else:
+    skip_trade()
 ```
 
-### Transformer Architecture
+---
+
+# 3. trend/
+
+## Purpose
+
+Directional trend continuation prediction.
+
+Activated during:
+- trending markets,
+- directional momentum regimes.
+
+---
+
+## Primary Models
+
+### GRU / LSTM
+
+Best suited for:
+- sequential dependencies,
+- momentum persistence,
+- temporal pattern learning.
+
+---
+
+## Alternative Models
+
+- Temporal Transformer
+- Temporal CNN
+
+---
+
+## Inputs
+
+- RSI
+- MACD delta
+- EMA slope
+- momentum acceleration
+- trend persistence
+
+---
+
+## Outputs
 
 ```python
-class TransformerModel(BaseModel):
-    def __init__(self, input_dim, d_model, nhead, num_layers):
-        self.input_projection = nn.Linear(input_dim, d_model)
-        self.pos_encoding = PositionalEncoding(d_model)
-        self.transformer = nn.Transformer(
-            d_model=d_model,
-            nhead=nhead,
-            num_encoder_layers=num_layers
-        )
-        self.output_projection = nn.Linear(d_model, output_dim)
+{
+    "long_probability": 0.74,
+    "short_probability": 0.18
+}
 ```
 
-## Обучение и валидация
+---
 
-### Walk-forward Validation
+# 4. mean_reversion/
+
+## Purpose
+
+Mean reversion prediction in ranging markets.
+
+Activated during:
+- flat regimes,
+- low trend strength environments.
+
+---
+
+## Primary Models
+
+### XGBoost / CatBoost
+
+Best suited for:
+- tabular market structure,
+- threshold behavior,
+- indicator-based reversals.
+
+---
+
+## Inputs
+
+- RSI extremes
+- Bollinger distance
+- z-score deviation
+- local volatility
+
+---
+
+## Outputs
 
 ```python
-def walk_forward_validation(model, data, window_size, step_size):
-    for i in range(0, len(data) - window_size, step_size):
-        train_data = data[i:i+window_size]
-        test_data = data[i+window_size:i+window_size+step_size]
-        
-        model.fit(train_data)
-        predictions = model.predict(test_data)
-        
-        # Оценка производительности
-        evaluate(predictions, test_data.target)
+{
+    "reversal_probability": 0.68
+}
 ```
 
-### Cross-validation
+---
+
+# 5. volatility/
+
+## Purpose
+
+Volatility breakout prediction.
+
+This model predicts:
+- volatility expansion,
+- breakout probability,
+- explosive movement conditions.
+
+---
+
+## Primary Models
+
+### CNN
+
+Best suited for:
+- local temporal structures,
+- volatility clustering,
+- compression-expansion detection.
+
+---
+
+## Alternative Models
+
+- LightGBM
+- LSTM
+
+---
+
+## Inputs
+
+- ATR compression
+- rolling volatility
+- volume spikes
+- realized volatility
+
+---
+
+## Outputs
 
 ```python
-def time_series_cross_validation(model, data, n_splits):
-    tscv = TimeSeriesSplit(n_splits=n_splits)
-    
-    for train_idx, val_idx in tscv.split(data):
-        train_data = data.iloc[train_idx]
-        val_data = data.iloc[val_idx]
-        
-        model.fit(train_data)
-        predictions = model.predict(val_data)
+{
+    "breakout_probability": 0.81
+}
 ```
 
-## Метрики оценки
+---
 
-### Классификация
+# 6. meta/
 
-- Accuracy
-- Precision/Recall
-- F1-Score
-- ROC-AUC
-- Confusion Matrix
+## Purpose
 
-### Регрессия
+Final trade quality filtering.
 
-- MSE/RMSE
-- MAE
-- R²
-- MAPE
+This layer determines:
+- whether the signal should actually be executed.
 
-### Финансовые метрики
+---
+
+## Primary Models
+
+### Logistic Regression
+
+Chosen for:
+- interpretability,
+- stability,
+- low overfitting risk.
+
+---
+
+## Alternative Models
+
+- LightGBM
+
+---
+
+## Inputs
+
+- model confidence
+- spread
+- slippage
+- volatility state
+- regime confidence
+
+---
+
+## Outputs
+
+```python
+{
+    "take_trade": True
+}
+```
+
+---
+
+# 7. sizing/
+
+## Purpose
+
+Dynamic position sizing.
+
+Controls:
+- exposure,
+- leverage,
+- capital allocation.
+
+---
+
+## Phase 1
+
+Rule-based sizing.
+
+---
+
+## Phase 2
+
+Bayesian sizing.
+
+---
+
+## Phase 3
+
+RL-based allocation.
+
+---
+
+# 8. calibration/
+
+## Purpose
+
+Probability calibration layer.
+
+Transforms:
+
+```text
+raw probabilities → calibrated probabilities
+```
+
+---
+
+## Methods
+
+- Platt Scaling
+- Isotonic Regression
+
+---
+
+# 9. evaluation/
+
+## Purpose
+
+Evaluate:
+- profitability,
+- robustness,
+- regime specialization.
+
+---
+
+## Key Metrics
+
+### Financial
 
 - Sharpe Ratio
-- Max Drawdown
 - Profit Factor
-- Win Rate
+- Max Drawdown
+- CAGR
 
-## Технологии
+### ML
 
-- **PyTorch** - deep learning фреймворк
-- **LightGBM** - gradient boosting
-- **XGBoost** - gradient boosting
-- **scikit-learn** - метрики и утилиты
-- **optuna** - оптимизация гиперпараметров
-- **mlflow** - эксперименты и версионирование
+- Precision
+- Recall
+- Calibration Quality
 
-## Конфигурация
+---
 
-```yaml
-models:
-  boosting:
-    lightgbm:
-      num_leaves: 31
-      learning_rate: 0.05
-      n_estimators: 100
-      early_stopping_rounds: 10
-    
-    xgboost:
-      max_depth: 6
-      learning_rate: 0.1
-      n_estimators: 100
-      subsample: 0.8
-  
-  deep_learning:
-    gru:
-      hidden_dim: 128
-      num_layers: 2
-      dropout: 0.2
-      learning_rate: 0.001
-    
-    transformer:
-      d_model: 256
-      nhead: 8
-      num_layers: 4
-      dropout: 0.1
-  
-  training:
-    validation_split: 0.2
-    early_stopping_patience: 10
-    batch_size: 32
-    epochs: 100
+## Advanced Metrics
+
+### Regime Attribution
+
+```text
+Which model performs best in which regime?
 ```
 
-## Оптимизация гиперпараметров
+### Stability Analysis
 
-### Bayesian Optimization
+```text
+Do models survive changing market conditions?
+```
 
-Использование Optuna для оптимального поиска гиперпараметров.
+---
 
-### Grid Search
+# 10. inference/
 
-Систематический перебор параметров для небольших пространств.
+## Purpose
 
-### Random Search
+Real-time inference orchestration.
 
-Случайный поиск для больших пространств параметров.
+---
 
-## Интеграция
+## Pipeline
 
-Models Layer получает данные от:
-- **Feature Engineering** - признаки для обучения
-- **Meta-Learning** - адаптивные параметры
+```text
+Features
+    ↓
+Regime Detection
+    ↓
+Model Routing
+    ↓
+Specialized Prediction
+    ↓
+Meta Filter
+    ↓
+Sizing
+    ↓
+Execution
+```
 
-И передает предсказания в:
-- **Meta-Learning** - для ансамблирования
-- **Decision Layer** - для принятия решений
+---
 
-## Требования к реализации
+# Development Roadmap
 
-1. **Производительность** - быстрые предсказания в real-time
-2. **Масштабируемость** - поддержка множественных моделей
-3. **Надежность** - обработка ошибок и fallback
-4. **Версионирование** - контроль версий моделей
-5. **Мониторинг** - отслеживание производительности
+---
 
-## Тестирование
+# Phase 1 — Stable Foundation
 
-- Unit тесты для каждой модели
-- Integration тесты для pipeline
-- Performance тесты для скорости
-- Validation тесты для корректности предсказаний
+Implement:
+- LightGBM regime model,
+- GRU trend model,
+- XGBoost mean reversion,
+- CNN volatility model,
+- logistic meta-filter.
+
+Goal:
+
+```text
+validate adaptive architecture
+```
+
+---
+
+# Phase 2 — Robustness
+
+Add:
+- calibration,
+- feature stability,
+- drift detection,
+- ensemble weighting.
+
+---
+
+# Phase 3 — Advanced Research
+
+Add:
+- transformers,
+- orderbook modeling,
+- reinforcement learning,
+- portfolio optimization.
+
+---
+
+# Final Principle
+
+The system is designed as:
+
+```text
+an adaptive probabilistic trading architecture
+```
+
+NOT:
+
+```text
+a single universal prediction model
+```
+
+The edge comes from:
+- specialization,
+- regime adaptation,
+- dynamic routing,
+- risk control,
+- execution discipline.

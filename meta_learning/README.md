@@ -1,293 +1,538 @@
 # Meta-Learning Layer
 
-## Назначение
+## Overview
 
-Адаптивный выбор и комбинирование моделей в зависимости от рыночных условий и режимов.
+The `meta_learning/` module is the adaptive orchestration and signal aggregation layer of the trading system.
 
-## Основные задачи
+This layer is responsible for:
 
-- Детекция рыночных режимов
-- Адаптивное взвешивание моделей
-- Выбор оптимального ансамбля
-- Online адаптация к изменениям рынка
+- ensemble aggregation,
+- adaptive model weighting,
+- regime-aware signal routing,
+- confidence filtering,
+- final trade approval.
 
-## Рыночные режимы
+Unlike classical ensemble systems using static averaging, this architecture dynamically changes model importance depending on current market conditions.
 
-### 1. Trending
+The module acts as:
 
-Направленное движение цены:
-- Сильные тренды вверх или вниз
-- Высокая корреляция с направлением
-- Низкая волатильность относительно тренда
-
-### 2. Ranging
-
-Боковой рынок:
-- Цена колеблется в диапазоне
-- Низкая направленность
-- Частые развороты
-
-### 3. Volatile
-
-Высокая волатильность:
-- Большие ценовые движения
-- Высокий риск
-- Быстрые изменения
-
-### 4. Neutral
-
-Нейтральные условия:
-- Отсутствие явных паттернов
-- Случайные движения
-- Низкая предсказуемость
-
-## Ансамблирование моделей
-
-### Weighted Ensemble
-
-```python
-ŷ = Σ(w_i * ŷ_i) for i=1 to N
+```text
+adaptive probabilistic decision controller
 ```
 
-где:
-- ŷ - финальное предсказание
-- w_i - вес i-ой модели
-- ŷ_i - предсказание i-ой модели
-- Σw_i = 1 (ограничение на веса)
+between predictive models and execution logic.
 
-### Dynamic Weighting
+---
 
-Адаптивное изменение весов в зависимости от:
-- Текущей производительности моделей
-- Рыночного режима
-- Волатильности
-- Времени суток
+# Core Architecture
 
-### Stacking Ensemble
+```text
+Market Features
+    ↓
 
-Многоуровневое ансамблирование:
-- Level 1: базовые модели
-- Level 2: мета-модель для комбинирования
+Regime Model
+    ↓
 
-## Структура модуля
+Model Predictions
+(LightGBM + LSTM + CNN + Transformer)
+    ↓
 
+Meta-Learning Layer
+    ├── Ensemble Aggregation
+    ├── Regime-Adaptive Weighting
+    ├── Meta Filtering
+    └── Signal Assembly
+
+    ↓
+
+Final Trading Signal
+    ↓
+
+Risk Management
+    ↓
+
+Execution
 ```
+
+---
+
+# System Philosophy
+
+Different model architectures perform better under different market conditions.
+
+Examples:
+
+| Market Regime | Preferred Models |
+|---|---|
+| Trend | LSTM + Transformer |
+| Range / Flat | LightGBM + CNN |
+| Low Confidence | No Trade |
+
+The meta-learning layer dynamically adapts model influence depending on detected market structure.
+
+---
+
+# Current Production Logic
+
+The current implementation uses:
+
+- probabilistic ensemble aggregation,
+- regime-adaptive weighting,
+- confidence-based filtering,
+- median adaptive thresholds.
+
+The architecture intentionally avoids:
+
+- overly complex stacking,
+- unstable RL routing,
+- excessive deep ensemble depth.
+
+Priority is given to:
+
+- robustness,
+- interpretability,
+- stable walk-forward performance.
+
+---
+
+# Current Status
+
+| Component | Status |
+|---|---|
+| MetaFilterModel | Production-ready |
+| Dynamic regime weighting | Production-ready |
+| Signal assembly | Production-ready |
+| Simple ensemble | Baseline |
+| Full stacking L2 | Research |
+| MAML routing | Research |
+| RL orchestration | Future research |
+
+---
+
+# Module Structure
+
+```text
 meta_learning/
+│
 ├── __init__.py
-├── regime_detection/
-│   ├── __init__.py
-│   ├── regime_detector.py     # Детекция режимов
-│   ├── market_classifier.py   # Классификация рынка
-│   └── regime_analyzer.py     # Анализ режимов
-├── ensemble/
-│   ├── __init__.py
-│   ├── weighted_ensemble.py   # Взвешенный ансамбль
-│   ├── stacking_ensemble.py   # Stacking ансамбль
-│   └── dynamic_ensemble.py    # Динамический ансамбль
-├── adaptation/
-│   ├── __init__.py
-│   ├── online_learner.py      # Online обучение
-│   ├── drift_detector.py      # Детекция дрифта
-│   └── adaptive_weights.py    # Адаптивные веса
-├── selection/
-│   ├── __init__.py
-│   ├── model_selector.py      # Выбор моделей
-│   ├── feature_selector.py     # Выбор признаков
-│   └── hyperparameter_adapter.py # Адаптация гиперпараметров
-├── optimization/
-│   ├── __init__.py
-│   ├── weight_optimizer.py     # Оптимизация весов
-│   ├── ensemble_optimizer.py   # Оптимизация ансамбля
-│   └── performance_tracker.py  # Отслеживание производительности
-└── meta_manager.py             # Главный менеджер meta-learning
+│
+├── signal_assembler.py
+├── ensemble.py
+├── dynamic_meta.py
+├── thresholds.py
+│
+├── calibration/
+├── evaluation/
+├── configs/
+└── utils/
 ```
 
-## Ключевые компоненты
+---
 
-### RegimeDetector
+# 1. signal_assembler.py
 
-Детекция и классификация рыночных режимов:
-- Статистические тесты
-- Методы машинного обучения
-- Временные паттерны
+## Purpose
 
-### WeightedEnsemble
+Final signal generation layer.
 
-Управление взвешенным ансамблем:
-- Расчет оптимальных весов
-- Динамическая адаптация
-- Ограничения и регуляризация
+Combines:
 
-### OnlineLearner
+- directional prediction,
+- meta probability,
+- confidence thresholds,
+- regime filtering.
 
-Адаптивное обучение в реальном времени:
-- Инкрементальное обновление
-- Детекция концепт дрифта
-- Быстрая адаптация
+---
 
-### ModelSelector
-
-Интеллектуальный выбор моделей:
-- Оценка производительности
-- Контекстный выбор
-- Оптимизация ансамбля
-
-## Алгоритмы детекции режимов
-
-### Statistical Methods
+## Current Logic
 
 ```python
-def detect_regime_statistical(returns, window):
-    # ADF test for trend detection
-    adf_result = adfuller(returns)
-    
-    # Volatility analysis
-    volatility = returns.rolling(window).std()
-    
-    # Trend strength
-    trend_strength = abs(returns.mean())
-    
-    return classify_regime(adf_result, volatility, trend_strength)
+final_signal = np.where(
+    (meta_prob > meta_threshold)
+    & (direction_soft_signal != 0),
+    direction_soft_signal,
+    0
+)
 ```
 
-### Machine Learning Methods
+---
+
+## Responsibilities
+
+- approve/reject trades,
+- reduce low-quality entries,
+- enforce confidence filtering.
+
+---
+
+# 2. ensemble.py
+
+## Purpose
+
+Model probability aggregation.
+
+Provides baseline ensemble logic.
+
+---
+
+## Current Ensemble
 
 ```python
-def detect_regime_ml(features, model):
-    # Pretrained regime classifier
-    regime_probabilities = model.predict_proba(features)
-    
-    # Most probable regime
-    regime = model.predict(features)
-    
-    return regime, regime_probabilities
+ensemble_prob = (
+    lgb_p +
+    lstm_p +
+    cnn_p +
+    trans_p
+) / 4
 ```
 
-### Hybrid Approach
+---
 
-Комбинация статистических и ML методов для повышения точности.
+## Models Used
 
-## Оптимизация весов ансамбля
+| Model | Role |
+|---|---|
+| LightGBM | Tabular / range logic |
+| LSTM | Sequential trend modeling |
+| CNN | Volatility structure |
+| Transformer | Long-range temporal context |
 
-### Convex Optimization
+---
+
+## Purpose of Baseline Ensemble
+
+Used for:
+
+- benchmarking,
+- ensemble comparison,
+- fallback aggregation.
+
+Production system prioritizes:
+- adaptive weighting,
+- regime-aware orchestration.
+
+---
+
+# 3. dynamic_meta.py
+
+## Purpose
+
+Dynamic regime-aware ensemble weighting.
+
+This is the CORE adaptive orchestration layer of the system.
+
+The module dynamically changes model importance depending on current market regime.
+
+---
+
+# Regime Routing
+
+| `regime_pred` | Interpretation |
+|---|---|
+| `1` | Trend / strong directional market |
+| `0` | Range / weak directional market |
+
+---
+
+# Current Adaptive Weights
+
+## Trend Regime
 
 ```python
-def optimize_weights(predictions, targets, constraints):
-    # Quadratic programming for optimal weights
-    # Minimize: ||predictions @ w - targets||²
-    # Subject to: Σw_i = 1, w_i ≥ 0
-    
-    result = solve_qp(objective, constraints)
-    return result.x
+{
+    'lgb': 0.10,
+    'lstm': 0.45,
+    'cnn': 0.10,
+    'trans': 0.35
+}
 ```
 
-### Bayesian Optimization
+Priority:
+- LSTM,
+- Transformer.
 
-Использование байесовской оптимизации для поиска оптимальных весов.
+Because:
+- sequential models perform better during momentum persistence.
 
-### Reinforcement Learning
+---
 
-RL агент для обучения оптимального взвешивания моделей.
-
-## Адаптация к изменениям
-
-### Concept Drift Detection
+## Range Regime
 
 ```python
-def detect_concept_drift(model_performance, threshold):
-    # Statistical test for performance degradation
-    recent_performance = model_performance[-window:]
-    historical_performance = model_performance[:-window]
-    
-    drift_score = ks_test(recent_performance, historical_performance)
-    
-    return drift_score > threshold
+{
+    'lgb': 0.55,
+    'lstm': 0.10,
+    'cnn': 0.25,
+    'trans': 0.10
+}
 ```
 
-### Online Model Updates
+Priority:
+- LightGBM,
+- CNN.
 
-Инкрементальное обновление моделей при детекции дрифта.
+Because:
+- tabular and local-pattern models perform better during ranging conditions.
 
-### Adaptive Thresholds
+---
 
-Адаптивная настройка порогов для принятия решений.
+# Current Integrated Signal Logic
 
-## Технологии
+```python
+integrated_signal = np.where(
+    (meta_mgmt_prob > integrated_threshold)
+    & (direction_soft_signal != 0),
+    direction_soft_signal,
+    0
+)
+```
 
-- **scikit-learn** - ML алгоритмы
-- **scipy** - статистические тесты
-- **cvxpy** - выпуклая оптимизация
-- **optuna** - байесовская оптимизация
-- **river** - online machine learning
-- **pandas** - обработка временных рядов
+---
 
-## Конфигурация
+# 4. thresholds.py
+
+## Purpose
+
+Centralized threshold management.
+
+---
+
+# Current Thresholds
+
+| Parameter | Value |
+|---|---|
+| Direction threshold | 0.52 |
+| Meta threshold | Median adaptive threshold |
+| Ensemble mode | Regime-adaptive |
+
+---
+
+# Current Configuration
 
 ```yaml
 meta_learning:
-  regime_detection:
-    method: "hybrid"  # statistical, ml, hybrid
-    window_size: 100
-    update_frequency: 3600  # seconds
-    
+  direction_threshold: 0.52
+
+  meta_threshold_mode: "median"
+
   ensemble:
-    type: "weighted"  # weighted, stacking, dynamic
-    rebalance_frequency: 300  # seconds
-    min_weight: 0.05
-    max_weight: 0.5
-    
-  adaptation:
-    drift_detection_method: "ks_test"
-    drift_threshold: 0.05
-    adaptation_rate: 0.1
-    
-  optimization:
-    method: "convex"  # convex, bayesian, rl
-    optimization_frequency: 1800  # seconds
-    regularization: "l2"
+    default: "regime_adaptive"
+
+    regime_weights:
+
+      trend:
+        lgb: 0.10
+        lstm: 0.45
+        cnn: 0.10
+        trans: 0.35
+
+      range:
+        lgb: 0.55
+        lstm: 0.10
+        cnn: 0.25
+        trans: 0.10
+
+  dl_window_size: 24
 ```
 
-## Метрики оценки
+---
 
-### Quality of Regime Detection
+# Adaptive Architecture Logic
 
-- Accuracy of regime classification
-- Transition detection accuracy
-- Stability of regime assignments
+The system dynamically selects dominant model families depending on market structure.
 
-### Ensemble Performance
+---
 
-- Ensemble vs individual model performance
-- Weight stability over time
-- Adaptation speed
+# Trend Regime
 
-### Adaptation Effectiveness
+```text
+Trend Market
+    ↓
+LSTM + Transformer Dominance
+```
 
-- Time to detect regime changes
-- Performance improvement after adaptation
-- Overfitting prevention
+Because:
+- sequential dependencies matter more,
+- momentum persistence increases.
 
-## Интеграция
+---
 
-Meta-Learning Layer получает данные от:
-- **Models Layer** - предсказания базовых моделей
-- **Feature Engineering** - признаки для детекции режимов
+# Range Regime
 
-И передает результаты в:
-- **Decision Layer** - финальные предсказания
-- **RL Layer** - контекст для RL агента
+```text
+Range Market
+    ↓
+LightGBM + CNN Dominance
+```
 
-## Требования к реализации
+Because:
+- local structures,
+- mean reversion,
+- tabular thresholds become more important.
 
-1. **Адаптивность** - быстрая реакция на изменения рынка
-2. **Стабильность** - избежание резких переключений
-3. **Производительность** - быстрые вычисления в real-time
-4. **Надежность** - обработка ошибок и fallback
-5. **Интерпретируемость** - понятные решения
+---
 
-## Тестирование
+# MetaFilterModel
 
-- Unit тесты для каждого компонента
-- Integration тесты для pipeline
-- Simulation тесты для различных рыночных условий
-- Performance тесты для скорости адаптации
+## Purpose
+
+Final trade quality controller.
+
+Determines:
+
+```text
+Should this trade actually be executed?
+```
+
+---
+
+# Current Implementation
+
+## Primary Model
+
+### LightGBM
+
+Used because:
+- strong tabular performance,
+- stable calibration,
+- low-latency inference.
+
+---
+
+# Planned Alternatives
+
+| Model | Status |
+|---|---|
+| Logistic Regression | Planned |
+| CatBoost | Research |
+| Stacking Meta-Model | Research |
+
+---
+
+# Walk-Forward Integration
+
+The meta-learning layer is fully integrated into:
+
+```text
+run_integrated_wfo
+```
+
+Current process:
+
+```text
+Train Fold
+    ↓
+Retrain LGBM
+    ↓
+Short DL Fine-Tuning
+    ↓
+Dynamic Meta Aggregation
+    ↓
+Integrated Signal Generation
+    ↓
+Backtesting
+```
+
+---
+
+# Evaluation Focus
+
+The meta-learning layer is evaluated using:
+
+---
+
+# Financial Metrics
+
+- Profit Factor
+- Sharpe Ratio
+- Max Drawdown
+- Trade Quality
+- Turnover Reduction
+
+---
+
+# ML Metrics
+
+- calibration quality,
+- confidence stability,
+- regime specialization,
+- ensemble consistency.
+
+---
+
+# Research Roadmap
+
+---
+
+# Phase 1 — Current Stable Architecture
+
+Implemented:
+
+- regime-adaptive ensemble,
+- confidence filtering,
+- dynamic weighting,
+- integrated signal generation.
+
+Goal:
+
+```text
+stable adaptive orchestration
+```
+
+---
+
+# Phase 2 — Advanced Meta Learning
+
+Planned:
+
+- stacking meta-model,
+- rolling threshold adaptation,
+- online ensemble weighting,
+- rolling Sharpe-based weight updates.
+
+Goal:
+
+```text
+adaptive ensemble optimization
+```
+
+---
+
+# Phase 3 — Advanced Research
+
+Future research:
+
+- reinforcement-learning routing,
+- Bayesian ensemble optimization,
+- online continual adaptation,
+- market-state-aware neural weighting.
+
+Goal:
+
+```text
+fully adaptive probabilistic orchestration
+```
+
+---
+
+# Final Principle
+
+The meta-learning layer is designed as:
+
+```text
+adaptive probabilistic orchestration system
+```
+
+NOT:
+
+```text
+simple static ensemble averaging
+```
+
+The primary edge comes from:
+
+- regime adaptation,
+- model specialization,
+- confidence filtering,
+- dynamic weighting,
+- robust signal selection.

@@ -2,135 +2,105 @@
 
 ## Назначение
 
-Получение и потоковая обработка рыночных данных из различных источников.
+Загрузка исторических OHLCV с биржи OKX через REST (ccxt) с пагинацией. Опционально — несколько таймфреймов за один запуск для downstream MTF-пайплайна.
 
-## Основные задачи
+## Статус
 
-- Сбор исторических и потоковых данных
-- Нормализация и валидация данных
-- Обработка разрывов и пропусков
-- Кэширование и оптимизация доступа
+| Компонент | Статус |
+|-----------|--------|
+| REST ccxt, пагинация OHLCV | **Реализовано** (`ist.py` → `OKXDataLoader`) |
+| Мульти-таймфрейм при включении | **Реализовано** (флаг/список TF) |
+| WebSocket, Glassnode, trades, Parquet, Timescale | **Не в scope** (позже при необходимости) |
 
 ## Источники данных
 
-### Основные
-- **OKX REST API** - исторические данные (OHLCV, trades)
-- **OKX WebSocket** - потоковые данные (real-time)
-
-### Дополнительные
-- **Glassnode** - ончейн-метрики
+- **OKX REST API** — только OHLCV (история)
+- Ключи API не обязательны для публичных `fetch_ohlcv`
 
 ## Типы данных
 
-### OHLCV данные
+### OHLCV
+
 ```
-OHLCV_t = (Open_t, High_t, Low_t, Close_t, Volume_t)
+OHLCV_t = (timestamp, open, high, low, close, volume)
 ```
 
-### Order Book
-```
-LOB_t = {(bid_i, volume_i), (ask_i, volume_i)}
+Индекс — `timestamp` (UTC), дедупликация по времени, обрезка по `end_date`.
+
+## Эталонная реализация (Colab / `ist.py`)
+
+### OKXDataLoader
+
+```python
+class OKXDataLoader:
+    def __init__(self):
+        self.exchange = ccxt.okx({'enableRateLimit': True})
+
+    def fetch_all_ohlcv(self, symbol, timeframe, start_str, end_str):
+        # Пагинация: since = last_ts + 1, rate limit sleep
+        # Колонки: timestamp, open, high, low, close, volume
 ```
 
-### Trades
-```
-Trade_t = (price, volume, side, timestamp)
-```
+### Параметры по умолчанию
 
-## Структура модуля
+| Параметр | Значение |
+|----------|----------|
+| `symbol` | `BTC/USDT` |
+| `timeframe` (базовый) | `1h` |
+| `start_date` | `2020-01-01` |
+| `end_date` | `2026-01-01` |
+
+### Мульти-таймфрейм
+
+При `multi_timeframe: true` (или списке TF) загружаются дополнительные интервалы, например:
+
+- `15m` — микро-контекст  
+- `4h` — макро-контекст  
+
+Базовый ряд остаётся основным (обычно `1h`). Слияние — в **Synchronization** (`MultiTimeframeEngine`).
+
+## Структура модуля (целевая)
 
 ```
 data_layer/
 ├── __init__.py
-├── connectors/
-│   ├── __init__.py
-│   ├── base_connector.py      # Базовый класс коннектора
-│   ├── okx_connector.py       # OKX API коннектор
-│   └── glassnode_connector.py # Glassnode коннектор
-├── processors/
-│   ├── __init__.py
-│   ├── ohlcv_processor.py     # Обработка OHLCV данных
-│   ├── orderbook_processor.py # Обработка order book
-│   └── trades_processor.py    # Обработка сделок
-├── storage/
-│   ├── __init__.py
-│   ├── parquet_storage.py     # Хранение в Parquet
-│   └── timescale_storage.py   # Хранение в TimescaleDB
-├── streamers/
-│   ├── __init__.py
-│   ├── websocket_streamer.py  # WebSocket потоковый клиент
-│   └── rest_streamer.py       # REST опрос данных
-└── data_manager.py            # Главный менеджер данных
+├── loaders/
+│   └── okx_ohlcv_loader.py    # OKXDataLoader
+├── validators/
+│   └── ohlcv_validator.py     # пропуски, дубликаты, обрезка по end
+└── config.py                  # symbol, timeframes, dates
 ```
-
-## Ключевые компоненты
-
-### BaseConnector
-Абстрактный базовый класс для всех коннекторов:
-- Стандартизация интерфейсов
-- Обработка ошибок и реконнект
-- Лимиты запросов и rate limiting
-
-### DataManager
-Центральный компонент управления данными:
-- Координация всех коннекторов
-- Обработка конфликтов данных
-- Управление кэшированием
-- Валидация данных
-
-### StreamProcessor
-Обработка потоковых данных в реальном времени:
-- Фильтрация шумов
-- Обнаружение аномалий
-- Агрегация данных
-
-## Технологии
-
-- **asyncio** - асинхронная обработка
-- **websockets** - WebSocket клиенты
-- **ccxt** - унифицированный API к биржам
-- **pandas** - обработка данных
-- **pyarrow** - работа с Parquet
-- **asyncpg** - асинхронный PostgreSQL
 
 ## Конфигурация
 
 ```yaml
 data_layer:
-  connectors:
-    okx:
-      api_key: "${OKX_API_KEY}"
-      secret_key: "${OKX_SECRET_KEY}"
-      sandbox: true
-  
-  storage:
-    parquet_path: "./data/parquet"
-    timescale_url: "postgresql://user:pass@localhost/trading"
-  
-  streaming:
-    buffer_size: 10000
-    batch_size: 100
-    flush_interval: 5  # seconds
+  exchange: okx
+  symbol: "BTC/USDT"
+  timeframe: "1h"              # базовый TF
+  start_date: "2020-01-01 00:00:00"
+  end_date: "2026-01-01 00:00:00"
+  multi_timeframe:
+    enabled: true
+    timeframes: ["15m", "4h"]  # дополнительные к базовому
+  rate_limit: true
 ```
 
 ## Требования к реализации
 
-1. **Асинхронность** - все операции должны быть неблокирующими
-2. **Отказоустойчивость** - автоматические реконнекты и обработка ошибок
-3. **Масштабируемость** - поддержка множественных источников
-4. **Производительность** - минимизация задержек для потоковых данных
-5. **Надежность** - валидация и проверка целостности данных
+1. **Пагинация** — устойчивый цикл до `end_ts`, защита от зацикливания на одном баре  
+2. **Rate limit** — `enableRateLimit` + sleep по `exchange.rateLimit`  
+3. **Идемпотентность** — `drop_duplicates(subset=['timestamp'])`  
+4. **Опциональный MTF** — один loader, несколько вызовов `fetch_all_ohlcv` по списку TF  
 
 ## Интеграция
 
-Data Layer передает данные в:
-- **Synchronization Layer** - для синхронизации потоков
-- **Feature Engineering** - для расчета признаков
-- **Storage** - для долгосрочного хранения
+Data Layer передаёт сырые `DataFrame` в:
+
+- **Synchronization** — `MultiTimeframeEngine` (merge на базовый TF)  
+- **Feature Engineering** — если MTF отключён, напрямую в `FeatureEngine`  
 
 ## Тестирование
 
-- Unit тесты для каждого коннектора
-- Integration тесты для потоковой обработки
-- Load тесты для производительности
-- Mock тесты для API endpoints
+- Unit: пагинация, дедуп, обрезка по `end_date`  
+- Integration: сравнение длины ряда с ожидаемым числом баров для TF  

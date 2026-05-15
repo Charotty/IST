@@ -1,0 +1,1008 @@
+﻿================================================================================
+CELL 4 (2595 chars)
+import ccxt
+import pandas as pd
+import time
+from datetime import datetime
+
+# --- ╧рЁрьхЄЁ√ чряєёър ---
+SYMBOL = 'BTC/USDT'  # @param {type:"string"}
+TIMEFRAME = '1h'      # @param ["1m", "5m", "15m", "1h", "4h", "1d"] {type:"string"}
+START_DATE = '2020-01-01 00:00:00' # @param {type:"string"}
+END_DATE = '2026-01-01 00:00:00'   # @param {type:"string"}
+
+class OKXDataLoader:
+    def __init__(self):
+        self.exchange = ccxt.okx({
+            'enableRateLimit': True,
+        })
+
+    def fetch_all_ohlcv(self, symbol, timeframe, start_str, end_str):
+        """╟руЁєчър фрээ√ї ё ярушэрЎшхщ"""
+        since = self.exchange.parse8601(start_str)
+        end_ts = self.exchange.parse8601(end_str)
+
+        all_ohlcv = []
+
+        print(f"═рўшэр■ чруЁєчъє {symbol} ({timeframe})...")
+
+        while since < end_ts:
+            try:
+                # ╟руЁєцрхь яюЁЎш■ фрээ√ї
+                ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, since)
+
+                if not ohlcv:
+                    break
+
+                # ╧юёыхфэшщ яюыєўхээ√щ timestamp
+                last_ts = ohlcv[-1][0]
+
+                # ┼ёыш ь√ яюыєўшыш Єх цх фрээ√х, ўЄю ш Ёрэ№°х - т√їюфшь
+                if len(all_ohlcv) > 0 and last_ts == all_ohlcv[-1][0]:
+                    break
+
+                all_ohlcv.extend(ohlcv)
+
+                # ╤фтшурхь 'since' эр 1 ьё сюы№°х яюёыхфэхую ЄрщьёЄхьяр
+                since = last_ts + 1
+
+                # ╚эфшърЎш  яЁюуЁхёёр
+                current_dt = datetime.fromtimestamp(last_ts / 1000)
+                print(f"╟руЁєцхэю фю: {current_dt}", end='\r')
+
+                # ╙трцхэшх ъ Rate Limit
+                time.sleep(self.exchange.rateLimit / 1000)
+
+            except Exception as e:
+                print(f"\n╬°шсър яЁш чруЁєчъх: {e}")
+                break
+
+        df = pd.DataFrame(all_ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        df = df.drop_duplicates(subset=['timestamp']).set_index('timestamp')
+
+        # ╬сЁхчър яю ъюэхўэющ фрЄх (Є.ъ. fetch_ohlcv ьюцхЄ тхЁэєЄ№ ўєЄ№ сюы№°х)
+        df = df[df.index <= pd.to_datetime(end_str)]
+
+        print(f"\n╟руЁєчър чртхЁ°хэр. ┬ёхую ёЄЁюъ: {len(df)}")
+        return df
+
+# --- ┬√яюыэхэшх ---
+loader = OKXDataLoader()
+raw_data = loader.fetch_all_ohlcv(SYMBOL, TIMEFRAME, START_DATE, END_DATE)
+
+# ╧ЁютхЁър фрээ√ї
+if not raw_data.empty:
+    print("\n╧хЁт√х 5 ёЄЁюъ:")
+    display(raw_data.head())
+    print(f"╧Ёюяєёъш т фрээ√ї: {raw_data.isnull().sum().sum()}")
+else:
+    print("─рээ√х эх с√ыш чруЁєцхэ√.")
+
+================================================================================
+CELL 6 (1814 chars)
+import pandas_ta as ta
+import numpy as np
+
+class FeatureEngine:
+    def __init__(self, df):
+        self.df = df.copy()
+
+    def add_indicators(self):
+        """─юсртыхэшх яЁшчэръют ёюуырёэю ёяхЎшЇшърЎшш PRD"""
+        # 1. ╥Ёхэфют√х шэфшърЄюЁ√
+        self.df['ema_fast'] = ta.ema(self.df['close'], length=20)
+        self.df['ema_slow'] = ta.ema(self.df['close'], length=50)
+        self.df['ema_slope'] = (self.df['ema_fast'] - self.df['ema_fast'].shift(1)) / self.df['ema_fast'].shift(1)
+
+        # 2. ╚эфшърЄюЁ√ шьяєы№ёр
+        self.df['rsi'] = ta.rsi(self.df['close'], length=14)
+        macd = ta.macd(self.df['close'], fast=12, slow=26, signal=9)
+        self.df['macd'] = macd['MACD_12_26_9']
+        self.df['macd_signal'] = macd['MACDs_12_26_9']
+        self.df['macd_hist'] = macd['MACDh_12_26_9']
+
+        # 3. ╚эфшърЄюЁ√ тюырЄшы№эюёЄш
+        self.df['atr'] = ta.atr(self.df['high'], self.df['low'], self.df['close'], length=14)
+        self.df['log_ret'] = np.log(self.df['close'] / self.df['close'].shift(1))
+        self.df['volatility'] = self.df['log_ret'].rolling(window=20).std() * np.sqrt(24)
+
+        # 4. ╚эфшърЄюЁ√ фы  ьюфхыш Ёхцшьр
+        adx_df = ta.adx(self.df['high'], self.df['low'], self.df['close'], length=14)
+        self.df['adx'] = adx_df['ADX_14']
+
+        return self
+
+    def get_processed_data(self):
+        """┬ючтЁр∙рхЄ юўш∙хээ√щ DataFrame"""
+        return self.df.dropna()
+
+# --- ╧Ёшьхэхэшх ---
+if 'raw_data' in locals() or 'raw_data' in globals():
+    engine = FeatureEngine(raw_data)
+    df_features = engine.add_indicators().get_processed_data()
+
+    print(f"╧Ёшчэръш єёях°эю ЁрёёўшЄрэ√. ╨рчьхЁэюёЄ№: {df_features.shape}")
+    display(df_features.tail())
+else:
+    print("╬°шсър: ╧хЁхьхээр  'raw_data' эх эрщфхэр. ╧юцрыєщёЄр, чруЁєчшЄх фрээ√х т яЁхф√фє∙хь °рух.")
+
+================================================================================
+CELL 8 (2115 chars)
+class MultiTimeframeEngine:
+    def __init__(self, loader, symbol, start_date, end_date):
+        self.loader = loader
+        self.symbol = symbol
+        self.start_date = start_date
+        self.end_date = end_date
+
+    def get_multi_data(self):
+        """╟руЁєчър фрээ√ї фы  Ёрчэ√ї ЄрщьЇЁхщьют"""
+        print("--- ╟руЁєчър фюяюыэшЄхы№э√ї ЄрщьЇЁхщьют ---")
+        self.df_15m = self.loader.fetch_all_ohlcv(self.symbol, '15m', self.start_date, self.end_date)
+        self.df_4h = self.loader.fetch_all_ohlcv(self.symbol, '4h', self.start_date, self.end_date)
+        return self
+
+    def compute_and_merge(self, base_df):
+        """╨рёўхЄ яЁшчэръют ш юс·хфшэхэшх ё юёэютэ√ь DF"""
+        df = base_df.copy()
+
+        # ╧Ёшчэръш 15ь (╠шъЁю-ЄЁхэф)
+        df_15 = self.df_15m.copy()
+        df_15['rsi_15m'] = ta.rsi(df_15['close'], length=14)
+        df_15['ema_slope_15m'] = ta.ema(df_15['close'], length=20).pct_change()
+
+        # ╧Ёшчэръш 4ў (╠ръЁю-ъюэЄхъёЄ)
+        df_4h = self.df_4h.copy()
+        df_4h['rsi_4h'] = ta.rsi(df_4h['close'], length=14)
+        df_4h['adx_4h'] = ta.adx(df_4h['high'], df_4h['low'], df_4h['close'])['ADX_14']
+
+        # ╚ёяЁртыхэю: шёяюы№чєхь '1h' тьхёЄю '1H' фы  ёютьхёЄшьюёЄш ё pandas 3.0+
+        df_15_resampled = df_15[['rsi_15m', 'ema_slope_15m']].resample('1h').last().ffill()
+        df_4h_resampled = df_4h[['rsi_4h', 'adx_4h']].resample('1h').last().ffill()
+
+        df = df.join(df_15_resampled, rsuffix='_15m')
+        df = df.join(df_4h_resampled, rsuffix='_4h')
+
+        return df.dropna()
+
+# --- ┬√яюыэхэшх: ╬сюур∙хэшх фрээ√ї ---
+if 'raw_data' in globals():
+    mtf_engine = MultiTimeframeEngine(loader, SYMBOL, START_DATE, END_DATE)
+    # ╧Ёшьхўрэшх: фрээ√х єцх ьюуыш с√Є№ чруЁєцхэ√ т ярь Єш, хёыш  ўхщър яЁхЁтрырё№ эр ьхЁфцх
+    if not hasattr(mtf_engine, 'df_15m'):
+        mtf_engine.get_multi_data()
+
+    # ╬сюур∙рхь Єхъє∙шщ df_features
+    df_features_mtf = mtf_engine.compute_and_merge(df_features)
+
+    print(f"\n─рээ√х юсюур∙хэ√. ═ют√х ъюыюэъш: {[c for c in df_features_mtf.columns if '15m' in c or '4h' in c]}")
+    display(df_features_mtf.tail(3))
+
+================================================================================
+CELL 18 (2594 chars)
+import tensorflow as tf
+from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.layers import LSTM, Dense, Dropout, Conv1D, MaxPooling1D, Flatten, Input, MultiHeadAttention, LayerNormalization, GlobalAveragePooling1D
+from tensorflow.keras.callbacks import EarlyStopping
+
+class DLModelBuilder:
+    @staticmethod
+    def build_lstm(window_size, n_features, lr=0.0005, dropout=0.2):
+        model = Sequential([
+            Input(shape=(window_size, n_features)),
+            LSTM(64, return_sequences=True),
+            Dropout(dropout),
+            LSTM(32),
+            Dropout(dropout),
+            Dense(16, activation='relu'),
+            Dense(1, activation='sigmoid')
+        ])
+        model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr), loss='binary_crossentropy', metrics=['accuracy'])
+        return model
+
+    @staticmethod
+    def build_cnn(window_size, n_features, lr=0.0005, dropout=0.4):
+        model = Sequential([
+            Input(shape=(window_size, n_features)),
+            Conv1D(filters=64, kernel_size=3, activation='relu'),
+            MaxPooling1D(pool_size=2),
+            Conv1D(filters=32, kernel_size=3, activation='relu'),
+            Flatten(),
+            Dense(16, activation='relu'),
+            Dropout(dropout),
+            Dense(1, activation='sigmoid')
+        ])
+        model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr), loss='binary_crossentropy', metrics=['accuracy'])
+        return model
+
+    @staticmethod
+    def build_transformer(window_size, n_features, lr=0.0005, num_heads=2, ff_dim=32):
+        inputs = Input(shape=(window_size, n_features))
+
+        # Simple Transformer Block
+        attention_output = MultiHeadAttention(num_heads=num_heads, key_dim=n_features)(inputs, inputs)
+        attention_output = Dropout(0.1)(attention_output)
+        out1 = LayerNormalization(epsilon=1e-6)(inputs + attention_output)
+
+        ffn_output = Dense(ff_dim, activation="relu")(out1)
+        ffn_output = Dense(n_features)(ffn_output)
+        ffn_output = Dropout(0.1)(ffn_output)
+        out2 = LayerNormalization(epsilon=1e-6)(out1 + ffn_output)
+
+        x = GlobalAveragePooling1D()(out2)
+        x = Dropout(0.1)(x)
+        x = Dense(20, activation="relu")(x)
+        outputs = Dense(1, activation="sigmoid")(x)
+
+        model = Model(inputs=inputs, outputs=outputs)
+        model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr), loss="binary_crossentropy", metrics=["accuracy"])
+        return model
+
+print('DLModelBuilder updated with LSTM, CNN, and Transformer architectures.')
+
+================================================================================
+CELL 54 (1925 chars)
+class MicrostructureRLenv(EnsembleTradingEnv):
+    def __init__(self, df, initial_balance=10000):
+        # Initialize variables first
+        self.df = df.reset_index()
+        self.initial_balance = initial_balance
+        self.state_size = 11  # Explicitly set for OBI integration
+        self.action_size = 3
+        self.reset() # Manual reset to bypass parent constructor override
+
+    def _get_state(self):
+        row = self.df.iloc[self.current_step]
+        state = np.array([
+            row['rsi'], row['volatility'], row['regime_pred'],
+            row['vol_spike_prob'], row['ensemble_prob'], row['meta_prob'],
+            row['ema_slope'], row['adx'], row['rsi_15m'], row['rsi_4h'],
+            row['order_book_imbalance']
+        ])
+        return np.reshape(state, [1, self.state_size])
+
+# Re-initialize the environment and agent
+env_micro = MicrostructureRLenv(df_features_mtf.iloc[:15000])
+agent_micro = DQNAgent(env_micro.state_size, env_micro.action_size)
+
+print(f"--- ╬сєўхэшх RL-рухэЄр ё єўхЄюь OBI (╨рчьхЁ ёюёЄю эш : {env_micro.state_size}) ---")
+for e in range(5):
+    state = env_micro.reset()
+    total_reward = 0
+    for t in range(2000):
+        action = agent_micro.act(state)
+        next_state, reward, done = env_micro.step(action)
+        agent_micro.remember(state, action, reward, next_state, done)
+        state = next_state
+        total_reward += reward
+        if done: break
+
+    # Replay logic for the micro-agent
+    if len(agent_micro.memory) > 64:
+        minibatch = random.sample(agent_micro.memory, 32)
+        for s, a, r, ns, d in minibatch:
+            target = r + (0 if d else 0.95 * np.amax(agent_micro.model.predict(ns, verbose=0)[0]))
+            target_f = agent_micro.model.predict(s, verbose=0)
+            target_f[0][a] = target
+            agent_micro.model.fit(s, target_f, epochs=1, verbose=0)
+
+    print(f"▌яшчюф {e+1}/5 чртхЁ°хэ. ═руЁрфр: {total_reward:.2f}")
+
+================================================================================
+CELL 66 (963 chars)
+class EnsembleTradingEnv(TradingEnvironment):
+    def _get_state(self):
+        row = self.df.iloc[self.current_step]
+        state = np.array([
+            row['rsi'], row['volatility'], row['regime_pred'],
+            row['vol_spike_prob'], row['ensemble_prob'], row['meta_prob'],
+            row['ema_slope'], row['adx'], row['rsi_15m'], row['rsi_4h']
+        ])
+        return np.reshape(state, [1, self.state_size])
+
+# ╧хЁхюсєўхэшх рухэЄр эр эют√ї фрээ√ї
+env_ens = EnsembleTradingEnv(df_features_mtf.iloc[:10000])
+agent_ens = DQNAgent(env_ens.state_size, env_ens.action_size)
+
+print("--- Training RL Agent with Ensemble Inputs ---")
+for e in range(3):
+    state = env_ens.reset()
+    for time in range(1000):
+        action = agent_ens.act(state)
+        next_state, reward, done = env_ens.step(action)
+        agent_ens.remember(state, action, reward, next_state, done)
+        state = next_state
+        if done: break
+    print(f"Episode {e+1} complete.")
+
+================================================================================
+CELL 70 (1219 chars)
+class OrderBookMicrostructure:
+    def __init__(self, depth=20):
+        self.depth = depth
+
+    def calculate_obi(self, bids, asks):
+        """
+        Order Book Imbalance (OBI):
+        (Bid Volume - Ask Volume) / (Bid Volume + Ask Volume)
+        """
+        bid_vol = sum([b[1] for b in bids[:self.depth]])
+        ask_vol = sum([a[1] for a in asks[:self.depth]])
+
+        if (bid_vol + ask_vol) == 0: return 0
+        return (bid_vol - ask_vol) / (bid_vol + ask_vol)
+
+    def get_mid_price(self, bids, asks):
+        return (bids[0][0] + asks[0][0]) / 2
+
+    def get_spread(self, bids, asks):
+        return (asks[0][0] - bids[0][0]) / bids[0][0]
+
+# ╧ЁшьхЁ шэЄхуЁрЎшш т Feature Engine (ёшьєы Ўш )
+def simulate_l2_features(df):
+    """├хэхЁрЎш  ёшэЄхЄшўхёъшї L2 яЁшчэръют эр юёэютх тюырЄшы№эюёЄш ш юс·хьр"""
+    np.random.seed(42)
+    df['order_book_imbalance'] = np.tanh(df['ema_slope'] * 100 + np.random.normal(0, 0.1, len(df)))
+    df['bid_ask_spread'] = df['volatility'] * 0.05 + 0.0001
+    return df
+
+df_features_mtf = simulate_l2_features(df_features_mtf)
+print("╧Ёшчэръш ьшъЁюёЄЁєъЄєЁ√ (L2) єёях°эю фюсртыхэ√ т юёэютэющ фрЄрёхЄ.")
+display(df_features_mtf[['order_book_imbalance', 'bid_ask_spread']].tail())
+
+================================================================================
+CELL 74 (3171 chars)
+import random
+from collections import deque
+from tensorflow.keras.layers import Input, Dense
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam
+
+class TradingEnvironment:
+    def __init__(self, df, initial_balance=10000):
+        self.df = df.reset_index()
+        self.initial_balance = initial_balance
+        self.state_size = 10 # Features + current position info
+        self.action_size = 3 # 0: Low Risk, 1: Med Risk, 2: High Risk
+        self.reset()
+
+    def reset(self):
+        self.current_step = 0
+        self.balance = self.initial_balance
+        self.done = False
+        return self._get_state()
+
+    def _get_state(self):
+        # State includes market context and predictions from previous layers
+        row = self.df.iloc[self.current_step]
+        state = np.array([
+            row['rsi'], row['volatility'], row['regime_pred'],
+            row['vol_spike_prob'], row['direction_prob'], row['meta_prob'],
+            row['ema_slope'], row['adx'], row['rsi_15m'], row['rsi_4h']
+        ])
+        return np.reshape(state, [1, self.state_size])
+
+    def step(self, action):
+        # Map action to risk multiplier
+        risk_map = {0: 0.005, 1: 0.01, 2: 0.02}
+        risk_pct = risk_map[action]
+
+        # Simulate trade result using 'final_signal' and future returns
+        # Simplified: reward is based on the Sharpe improvement or absolute net return
+        current_close = self.df.iloc[self.current_step]['close']
+        future_close = self.df.iloc[self.current_step + 1]['close'] if self.current_step < len(self.df)-1 else current_close
+
+        signal = self.df.iloc[self.current_step]['final_signal']
+        price_change = (future_close - current_close) / current_close
+
+        reward = signal * price_change * risk_pct * 100 # Scaled reward
+
+        self.current_step += 1
+        if self.current_step >= len(self.df) - 1:
+            self.done = True
+
+        return self._get_state(), reward, self.done
+
+class DQNAgent:
+    def __init__(self, state_size, action_size):
+        self.state_size = state_size
+        self.action_size = action_size
+        self.memory = deque(maxlen=2000)
+        self.gamma = 0.95    # discount rate
+        self.epsilon = 1.0   # exploration rate
+        self.epsilon_min = 0.01
+        self.epsilon_decay = 0.995
+        self.model = self._build_model()
+
+    def _build_model(self):
+        inputs = Input(shape=(self.state_size,))
+        x = Dense(24, activation='relu')(inputs)
+        x = Dense(24, activation='relu')(x)
+        outputs = Dense(self.action_size, activation='linear')(x)
+        model = Model(inputs=inputs, outputs=outputs)
+        model.compile(loss='mse', optimizer=Adam(learning_rate=0.001))
+        return model
+
+    def act(self, state):
+        if np.random.rand() <= self.epsilon:
+            return random.randrange(self.action_size)
+        act_values = self.model.predict(state, verbose=0)
+        return np.argmax(act_values[0])
+
+    def remember(self, state, action, reward, next_state, done):
+        self.memory.append((state, action, reward, next_state, done))
+
+print("RL Environment and DQN Agent architecture initialized.")
+
+================================================================================
+CELL 79 (1788 chars)
+import numpy as np
+import pandas as pd
+
+class TimeSeriesSplitter:
+    def __init__(self, n_splits=5, train_size=0.7, test_size=None):
+        """
+        ╦юушър Walk Forward Validation.
+        :param n_splits: ╩юышўхёЄтю Ёрчсшхэшщ
+        :param train_size: ╧ЁюЎхэЄ фрээ√ї фы  юсєўхэш  т ърцфюь юъэх
+        :param test_size: ╘шъёшЁютрээ√щ ЁрчьхЁ ЄхёЄр (хёыш None, шёяюы№чєхЄё  юёЄрЄюъ)
+        """
+        self.n_splits = n_splits
+        self.train_size = train_size
+        self.test_size = test_size
+
+    def split(self, data):
+        """
+        ├хэхЁрЄюЁ шэфхъёют фы  юсєўхэш  ш ЄхёЄр
+        """
+        n_samples = len(data)
+        # ╬яЁхфхы хь ЁрчьхЁ юфэюую Їюыфр (°рур)
+        fold_size = n_samples // self.n_splits
+
+        for i in range(self.n_splits):
+            # ╬яЁхфхы хь уЁрэшЎ√ Єхъє∙хую юъэр
+            start = 0
+            # Expanding window logic: юсєўр■∙р  т√сюЁър ЁрёЄхЄ ё ърцф√ь °руюь
+            train_end = int((i + 1) * fold_size * self.train_size)
+            test_end = (i + 1) * fold_size
+
+            if i == self.n_splits - 1:
+                test_end = n_samples
+
+            yield data.iloc[start:train_end], data.iloc[train_end:test_end]
+
+# --- ─хьюэёЄЁрЎш  ЁрсюЄ√ ---
+if 'df_features' in globals():
+    splitter = TimeSeriesSplitter(n_splits=5)
+
+    print(f"╚эшЎшрышчрЎш  Walk Forward Split фы  {len(df_features)} ёЄЁюъ...")
+
+    for i, (train_chunk, test_chunk) in enumerate(splitter.split(df_features)):
+        print(f"\nFold {i+1}:")
+        print(f"  ╬сєўхэшх: {train_chunk.index[0]} - {train_chunk.index[-1]} ({len(train_chunk)} ёЄЁюъ)")
+        print(f"  ╥хёЄ:     {test_chunk.index[0]} - {test_chunk.index[-1]} ({len(test_chunk)} ёЄЁюъ)")
+else:
+    print("╬°шсър: ╧хЁхьхээр  'df_features' эх эрщфхэр. ╤эрўрыр чряєёЄшЄх Feature Engine.")
+
+================================================================================
+CELL 81 (2964 chars)
+import pandas as pd
+import numpy as np
+
+class Backtester:
+    def __init__(self, commission=0.0005, slippage=0.0001):
+        """
+        ─тшцюъ фы  ёшьєы Ўшш ЄюЁуютыш.
+        :param commission: ╩юьшёёш  чр ёфхыъє (0.0005 = 0.05%)
+        :param slippage: ╧Ёюёъры№ч√трэшх (0.0001 = 0.01%)
+        """
+        self.commission = commission
+        self.slippage = slippage
+
+    def run(self, df, signals):
+        """
+        ╟ряєёъ ёшьєы Ўшш эр тёхї фрээ√ї
+        :param df: DataFrame ё Ўхэрьш (close)
+        :param signals: ╤хЁш  ёшуэрыют (-1, 0, 1)
+        """
+        results = df[['close']].copy()
+        results['signal'] = signals
+
+        # 1. ╨рёўхЄ фюїюфэюёЄш ръЄштр (Buy & Hold)
+        results['market_returns'] = results['close'].pct_change()
+
+        # 2. ╨рёўхЄ фюїюфэюёЄш ёЄЁрЄхушш (фю шчфхЁцхъ)
+        results['strategy_returns'] = results['signal'].shift(1) * results['market_returns']
+
+        # 3. ╠юфхышЁютрэшх шчфхЁцхъ (ъюьшёёш  + яЁюёъры№ч√трэшх)
+        results['trades'] = results['signal'].diff().fillna(0).abs()
+        results['costs'] = results['trades'] * (self.commission + self.slippage)
+
+        # 4. ╫шёЄр  фюїюфэюёЄ№
+        results['net_returns'] = results['strategy_returns'] - results['costs']
+
+        # 5. ╩єьєы Єштэ√х яюърчрЄхыш
+        results['cum_market_returns'] = (1 + results['market_returns'].fillna(0)).cumprod()
+        results['cum_strategy_returns'] = (1 + results['net_returns'].fillna(0)).cumprod()
+
+        # 6. ╨рёўхЄ яЁюёрфъш (Drawdown)
+        peak = results['cum_strategy_returns'].expanding(min_periods=1).max()
+        results['drawdown'] = (results['cum_strategy_returns'] - peak) / peak
+
+        return results
+
+# --- ┬√яюыэхэшх яюыэюую с¤ъЄхёЄр эр тёхї фрээ√ї ---
+if 'df_features' in globals():
+    # ├хэхЁшЁєхь ЄхёЄют√х ёшуэры√ эр юёэютх RSI фы  тёхщ шёЄюЁшш
+    # ╠√ шёяюы№чєхь тёх 52560 ёЄЁюъ (шыш ёъюы№ъю чруЁєцхэю)
+    full_signals = np.where(df_features['rsi'] < 30, 1, np.where(df_features['rsi'] > 70, -1, 0))
+
+    bt = Backtester(commission=0.0006, slippage=0.0002)
+    perf = bt.run(df_features, full_signals)
+
+    print(f"--- ╧юыэ√щ с¤ъЄхёЄ эр тёхї фрээ√ї ({len(df_features)} срЁют) ---")
+    print(f"╧хЁшюф: {df_features.index[0]} - {df_features.index[-1]}")
+
+    # ┬√тюфшь ётюфэє■ ёЄрЄшёЄшъє
+    final_strategy_return = (perf['cum_strategy_returns'].iloc[-1] - 1) * 100
+    final_market_return = (perf['cum_market_returns'].iloc[-1] - 1) * 100
+    max_dd = perf['drawdown'].min() * 100
+    total_trades = int(perf['trades'].sum())
+
+    print(f"\n╚Єюуютр  фюїюфэюёЄ№ ёЄЁрЄхушш: {final_strategy_return:.2f}%")
+    print(f"─юїюфэюёЄ№ Buy & Hold: {final_market_return:.2f}%")
+    print(f"╠ръёшьры№эр  яЁюёрфър: {max_dd:.2f}%")
+    print(f"┬ёхую чрЇшъёшЁютрэю шчьхэхэшщ яючшЎшщ: {total_trades}")
+
+    # ╬ЄюсЁрцрхь їтюёЄ фы  яЁютхЁъш яюёыхфэшї фрээ√ї
+    display(perf[['close', 'signal', 'cum_strategy_returns', 'drawdown']].tail())
+else:
+    print("╬°шсър: ─рээ√х df_features эх эрщфхэ√.")
+
+================================================================================
+CELL 83 (1971 chars)
+import pandas as pd
+import numpy as np
+
+class PerformanceMetrics:
+    def __init__(self, backtest_results):
+        self.results = backtest_results
+        self.returns = self.results['net_returns'].fillna(0)
+
+    def calculate_metrics(self):
+        """╨рёўхЄ юёэютэ√ї ьхЄЁшъ ¤ЇЇхъЄштэюёЄш"""
+        metrics = {}
+
+        # 1. ╬с∙р  фюїюфэюёЄ№
+        total_return = (self.results['cum_strategy_returns'].iloc[-1] - 1)
+
+        # 2. ╩ю¤ЇЇшЎшхэЄ ╪рЁяр (уюфютющ, яЁхфяюырур  ўрёют√х фрээ√х)
+        # 24 * 365 = 8760 ўрёют т уюфє
+        std = self.returns.std()
+        metrics['Sharpe Ratio'] = (self.returns.mean() / std * np.sqrt(8760)) if std != 0 else 0
+
+        # 3. Profit Factor
+        gains = self.returns[self.returns > 0].sum()
+        losses = abs(self.returns[self.returns < 0].sum())
+        metrics['Profit Factor'] = (gains / losses) if losses != 0 else np.inf
+
+        # 4. Win Rate
+        trades = self.results[self.results['trades'] != 0]
+        if len(trades) > 0:
+            # ╤ўшЄрхь Єюы№ъю срЁ√ ёю ёфхыърьш (шчьхэхэшхь яючшЎшш)
+            wins = len(self.returns[self.returns > 0])
+            total_trades = len(self.returns[self.returns != 0])
+            metrics['Win Rate (%)'] = (wins / total_trades * 100) if total_trades > 0 else 0
+        else:
+            metrics['Win Rate (%)'] = 0
+
+        # 5. ╠ръёшьры№эр  яЁюёрфър (MDD)
+        metrics['Max Drawdown (%)'] = self.results['drawdown'].min() * 100
+
+        # 6. Recovery Factor
+        metrics['Recovery Factor'] = (total_return / abs(self.results['drawdown'].min())) if self.results['drawdown'].min() != 0 else 0
+
+        metrics['Total Return (%)'] = total_return * 100
+
+        return pd.Series(metrics)
+
+# --- ┬√яюыэхэшх ---
+if 'perf' in globals():
+    analyzer = PerformanceMetrics(perf)
+    stats = analyzer.calculate_metrics()
+
+    print("--- ╚Єюуют√х яюърчрЄхыш ёЄЁрЄхушш ---")
+    print(stats.to_string())
+else:
+    print("╬°шсър: ╨хчєы№ЄрЄ√ с¤ъЄхёЄр (perf) эх эрщфхэ√.")
+
+================================================================================
+CELL 85 (1738 chars)
+import json
+import os
+from datetime import datetime
+
+class ExperimentLogger:
+    def __init__(self, log_file='experiments_log.json'):
+        self.log_file = log_file
+
+    def log_experiment(self, name, params, metrics):
+        """
+        ╤юїЁрэхэшх ярЁрьхЄЁют ш Ёхчєы№ЄрЄют ¤ъёяхЁшьхэЄр.
+        :param name: ═рчтрэшх ¤ъёяхЁшьхэЄр
+        :param params: ╤ыютрЁ№ ё ярЁрьхЄЁрьш (ЄрщьЇЁхщь, ъюьшёёшш ш Є.ф.)
+        :param metrics: ╤хЁш  шыш ёыютрЁ№ ё ьхЄЁшърьш (Sharpe, DD ш Є.ф.)
+        """
+        log_entry = {
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'experiment_name': name,
+            'parameters': params,
+            'metrics': metrics.to_dict() if hasattr(metrics, 'to_dict') else metrics
+        }
+
+        # ╟руЁєчър ёє∙хёЄтє■∙шї ыюуют
+        logs = []
+        if os.path.exists(self.log_file):
+            try:
+                with open(self.log_file, 'r') as f:
+                    logs = json.load(f)
+            except:
+                logs = []
+
+        # ─юсртыхэшх эютющ чряшёш
+        logs.append(log_entry)
+
+        # ╤юїЁрэхэшх юсэютыхээюую ёяшёър
+        with open(self.log_file, 'w') as f:
+            json.dump(logs, f, indent=4)
+
+        print(f"▌ъёяхЁшьхэЄ '{name}' єёях°эю ёюїЁрэхэ т {self.log_file}")
+
+# --- ┬√яюыэхэшх ---
+if 'stats' in globals():
+    logger = ExperimentLogger()
+
+    # ╧ЁшьхЁ ярЁрьхЄЁют фы  ыюушЁютрэш 
+    current_params = {
+        'symbol': SYMBOL,
+        'timeframe': TIMEFRAME,
+        'commission': 0.0006,
+        'slippage': 0.0002,
+        'strategy': 'RSI_Baseline_Test'
+    }
+
+    logger.log_experiment('Initial_RSI_Test', current_params, stats)
+else:
+    print("╬°шсър: ╠хЄЁшъш (stats) эх эрщфхэ√. ╤эрўрыр чряєёЄшЄх ьюфєы№ Metrics.")
+
+================================================================================
+CELL 89 (2538 chars)
+import lightgbm as lgb
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+
+class RegimeModel:
+    def __init__(self, n_estimators=100, learning_rate=0.05):
+        self.model = lgb.LGBMClassifier(
+            n_estimators=n_estimators,
+            learning_rate=learning_rate,
+            objective='binary',
+            metric='binary_logloss',
+            importance_type='gain',
+            verbose=-1
+        )
+        self.feature_cols = ['adx', 'ema_slope', 'volatility', 'atr']
+
+    def prepare_labels(self, df, window=24, threshold_mult=1.5):
+        returns = df['close'].pct_change(window).abs()
+        rolling_vol = returns.rolling(window=window*5).mean()
+        labels = (returns > (rolling_vol * threshold_mult)).astype(int)
+        return labels.fillna(0)
+
+    def train(self, X, y):
+        X_train, X_test, y_train, y_test = train_test_split(X[self.feature_cols], y, test_size=0.2, shuffle=False)
+
+        evals_result = {}
+        self.model.fit(
+            X_train, y_train,
+            eval_set=[(X_train, y_train), (X_test, y_test)],
+            eval_names=['train', 'valid'],
+            callbacks=[
+                lgb.early_stopping(stopping_rounds=10),
+                lgb.record_evaluation(evals_result)
+            ]
+        )
+
+        self._plot_training_results(evals_result, y_test, self.model.predict(X_test))
+        return evals_result
+
+    def _plot_training_results(self, evals_result, y_true, y_pred):
+        fig, ax = plt.subplots(1, 2, figsize=(16, 5))
+
+        # 1. Loss Curve
+        lgb.plot_metric(evals_result, metric='binary_logloss', ax=ax[0])
+        ax[0].set_title('Regime Model: Loss Curve')
+
+        # 2. Importance
+        importance = pd.DataFrame({'feature': self.feature_cols, 'importance': self.model.feature_importances_})
+        sns.barplot(x='importance', y='feature', data=importance.sort_values('importance'), ax=ax[1])
+        ax[1].set_title('Feature Importance (Gain)')
+
+        plt.tight_layout()
+        plt.show()
+
+        print("\n--- ╬ЄўхЄ ю ъырёёшЇшърЎшш (Regime) ---")
+        print(classification_report(y_true, y_pred))
+
+# --- ╧хЁхчряєёъ юсєўхэш  Ёхцшьр ---
+if 'df_features' in globals():
+    regime_engine = RegimeModel()
+    y_labels = regime_engine.prepare_labels(df_features)
+    regime_engine.train(df_features[regime_engine.feature_cols], y_labels)
+    df_features['regime_pred'] = regime_engine.model.predict(df_features[regime_engine.feature_cols])
+
+================================================================================
+CELL 91 (3258 chars)
+import lightgbm as lgb
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix, precision_recall_curve
+
+class VolatilityModel:
+    def __init__(self, n_estimators=150, learning_rate=0.05):
+        # ╚ёяюы№чєхь scale_pos_weight шыш is_unbalance фы  сюЁ№с√ ё Ёхфъшьш ёюс√Єш ьш
+        self.model = lgb.LGBMClassifier(
+            n_estimators=n_estimators,
+            learning_rate=learning_rate,
+            objective='binary',
+            is_unbalance=True,
+            importance_type='gain',
+            verbose=-1
+        )
+        self.feature_cols = ['atr', 'volatility', 'adx', 'ema_slope', 'rsi', 'macd_hist']
+
+    def prepare_labels(self, df, window=6, threshold_pct=0.5):
+        """
+        ╤ючфрэшх ьхЄюъ: 1 хёыш тюырЄшы№эюёЄ№ т сышцрщ°шх 'window' ўрёют
+        т√ЁрёЄхЄ чэрўшЄхы№эю т√°х Єхъє∙хую ёЁхфэхую.
+        """
+        # ┴хЁхь ьръёшьры№эє■ тюырЄшы№эюёЄ№ т сєфє∙хь юъэх
+        future_max_vol = df['volatility'].shift(-window).rolling(window=window).max()
+        current_avg_vol = df['volatility'].rolling(window=48).mean()
+
+        labels = (future_max_vol > current_avg_vol * (1 + threshold_pct)).astype(int)
+        return labels.fillna(0)
+
+    def train(self, X, y):
+        X_data = X[self.feature_cols]
+        X_train, X_test, y_train, y_test = train_test_split(X_data, y, test_size=0.2, shuffle=False)
+
+        self.model.fit(
+            X_train, y_train,
+            eval_set=[(X_test, y_test)],
+            callbacks=[lgb.early_stopping(stopping_rounds=20)]
+        )
+
+        # ╧юыєўрхь тхЁю ЄэюёЄш тьхёЄю цхёЄъшї ъырёёют
+        y_probs = self.model.predict_proba(X_test)[:, 1]
+        y_pred = (y_probs > 0.5).astype(int)
+
+        print("\n--- ╙уыєсыхээ√щ юЄўхЄ яю тюырЄшы№эюёЄш ---")
+        print(classification_report(y_test, y_pred))
+
+        self._plot_advanced_analytics(y_test, y_probs, X_data)
+
+    def _plot_advanced_analytics(self, y_true, y_probs, X_data):
+        fig, ax = plt.subplots(1, 2, figsize=(16, 5))
+
+        # 1. ╩Ёштр  Precision-Recall
+        precision, recall, thresholds = precision_recall_curve(y_true, y_probs)
+        ax[0].plot(recall, precision, color='blue', lw=2)
+        ax[0].set_xlabel('Recall')
+        ax[0].set_ylabel('Precision')
+        ax[0].set_title('P-R Curve (╧юшёъ срырэёр ўєтёЄтшЄхы№эюёЄш)')
+
+        # 2. ┬рцэюёЄ№ яЁшчэръют
+        imp_df = pd.DataFrame({'feat': self.feature_cols, 'imp': self.model.feature_importances_})
+        imp_df = imp_df.sort_values('imp', ascending=False)
+        sns.barplot(x='imp', y='feat', data=imp_df, ax=ax[1])
+        ax[1].set_title('╘ръЄюЁ√, тыш ■∙шх эр тёяыхёъ тюырЄшы№эюёЄш')
+
+        plt.tight_layout()
+        plt.show()
+
+# --- ╟ряєёъ ---
+if 'df_features' in globals():
+    vol_module = VolatilityModel()
+    y_vol_deep = vol_module.prepare_labels(df_features)
+
+    print(f"═ют√щ срырэё ьхЄюъ тёяыхёъют: {y_vol_deep.sum()} шч {len(y_vol_deep)}")
+
+    vol_module.train(df_features, y_vol_deep)
+
+    # ╤юїЁрэ хь тхЁю ЄэюёЄш (юэш яюыхчэхх фы  ьхЄр-Їшы№ЄЁр)
+    df_features['vol_spike_prob'] = vol_module.model.predict_proba(df_features[vol_module.feature_cols])[:, 1]
+else:
+    print("╬°шсър: df_features эх эрщфхэ.")
+
+================================================================================
+CELL 93 (1731 chars)
+class DirectionModel:
+    def __init__(self, n_estimators=200, learning_rate=0.03):
+        self.model = lgb.LGBMClassifier(
+            n_estimators=n_estimators,
+            learning_rate=learning_rate,
+            objective='binary',
+            metric='binary_logloss',
+            importance_type='gain',
+            verbose=-1
+        )
+        self.feature_cols = ['rsi', 'macd_hist', 'ema_slope', 'adx']
+
+    def prepare_labels(self, df, horizon=12):
+        future_close = df['close'].shift(-horizon)
+        return (future_close > df['close']).astype(int).fillna(0)
+
+    def train(self, X, y):
+        X_data = X[self.feature_cols]
+        X_train, X_test, y_train, y_test = train_test_split(X_data, y, test_size=0.2, shuffle=False)
+
+        evals_result = {}
+        self.model.fit(
+            X_train, y_train,
+            eval_set=[(X_train, y_train), (X_test, y_test)],
+            eval_names=['train', 'valid'],
+            callbacks=[
+                lgb.early_stopping(stopping_rounds=20),
+                lgb.record_evaluation(evals_result)
+            ]
+        )
+
+        plt.figure(figsize=(10, 4))
+        lgb.plot_metric(evals_result, metric='binary_logloss')
+        plt.title('Direction Model: Learning Curve')
+        plt.show()
+
+    def get_calibrated_signals(self, df, threshold=0.6):
+        probs = self.model.predict_proba(df[self.feature_cols])[:, 1]
+        signals = np.zeros(len(df))
+        signals[probs > threshold] = 1
+        signals[probs < (1 - threshold)] = -1
+        return signals, probs
+
+# --- ╧хЁхчряєёъ юсєўхэш  эряЁртыхэш  ---
+if 'df_features' in globals():
+    dir_model = DirectionModel()
+    y_dir = dir_model.prepare_labels(df_features)
+    dir_model.train(df_features, y_dir)
+
+================================================================================
+CELL 95 (2989 chars)
+import lightgbm as lgb
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, precision_score
+
+class MetaFilterModel:
+    def __init__(self, n_estimators=150):
+        self.model = lgb.LGBMClassifier(
+            n_estimators=n_estimators,
+            learning_rate=0.03,
+            objective='binary',
+            is_unbalance=True,
+            verbose=-1
+        )
+        # ╠хЄр-яЁшчэръш: єтхЁхээюёЄ№ ш ёюёЄю эшх фЁєушї ьюфхыхщ
+        self.feature_cols = ['regime_pred', 'vol_spike_prob', 'direction_prob', 'adx', 'volatility']
+
+    def prepare_meta_labels(self, df, horizon=12, fee=0.001, min_profit=0.005):
+        """
+        ╤ючфрхь 'єьэє■' ьхЄъє: 1, хёыш эряЁртыхэшх єурфрэю яЁртшы№эю
+        ╚ фюїюфэюёЄ№ яюъЁ√трхЄ ъюьшёёшш + ьшэшьры№эє■ Ўхыхтє■ яЁшс√ы№.
+        """
+        future_ret = df['close'].pct_change(horizon).shift(-horizon)
+
+        # ╬яЁхфхы хь ёЄюЁюэє эр юёэютх яЁюуэючр DirectionModel (тхЁю ЄэюёЄ№ > 0.5)
+        side = np.where(df['direction_prob'] > 0.5, 1, -1)
+        profit = side * future_ret
+
+        # ╥хяхЁ№ ьхЄър 1 ёЄртшЄё  Єюы№ъю хёыш яЁюЇшЄ т√°х (ъюьшёёшш + ЄрЁухЄ)
+        target_threshold = fee + min_profit
+        labels = (profit > target_threshold).astype(int)
+
+        print(f"\n--- └эрышч ьхЄюъ ьхЄр-Їшы№ЄЁр ---")
+        print(f"╓хыхтющ яюЁюу фюїюфэюёЄш: {target_threshold*100:.2f}%")
+        print(f"╨рёяЁхфхыхэшх ьхЄюъ (1 = ╩рўхёЄтхээр  ёфхыър):\n{labels.value_counts(normalize=True)}")
+
+        return labels.fillna(0)
+
+    def train(self, df):
+        y = self.prepare_meta_labels(df)
+        X = df[self.feature_cols]
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+
+        self.model.fit(
+            X_train, y_train,
+            eval_set=[(X_test, y_test)],
+            callbacks=[lgb.early_stopping(stopping_rounds=15)]
+        )
+
+        y_pred = self.model.predict(X_test)
+        print("\n--- ╬ЄўхЄ ╠хЄр-Їшы№ЄЁр (╧юшёъ '╞шЁэ√ї' ёфхыюъ) ---")
+        print(classification_report(y_test, y_pred))
+
+        return self
+
+# --- ╟ряєёъ юсэютыхээющ ьюфхыш ---
+if 'direction_prob' in df_features.columns:
+    meta_model = MetaFilterModel()
+    meta_model.train(df_features)
+
+    # ╬сэюты хь Ёх°хэшх ьхЄр-Їшы№ЄЁр
+    df_features['meta_decision'] = meta_model.model.predict(df_features[meta_model.feature_cols])
+
+    # ├хэхЁшЁєхь Їшэры№э√щ ёшуэры (шёяюы№чєхь эряЁртыхэшх Єюы№ъю яЁш юфюсЁхэшш ьхЄр-Їшы№ЄЁюь)
+    # ╧Ёшьхўрэшх: чфхё№ ь√ шёяюы№чєхь direction_prob > 0.5, эю т шфхрых эєцэю
+    # ёшэїЁюэшчшЁютрЄ№ ё direction_calibrated_signal шч яЁхф√фє∙шї °руют.
+    df_features['final_signal'] = np.where(
+        df_features['meta_decision'] == 1,
+        np.where(df_features['direction_prob'] > 0.5, 1, -1),
+        0
+    )
+
+    print(f"\n╤ухэхЁшЁютрэю Їшэры№э√ї ёшуэрыют яюёых Їшы№ЄЁрЎшш: {df_features['final_signal'].abs().sum()}")
+else:
+    print("╬°шсър: ═хюсїюфшь√ яЁюуэюч√ DirectionModel фы  юсєўхэш  ╠хЄр-Їшы№ЄЁр.")
+
+================================================================================
+CELL 97 (1696 chars)
+import numpy as np
+
+class PositionSizer:
+    def __init__(self, risk_per_trade=0.01, account_size=10000):
+        """
+        ─шэрьшўхёъшщ ёрщчшэу эр юёэютх Ёшёър ш тюырЄшы№эюёЄш.
+        :param risk_per_trade: % ъряшЄрыр, ъюЄюЁ√ь ь√ Ёшёъєхь т юфэющ ёфхыъх (0.01 = 1%)
+        """
+        self.risk_per_trade = risk_per_trade
+        self.account_size = account_size
+
+    def calculate_sizes(self, df):
+        """
+        ╨рёўхЄ ЁрчьхЁр яючшЎшш эр юёэютх ATR (Average True Range).
+        ╨рчьхЁ = (╩ряшЄры * ╨шёъ) / (ATR * ╠эюцшЄхы№ ёЄюяр)
+        """
+        # ╠эюцшЄхы№ ёЄюяр (эряЁшьхЁ, 2 * ATR)
+        stop_multiplier = 2.0
+
+        # ╨шёъ т тры■Єх
+        risk_amount = self.account_size * self.risk_per_trade
+
+        # ╨рчьхЁ яючшЎшш т срчютюь ръЄштх (BTC)
+        # ╚чсхурхь фхыхэш  эр эюы№, хёыш ATR эх ЁрёёўшЄрэ
+        safe_atr = df['atr'].replace(0, np.nan)
+        df['pos_size'] = risk_amount / (safe_atr * stop_multiplier)
+
+        # ┼ёыш ёшуэрыр эхЄ, ЁрчьхЁ яючшЎшш 0
+        df['final_pos_size'] = df['pos_size'] * df['final_signal'].abs()
+
+        return df.fillna(0)
+
+# --- ╟ряєёъ ---
+if 'final_signal' in df_features.columns:
+    sizer = PositionSizer(risk_per_trade=0.01) # ╨шёъєхь 1% эр ёфхыъє
+    df_features = sizer.calculate_sizes(df_features)
+
+    active_trades = df_features[df_features['final_signal'] != 0]
+    print(f"--- └эрышч ЁрчьхЁют яючшЎшщ ---")
+    print(f"╤Ёхфэшщ ЁрчьхЁ яючшЎшш: {active_trades['final_pos_size'].mean():.4f} BTC")
+    print(f"╠ръё ЁрчьхЁ: {active_trades['final_pos_size'].max():.4f} BTC")
+    print(f"╠шэ ЁрчьхЁ: {active_trades['final_pos_size'].min():.4f} BTC")
+else:
+    print("╬°шсър: ═х эрщфхэ√ Їшэры№э√х ёшуэры√ фы  ЁрёўхЄр яючшЎшщ.")
+

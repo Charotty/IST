@@ -2,295 +2,167 @@
 
 ## Назначение
 
-Формирование информативного признакового пространства для моделей машинного обучения.
+Расчёт признаков для ML/DL: базовые индикаторы на основном TF, MTF-колонки после sync, микроструктура (OBI, spread). Каталог ниже включает **реализованные в `ist.py`** и **целевые** из roadmap.
 
-## Основные задачи
+## Статус
 
-- Расчет технических индикаторов
-- Создание признаков из order book
-- Генерация временных признаков
-- Нормализация и масштабирование признаков
-- Отбор наиболее информативных признаков
+| Блок | Статус |
+|------|--------|
+| `FeatureEngine` (pandas_ta) | **Реализовано** |
+| MTF-колонки (через sync) | **Реализовано** |
+| OBI / spread | **Симуляция в research** → **реальный L2** (см. ниже) |
+| Bollinger, сессии, skew/kurtosis, selection | **Roadmap** (каталог сохранён) |
 
-## Категории признаков
+## Реализованные признаки (`FeatureEngine`)
 
-### 1. Технические индикаторы
+### Тренд
 
-#### Moving Averages
+| Признак | Формула / параметры |
+|---------|---------------------|
+| `ema_fast` | EMA(close, 20) |
+| `ema_slow` | EMA(close, 50) |
+| `ema_slope` | Δema_fast / ema_fast.shift(1) |
 
-```python
-# Simple Moving Average
-SMA_n = (1/n) * Σ(P_{t-i}) for i=0 to n-1
+### Импульс
 
-# Exponential Moving Average  
-EMA_t = α * P_t + (1-α) * EMA_{t-1}
-```
+| Признак | Параметры |
+|---------|-----------|
+| `rsi` | RSI(14) |
+| `macd`, `macd_signal`, `macd_hist` | MACD(12, 26, 9) |
 
-#### Momentum Indicators
+### Волатильность
 
-```python
-# RSI
-RSI = 100 - (100 / (1 + RS))
+| Признак | Параметры |
+|---------|-----------|
+| `atr` | ATR(14) |
+| `log_ret` | ln(close / close.shift(1)) |
+| `volatility` | std(log_ret, 20) × √24 (часовые бары) |
 
-# MACD
-MACD = EMA_12 - EMA_26
-Signal = EMA_9(MACD)
-```
+### Режим
 
-#### Volatility Indicators
+| Признак | Параметры |
+|---------|-----------|
+| `adx` | ADX(14) |
 
-```python
-# Bollinger Bands
-Upper = SMA_n + k * σ_n
-Lower = SMA_n - k * σ_n
+### MTF (после `MultiTimeframeEngine`)
 
-# ATR
-ATR = Average(True_Range)
-```
+`rsi_15m`, `ema_slope_15m`, `rsi_4h`, `adx_4h`
 
-### 2. Order Book признаки
+### Микроструктура
 
-#### Imbalance Metrics
+| Признак | Research (`ist.py`) | Production |
+|---------|---------------------|------------|
+| `order_book_imbalance` | `simulate_l2_features()` | OKX L2 WebSocket / REST books |
+| `bid_ask_spread` | proxy от `volatility` | `(ask - bid) / bid` |
 
-```python
-# Order Book Imbalance
-Imbalance = (ΣBidVolume - ΣAskVolume) / (ΣBidVolume + ΣAskVolume)
+## Переход с симуляции на реальный OBI / spread
 
-# Spread
-Spread = Ask_best - Bid_best
+### Проблема
 
-# Mid Price
-MidPrice = (Ask_best + Bid_best) / 2
-```
+В Colab OBI генерировался как `tanh(ema_slope * 100 + noise)` — только для RL-экспериментов.
 
-#### Depth Features
+### Целевой путь (без смены контракта колонок)
 
-```python
-# Price Impact
-PriceImpact = (MidPrice_t - MidPrice_{t-1}) / Volume
-
-# Liquidity Ratio
-Liquidity = ΣVolume_at_best_levels / Total_Volume
-```
-
-### 3. Временные признаки
-
-#### Returns
+1. **Data Layer (live)** — подписка OKX `books` / `books5`, depth N (например 20).  
+2. **`OrderBookMicrostructure`** (уже в `ist.py`):
 
 ```python
-# Simple Return
-r_t = (P_t - P_{t-1}) / P_{t-1}
+def calculate_obi(self, bids, asks):
+    bid_vol = sum(b[1] for b in bids[:self.depth])
+    ask_vol = sum(a[1] for a in asks[:self.depth])
+    return (bid_vol - ask_vol) / (bid_vol + ask_vol)
 
-# Log Return
-r_t = ln(P_t / P_{t-1})
+def get_spread(self, bids, asks):
+    return (asks[0][0] - bids[0][0]) / bids[0][0]
 ```
 
-#### Time-based Features
+3. **Synchronization** — resample OBI/spread на `1h` (`.last()` или mean за час).  
+4. **Feature flag** — `microstructure_mode: simulated | live`; при `live` симулятор не вызывается.  
+5. **Бэктест** — хранить исторические L2-снэпшоты (Parquet) или отключать OBI в чистом OHLCV-бэктесте.
+
+## Каталог признаков (roadmap / расширение)
+
+Сохраняется для поэтапного добавления; не все входят в текущий training set.
+
+### Технические
+
+- **MA:** SMA, EMA (доп. периоды 5, 10, 200)  
+- **Momentum:** Stochastic, доп. RSI(21)  
+- **Volatility:** Bollinger(20, 2σ)  
+- **Volume:** OBV, VWAP, ADL  
+
+### Order book (при live L2)
 
 ```python
-# Time of day
-HourOfDay = timestamp.hour
-DayOfWeek = timestamp.dayofweek
-
-# Session indicators
-IsAsianSession = timezone in ['Tokyo', 'Singapore']
-IsEuropeanSession = timezone in ['London', 'Frankfurt']
-IsAmericanSession = timezone in ['New York', 'Chicago']
+Imbalance = (ΣBidVol - ΣAskVol) / (ΣBidVol + ΣAskVol)
+MidPrice = (best_ask + best_bid) / 2
+Spread = best_ask - best_bid
 ```
 
-### 4. Статистические признаки
+Depth: price impact, liquidity ratio — по мере накопления L2.
 
-#### Rolling Statistics
+### Временные
+
+- `hour`, `dayofweek`, сессии (Asia / EU / US)  
+- returns: `r_t`, log-return на горизонтах 1, 5, 15, 60 баров  
+
+### Статистические
+
+- rolling mean/std, z-score  
+- skew, kurtosis, percentiles на окнах 10/20/50  
+
+### Нормализация (DL)
+
+- `StandardScaler` на окне последовательностей (`WINDOW_SIZE=24`) — в pipeline моделей, не в `FeatureEngine`.
+
+## Входной набор для Direction / DL (эталон)
 
 ```python
-# Rolling Mean/Volatility
-RollingMean_n = mean(P_{t-n:t})
-RollingStd_n = std(P_{t-n:t})
-
-# Z-score
-ZScore = (P_t - RollingMean_n) / RollingStd_n
+features = [
+    'rsi', 'macd_hist', 'ema_slope', 'adx',
+    'rsi_15m', 'ema_slope_15m', 'rsi_4h', 'adx_4h'
+]
 ```
 
-#### Distribution Features
-
-```python
-# Skewness and Kurtosis
-Skewness = skew(returns_window)
-Kurtosis = kurtosis(returns_window)
-
-# Percentiles
-P25 = percentile(returns, 25)
-P75 = percentile(returns, 75)
-```
-
-## Структура модуля
+## Структура модуля (целевая)
 
 ```
 feature_engineering/
 ├── __init__.py
-├── technical/
-│   ├── __init__.py
-│   ├── moving_averages.py    # SMA, EMA, WMA
-│   ├── momentum.py           # RSI, MACD, Stochastic
-│   ├── volatility.py         # Bollinger Bands, ATR
-│   └── volume.py             # OBV, VWAP, ADL
-├── orderbook/
-│   ├── __init__.py
-│   ├── imbalance.py          # Order book imbalance
-│   ├── spread.py             # Spread metrics
-│   ├── depth.py              # Depth features
-│   └── microstructure.py     # Microstructure features
-├── temporal/
-│   ├── __init__.py
-│   ├── returns.py            # Return calculations
-│   ├── time_features.py      # Time-based features
-│   └── seasonality.py        # Seasonal patterns
-├── statistical/
-│   ├── __init__.py
-│   ├── rolling_stats.py      # Rolling statistics
-│   ├── distribution.py       # Distribution features
-│   └── correlation.py        # Correlation features
-├── selection/
-│   ├── __init__.py
-│   ├── importance.py         # Feature importance
-│   ├── correlation_filter.py # Correlation filtering
-│   └── variance_filter.py    # Variance filtering
-├── scaling/
-│   ├── __init__.py
-│   ├── normalizer.py         # Normalization methods
-│   └── scaler.py             # Scaling methods
-└── feature_manager.py        # Главный менеджер признаков
+├── feature_engine.py           # FeatureEngine
+├── microstructure/
+│   ├── order_book.py           # OrderBookMicrostructure
+│   └── l2_adapter.py           # OKX WS → OBI, spread
+├── technical/                  # roadmap: bollinger, volume, ...
+└── feature_manager.py
 ```
-
-## Ключевые компоненты
-
-### FeatureManager
-
-Центральный компонент управления признаками:
-- Координация всех генераторов признаков
-- Управление зависимостями между признаками
-- Кэширование вычислений
-- Валидация признаков
-
-### BaseFeatureGenerator
-
-Абстрактный базовый класс:
-- Стандартизация интерфейсов
-- Общие методы валидации
-- Обработка ошибок
-
-### FeatureSelector
-
-Отбор наиболее информативных признаков:
-- Статистические тесты
-- Методы вложений (embedded methods)
-- Жадные алгоритмы отбора
-
-### FeatureScaler
-
-Нормализация и масштабирование:
-- StandardScaler
-- MinMaxScaler  
-- RobustScaler
-- Custom scaling methods
-
-## Оптимизация вычислений
-
-### Векторизация
-
-Использование numpy/pandas векторизованных операций для максимальной производительности.
-
-### Кэширование
-
-Кэширование вычисленных признаков для избежания повторных расчетов.
-
-### Параллелизация
-
-Параллельный расчет независимых признаков.
-
-### Инкрементальные вычисления
-
-Инкрементальное обновление признаков при поступлении новых данных.
-
-## Технологии
-
-- **pandas** - временные ряды и вычисления
-- **numpy** - векторизованные операции
-- **scipy** - статистические функции
-- **scikit-learn** - масштабирование и отбор признаков
-- **numba** - JIT компиляция для ускорения
-- **dask** - параллельные вычисления
 
 ## Конфигурация
 
 ```yaml
 feature_engineering:
-  features:
-    technical:
-      moving_averages:
-        periods: [5, 10, 20, 50, 200]
-        types: ["SMA", "EMA"]
-      momentum:
-        rsi_periods: [14, 21]
-        macd_params: [12, 26, 9]
-      volatility:
-        bollinger_periods: [20]
-        bollinger_std: [2.0]
-    
-    orderbook:
-      levels: [5, 10, 20]
-      imbalance_window: 10
-    
-    temporal:
-      return_periods: [1, 5, 15, 60]
-      seasonal_features: true
-    
-    statistical:
-      rolling_windows: [10, 20, 50]
-      percentiles: [25, 75, 90]
-
-  selection:
-    method: "mutual_info"  # variance, correlation, mutual_info
-    max_features: 100
-    correlation_threshold: 0.95
-
-  scaling:
-    method: "standard"  # standard, minmax, robust
-    feature_range: [0, 1]
+  base_indicators:
+    ema_fast: 20
+    ema_slow: 50
+    rsi_length: 14
+    atr_length: 14
+    macd: [12, 26, 9]
+    vol_window: 20
+  microstructure:
+    mode: "live"               # simulated | live | off
+    depth: 20
+  mtf_columns: ["rsi_15m", "ema_slope_15m", "rsi_4h", "adx_4h"]
 ```
-
-## Метрики качества
-
-### Информативность признаков
-- Mutual Information
-- Feature Importance
-- Correlation with target
-
-### Стабильность признаков
-- Feature stability over time
-- Out-of-sample performance
-- Computational efficiency
 
 ## Интеграция
 
-Feature Engineering получает данные от:
-- **Synchronization Layer** - синхронизированные данные
-
-И передает признаки в:
-- **Models Layer** - для обучения и предсказания
-- **Meta-Learning** - для адаптивного выбора признаков
-
-## Требования к реализации
-
-1. **Производительность** - быстрые вычисления в real-time
-2. **Масштабируемость** - поддержка тысяч признаков
-3. **Надежность** - обработка ошибок и аномальных данных
-4. **Гибкость** - легкое добавление новых признаков
-5. **Оптимизация** - минимальное использование памяти
+| Откуда | Куда |
+|--------|------|
+| **Data Layer** + **Synchronization** | OHLCV + MTF |
+| **Models / Meta / RL** | матрица признаков + производные колонки моделей |
 
 ## Тестирование
 
-- Unit тесты для каждого признака
-- Integration тесты для pipeline
-- Performance тесты для скорости вычислений
-- Validation тесты для корректности расчетов
+- Unit: формулы RSI/ATR vs эталон  
+- Нет NaN после `dropna()` в конце pipeline  
+- Live OBI: сравнение с ручным расчётом на снэпшоте стакана  

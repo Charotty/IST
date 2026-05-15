@@ -1,0 +1,5 @@
+"""Model router module."""
+
+from .model_router import ModelRouter
+
+__all__ = ['ModelRouter']
