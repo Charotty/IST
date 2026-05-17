@@ -1,0 +1,110 @@
+# Canonical IST profile — diploma / production research path
+# Ensemble: LightGBM + XGBoost + GRU + CNN with regime-adaptive meta-weighting
+
+app:
+  name: Intelligent Trading System
+  version: 1.0.0
+  debug: false
+  log_level: INFO
+
+# OKX fetch window for prepare-symbol --download
+data_collection:
+  start_date: "2022-01-01 00:00:00"
+  end_date: null
+
+data_layer:
+  connectors:
+    okx:
+      api_key: ${OKX_API_KEY}
+      secret_key: ${OKX_SECRET_KEY}
+      passphrase: ${OKX_PASSPHRASE}
+      sandbox: true
+      rate_limit: 20
+      base_url: https://www.okx.com/api/v5
+  storage:
+    parquet:
+      path: ./data/parquet
+      compression: snappy
+
+synchronization:
+  base_timeframe: "1h"
+  auxiliary_timeframes:
+    - "15m"
+    - "4h"
+  resample_rule: "1h"
+  fill_method: ffill
+  drop_na_after_merge: true
+
+feature_engineering:
+  drop_na: true
+  microstructure:
+    mode: "off"
+  base_indicators:
+    ema_fast: 20
+    ema_slow: 50
+    rsi_length: 14
+    atr_length: 14
+    macd_fast: 12
+    macd_slow: 26
+    macd_signal: 9
+    adx_length: 14
+    vol_window: 20
+
+orchestration:
+  model_keys:
+    - lgb
+    - gru
+    - xgb
+    - cnn
+  ensemble_mode: regime_adaptive
+  apply_decision_pipeline: true
+  direction_threshold: 0.52
+  meta_threshold_mode: median
+  meta_threshold: 0.5
+  min_signal_margin: 0.0
+  trade_mode: both
+  signal_strategy: ensemble
+  prediction_horizon: 12
+  feature_window_size: 24
+  train_window_size: 1500
+  test_window_size: 250
+  walk_forward_step: 250
+  enable_purge: true
+  embargo_period: 5
+  allow_meta_label_on_test: false
+  safe_label_generation: true
+  safe_threshold_mode: true
+  threshold_rolling_window: 100
+  use_risk_bridge: true
+  apply_atr_trailing: false
+  trend_weights:
+    lgb: 0.10
+    gru: 0.45
+    xgb: 0.10
+    cnn: 0.35
+  range_weights:
+    lgb: 0.55
+    gru: 0.10
+    xgb: 0.25
+    cnn: 0.10
+  regime_keys:
+    - trend
+    - range
+
+backtesting:
+  bars_per_year: 8760
+  simulation:
+    commission: 0.0006
+    slippage: 0.0002
+  acceptance:
+    min_folds: 5
+    min_oos_sharpe: 0.5
+    min_oos_profit_factor: 1.2
+    max_drawdown_pct: -35.0
+    min_wfe: 0.5
+    min_trade_events: 30
+
+# DL training defaults when using --full-models (orchestration CLI)
+orchestration_dl:
+  epochs: 5
+  batch_size: 64

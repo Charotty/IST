@@ -1,0 +1,32 @@
+# ARCHIVED — subject for discussion / comparison only (NOT canonical)
+#
+# Former root key: orchestration_tuning_best
+# Captured from experiments with 2 tabular models (lgb + xgb), fixed_range ensemble,
+# different thresholds than the 4-model diploma profile.
+#
+# Do NOT use as default in CLI. See config/profiles/canonical_4model.yaml
+
+orchestration:
+  apply_decision_pipeline: true
+  direction_threshold: 0.6
+  ensemble_mode: fixed_range
+  label_min_return: 0.0
+  max_position_fraction: 1.0
+  meta_threshold_mode: percentile
+  min_signal_margin: 0.08
+  model_keys:
+    - lgb
+    - xgb
+  prediction_horizon: 24
+  regime: momentum
+  signal_strategy: ensemble
+  test_window_size: 170
+  trade_mode: both
+  train_window_size: 1500
+  use_risk_bridge: false
+  volatility_filter_percentile: 0.0
+  walk_forward_step: 360
+
+notes: |
+  Archived 2026-05-16 per IMPLEMENTATION_PLAN.md phase 0.
+  Holdout runs using this profile are kept under artifacts/ for reference only.

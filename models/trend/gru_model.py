@@ -67,7 +67,12 @@ class GRUTrendModel:
         :return: X, y arrays
         """
         if self.feature_cols is None:
-            self.feature_cols = [col for col in df.columns if col != 'close']
+            # Exclude leaky features: meta_prob, signals, OBI, future fields
+            leaky_patterns = ['meta_prob', 'signal', 'order_book_imbalance', 'obi', 'future_', 'target_']
+            self.feature_cols = [
+                col for col in df.columns 
+                if col != 'close' and not any(pattern in col.lower() for pattern in leaky_patterns)
+            ]
         
         Xs, ys = [], []
         for i in range(len(df) - self.window_size):
@@ -80,24 +85,32 @@ class GRUTrendModel:
         """
         Train the GRU model.
         
+        Uses time-based validation split to avoid temporal data leakage.
+        Last validation_split portion of data is used for validation.
+        
         :param df: DataFrame with features
         :param y: Target series
         :param epochs: Number of epochs
         :param batch_size: Batch size
-        :param validation_split: Validation split ratio
+        :param validation_split: Validation split ratio (time-based, not random)
         """
         if self.model is None:
             self.build_model()
         
         X, y_seq = self.prepare_sequences(df, y)
         
+        # Time-based split: last validation_split portion for validation
+        split_idx = int(len(X) * (1 - validation_split))
+        X_train, X_val = X[:split_idx], X[split_idx:]
+        y_train, y_val = y_seq[:split_idx], y_seq[split_idx:]
+        
         early_stopping = EarlyStopping(patience=5, restore_best_weights=True)
         
         self.model.fit(
-            X, y_seq,
+            X_train, y_train,
             epochs=epochs,
             batch_size=batch_size,
-            validation_split=validation_split,
+            validation_data=(X_val, y_val),
             callbacks=[early_stopping],
             verbose=0
         )

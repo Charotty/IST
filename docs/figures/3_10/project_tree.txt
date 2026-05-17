@@ -1,0 +1,342 @@
+IST/
+|-- backtesting/
+|   |-- __init__.py
+|   |-- backtester.py
+|   |-- criteria_evaluator.py
+|   |-- experiment_logger.py
+|   |-- metrics_config.py
+|   |-- performance_metrics.py
+|   |-- README.md
+|   |-- results_journal.py
+|   |-- time_series_splitter.py
+|   +-- walk_forward.py
+|-- config/
+|   |-- archive/
+|   |   +-- discussion/
+|   |       |-- orchestration_tuning_best_lgb_xgb.yaml
+|   |       +-- README.md
+|   |-- profiles/
+|   |   +-- canonical_4model.yaml
+|   |-- symbols/
+|   |   +-- BTC-USDT_1h.yaml
+|   +-- README.md
+|-- data_layer/
+|   |-- loaders/
+|   |   |-- __init__.py
+|   |   +-- okx_ohlcv_loader.py
+|   |-- validators/
+|   |   |-- __init__.py
+|   |   +-- ohlcv_validator.py
+|   |-- __init__.py
+|   |-- __main__.py
+|   |-- cli.py
+|   |-- config.py
+|   |-- README.md
+|   +-- storage.py
+|-- decision/
+|   |-- __init__.py
+|   |-- decision_pipeline.py
+|   |-- README.md
+|   +-- signal_rules.py
+|-- docs/
+|   |-- backtest_journal/
+|   |   |-- runs/
+|   |   |-- INDEX.md
+|   |   +-- README.md
+|   |-- figures/
+|   |   |-- 3_10/
+|   |   |-- 3_3/
+|   |   |   |-- atr_scaling_histogram.png
+|   |   |   |-- indicators_rsi_atr_ema.png
+|   |   |   +-- scaling_before_after.png
+|   |   |-- 3_5/
+|   |   |   |-- cnn_kernel_weights.png
+|   |   |   |-- cnn_model_summary.txt
+|   |   |   |-- dl_loss_curves.png
+|   |   |   |-- gru_model_summary.txt
+|   |   |   |-- gru_prediction_sample.csv
+|   |   |   |-- gru_sequence_heatmap.png
+|   |   |   |-- lgb_artifact_importance.png
+|   |   |   |-- lgb_prediction_sample.csv
+|   |   |   |-- lgb_train_curves.png
+|   |   |   |-- lgb_xgb_comparison.png
+|   |   |   +-- tabular_feature_importance.png
+|   |   |-- 3_6/
+|   |   |   |-- regime_distribution.png
+|   |   |   +-- regime_labeling_candles.png
+|   |   |-- 3_7/
+|   |   |   |-- static_vs_adaptive_metrics.png
+|   |   |   |-- static_vs_adaptive_weights.png
+|   |   |   +-- weights_over_time.png
+|   |   |-- 3_8/
+|   |   |   |-- signal_examples.csv
+|   |   |   |-- signals_buy_sell_chart.png
+|   |   |   +-- signals_strict_threshold.png
+|   |   +-- 3_9/
+|   |       |-- atr_trailing_stop_fragment.png
+|   |       +-- equity_drawdown.png
+|   |-- reports/
+|   |   |-- ablation_canonical.json
+|   |   |-- btc_full_models_v2.json
+|   |   |-- btc_full_models_v2_folds.csv
+|   |   |-- btc_full_models_v2_run.log
+|   |   |-- btc_lgbxgb_trial47.json
+|   |   |-- btc_lgbxgb_trial47_actual.json
+|   |   |-- btc_lgbxgb_v2.json
+|   |   |-- btc_lgbxgb_v2_run.log
+|   |   |-- btc_usdt_1h_full_models_wfo.json
+|   |   |-- btc_usdt_1h_full_models_wfo_folds.csv
+|   |   |-- btc_usdt_1h_full_models_wfo_run.log
+|   |   |-- tune_full_dataset.log
+|   |   |-- tune_full_grid.log
+|   |   +-- tune_until_60trials.log
+|   |-- scripts/
+|   |   |-- generate_3_10_tree.py
+|   |   |-- generate_3_3_figures.py
+|   |   |-- generate_3_5_figures.py
+|   |   |-- generate_3_6_figures.py
+|   |   |-- generate_3_7_figures.py
+|   |   |-- generate_3_8_figures.py
+|   |   +-- generate_3_9_figures.py
+|   |-- 3_1_EXPERIMENT_SETUP.md
+|   |-- 3_2_DATA_COLLECTION.md
+|   |-- 3_3_FEATURE_ENGINEERING.md
+|   |-- 3_5_ENSEMBLE_MODELS.md
+|   |-- 3_6_REGIME_DETECTION.md
+|   |-- 3_7_ADAPTIVE_ENSEMBLE.md
+|   |-- 3_8_DECISION_SYSTEM.md
+|   |-- 3_9_RISK_MANAGEMENT.md
+|   |-- _igc_pytest.txt
+|   |-- AUDIT_ISSUES_REFERENCE.md
+|   |-- BACKTESTING_ACTION_PLAN.md
+|   |-- BACKTESTING_CRITERIA_REFERENCE.md
+|   |-- DIPLOMA_SYSTEM_DOCUMENTATION.md
+|   |-- DIPLOMA_TECHNICAL_ANALYSIS.md
+|   |-- e2e_last_metrics.json
+|   |-- full_models_run.log
+|   |-- IMPLEMENTATION_PLAN.md
+|   |-- INTEGRATION_GAPS_REFERENCE.md
+|   |-- SYMBOL_PIPELINE_TEST_PLAN.md
+|   +-- TEST_RESULTS_LOG.md
+|-- execution/
+|   |-- brokers/
+|   |   |-- __init__.py
+|   |   |-- base_broker.py
+|   |   |-- okx_broker.py
+|   |   +-- paper_broker.py
+|   |-- monitoring/
+|   |   |-- __init__.py
+|   |   +-- execution_monitor.py
+|   |-- orders/
+|   |   |-- __init__.py
+|   |   +-- order_manager.py
+|   |-- __init__.py
+|   |-- execution_manager.py
+|   |-- paper_loop.py
+|   +-- README.md
+|-- feature_engineering/
+|   |-- microstructure/
+|   |   |-- __init__.py
+|   |   |-- l2_adapter.py
+|   |   |-- order_book.py
+|   |   +-- simulator.py
+|   |-- __init__.py
+|   |-- __main__.py
+|   |-- cli.py
+|   |-- config.py
+|   |-- feature_engine.py
+|   |-- feature_manager.py
+|   |-- indicators.py
+|   |-- README.md
+|   +-- storage.py
+|-- gui/
+|   |-- api/
+|   |   |-- __init__.py
+|   |   |-- backtests_api.py
+|   |   |-- bundles_api.py
+|   |   |-- cli_api.py
+|   |   |-- client.py
+|   |   |-- config_api.py
+|   |   |-- demo_api.py
+|   |   |-- demo_data.py
+|   |   |-- execution_api.py
+|   |   |-- inference_api.py
+|   |   |-- jobs_api.py
+|   |   |-- okx_api.py
+|   |   |-- reconcile_api.py
+|   |   |-- symbols_api.py
+|   |   +-- types.py
+|   |-- app/
+|   |   |-- views/
+|   |   |   |-- __init__.py
+|   |   |   |-- backtests_view.py
+|   |   |   |-- chart_view.py
+|   |   |   |-- execution_view.py
+|   |   |   |-- jobs_view.py
+|   |   |   |-- models_view.py
+|   |   |   |-- overview_view.py
+|   |   |   +-- settings_view.py
+|   |   |-- widgets/
+|   |   |   |-- __init__.py
+|   |   |   |-- candlestick.py
+|   |   |   |-- explain_card.py
+|   |   |   |-- fold_equity_chart.py
+|   |   |   |-- help_label.py
+|   |   |   +-- symbol_toolbar.py
+|   |   |-- __init__.py
+|   |   |-- __main__.py
+|   |   |-- i18n_ru.py
+|   |   |-- main.py
+|   |   |-- main_window.py
+|   |   +-- workers.py
+|   |-- __init__.py
+|   +-- README.md
+|-- its_project/
+|   +-- logs/
+|-- meta_learning/
+|   |-- calibration/
+|   |   |-- __init__.py
+|   |   +-- probability_calibrator.py
+|   |-- configs/
+|   |   |-- __init__.py
+|   |   +-- meta_config.py
+|   |-- evaluation/
+|   |   |-- __init__.py
+|   |   |-- meta_evaluator.py
+|   |   +-- regime_analyzer.py
+|   |-- utils/
+|   |   |-- __init__.py
+|   |   |-- signal_utils.py
+|   |   +-- weight_utils.py
+|   |-- __init__.py
+|   |-- dynamic_meta.py
+|   |-- ensemble.py
+|   |-- README.md
+|   |-- signal_assembler.py
+|   +-- thresholds.py
+|-- models/
+|   |-- calibration/
+|   |   |-- __init__.py
+|   |   +-- probability_calibrator.py
+|   |-- evaluation/
+|   |   |-- __init__.py
+|   |   +-- model_evaluator.py
+|   |-- inference/
+|   |   |-- __init__.py
+|   |   +-- inference_engine.py
+|   |-- mean_reversion/
+|   |   |-- __init__.py
+|   |   +-- xgboost_model.py
+|   |-- meta/
+|   |   |-- __init__.py
+|   |   +-- logistic_filter.py
+|   |-- orchestration/
+|   |   +-- __init__.py
+|   |-- regime/
+|   |   |-- __init__.py
+|   |   +-- regime_detector.py
+|   |-- registry/
+|   |   |-- __init__.py
+|   |   +-- model_registry.py
+|   |-- router/
+|   |   |-- __init__.py
+|   |   +-- model_router.py
+|   |-- sizing/
+|   |   |-- __init__.py
+|   |   +-- position_sizer.py
+|   |-- tabular/
+|   |   |-- __init__.py
+|   |   +-- lightgbm_tabular_model.py
+|   |-- training/
+|   |   |-- __init__.py
+|   |   +-- trainer.py
+|   |-- trend/
+|   |   |-- __init__.py
+|   |   +-- gru_model.py
+|   |-- utils/
+|   |   |-- __init__.py
+|   |   +-- helpers.py
+|   |-- volatility/
+|   |   |-- __init__.py
+|   |   +-- cnn_model.py
+|   |-- __init__.py
+|   +-- README.md
+|-- orchestration/
+|   |-- __init__.py
+|   |-- __main__.py
+|   |-- artifact_bundle.py
+|   |-- benchmark_runner.py
+|   |-- canonical_pipeline.py
+|   |-- config_validate.py
+|   |-- glue.py
+|   |-- inference_orchestrator.py
+|   |-- integration_smoke.py
+|   |-- introspect.py
+|   |-- ml_deps.py
+|   |-- model_factory.py
+|   |-- orchestrator_config.py
+|   |-- README.md
+|   |-- real_data_benchmark.py
+|   |-- symbol_pipeline.py
+|   |-- symbols.py
+|   |-- training_orchestrator.py
+|   +-- tuning_loop.py
+|-- risk_management/
+|   |-- __init__.py
+|   |-- atr_trailing_stop.py
+|   |-- orchestrator_risk_bridge.py
+|   |-- position_sizer.py
+|   |-- README.md
+|   +-- risk_pipeline.py
+|-- rl_layer/
+|   |-- __init__.py
+|   |-- dqn_agent.py
+|   |-- ensemble_environment.py
+|   |-- environment.py
+|   |-- integration.py
+|   |-- microstructure_environment.py
+|   |-- README.md
+|   +-- rl_backtest.py
+|-- scalers/
+|-- scripts/
+|   |-- run_ablation.py
+|   +-- sharpe_push_trials.py
+|-- synchronization/
+|   |-- __init__.py
+|   |-- __main__.py
+|   |-- cli.py
+|   |-- config.py
+|   |-- gap_handler.py
+|   |-- indicators.py
+|   |-- mtf_features.py
+|   |-- multi_timeframe_engine.py
+|   |-- README.md
+|   +-- storage.py
+|-- tests/
+|   |-- conftest.py
+|   |-- test_audit_fixes.py
+|   |-- test_backtesting_criteria.py
+|   |-- test_feature_engine.py
+|   |-- test_gap_handler.py
+|   |-- test_integration_gaps_closure.py
+|   |-- test_multi_timeframe_engine.py
+|   |-- test_ohlcv_validator.py
+|   |-- test_okx_ohlcv_loader.py
+|   |-- test_orchestration.py
+|   |-- test_orchestration_four_models.py
+|   |-- test_orchestration_real_models.py
+|   |-- test_performance_metrics.py
+|   |-- test_symbol_pipeline.py
+|   +-- test_wfo_backtest.py
+|-- utils/
+|   |-- data_leakage_prevention.py
+|   |-- logger.py
+|   +-- README.md
+|-- _nb_extract.txt
+|-- config.yaml
+|-- ist.ipynb
+|-- ist.py
+|-- pytest.ini
+|-- requirements-gui.txt
+|-- requirements.txt
++-- test_threshold_leakage.py

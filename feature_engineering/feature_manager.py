@@ -36,7 +36,9 @@ class FeatureManager:
         if mode == "live":
             raise NotImplementedError(
                 "live microstructure requires L2 snapshots via data_layer; "
-                "use l2_adapter.align_l2_series() and join manually for now"
+                "use feature_engineering.microstructure.l2_adapter and join to the bar index, "
+                "or keep microstructure.mode=simulated for research. "
+                "See docs/INTEGRATION_GAPS_REFERENCE.md (данные и микроструктура)."
             )
         raise ValueError(f"Unknown microstructure.mode: {mode!r}")
 

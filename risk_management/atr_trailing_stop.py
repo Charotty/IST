@@ -40,9 +40,12 @@ def apply_atr_trailing_stop(
         DataFrame с добавленными колонками trailing_stop и exit_signal
     """
     df = df.copy()
-    
+
     # Инициализировать trailing stop
     df['trailing_stop'] = np.nan
+    ts_col = df.columns.get_loc('trailing_stop')
+    close_ix = df.columns.get_loc(close_col)
+    atr_ix = df.columns.get_loc(atr_col)
     
     # Инициализировать exit signal
     df['exit_signal'] = 0
@@ -53,12 +56,11 @@ def apply_atr_trailing_stop(
     # Для long: trailing_stop = max(prev_stop, close - atr * mult)
     for i in range(1, len(df)):
         if long_mask.iloc[i]:
-            # Если предыдущий stop существует, обновляем его
-            if pd.notna(df['trailing_stop'].iloc[i-1]):
-                new_stop = df[close_col].iloc[i] - df[atr_col].iloc[i] * atr_mult
-                df['trailing_stop'].iloc[i] = max(df['trailing_stop'].iloc[i-1], new_stop)
+            if pd.notna(df.iat[i - 1, ts_col]):
+                new_stop = df.iat[i, close_ix] - df.iat[i, atr_ix] * atr_mult
+                df.iat[i, ts_col] = max(df.iat[i - 1, ts_col], new_stop)
             else:
-                df['trailing_stop'].iloc[i] = df[close_col].iloc[i] - df[atr_col].iloc[i] * atr_mult
+                df.iat[i, ts_col] = df.iat[i, close_ix] - df.iat[i, atr_ix] * atr_mult
     
     # Рассчитать trailing stop для short позиций
     short_mask = df[signal_col] == -1
@@ -66,12 +68,11 @@ def apply_atr_trailing_stop(
     # Для short: trailing_stop = min(prev_stop, close + atr * mult)
     for i in range(1, len(df)):
         if short_mask.iloc[i]:
-            # Если предыдущий stop существует, обновляем его
-            if pd.notna(df['trailing_stop'].iloc[i-1]):
-                new_stop = df[close_col].iloc[i] + df[atr_col].iloc[i] * atr_mult
-                df['trailing_stop'].iloc[i] = min(df['trailing_stop'].iloc[i-1], new_stop)
+            if pd.notna(df.iat[i - 1, ts_col]):
+                new_stop = df.iat[i, close_ix] + df.iat[i, atr_ix] * atr_mult
+                df.iat[i, ts_col] = min(df.iat[i - 1, ts_col], new_stop)
             else:
-                df['trailing_stop'].iloc[i] = df[close_col].iloc[i] + df[atr_col].iloc[i] * atr_mult
+                df.iat[i, ts_col] = df.iat[i, close_ix] + df.iat[i, atr_ix] * atr_mult
     
     # Определить exit signals
     # Long exit: когда close < trailing_stop

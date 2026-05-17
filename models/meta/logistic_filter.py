@@ -31,21 +31,33 @@ class LogisticMetaFilter:
         self.feature_cols = None
         self.is_fitted = False
     
-    def prepare_labels(self, df, horizon=12, fee=0.001, min_profit=0.005):
+    def prepare_labels(self, df, horizon=12, fee=0.001, min_profit=0.005, safe_mode=True):
         """
         Prepare labels for trade quality filtering.
         
         Labels: 1 if trade is profitable after costs, 0 otherwise
         
+        CRITICAL: If using direction_prob in features, meta must be trained on
+        out-of-sample (OOS) direction predictions with nested CV to avoid cyclic
+        dependency. Otherwise, direction_prob leaks future information.
+        
         :param df: DataFrame with OHLCV data
         :param horizon: Prediction horizon
         :param fee: Trading fee
         :param min_profit: Minimum profit threshold
+        :param safe_mode: If True, uses safe label generation without future leakage
         :return: Series of labels
         """
+        if safe_mode:
+            from utils.data_leakage_prevention import create_safe_meta_labels
+            return create_safe_meta_labels(df, horizon, fee, min_profit)
+        
+        # UNSAFE MODE - Only use for backtesting, not for production training
         future_ret = df['close'].pct_change(horizon).shift(-horizon)
         
         # If direction_prob is available, use it to determine side
+        # WARNING: This creates cyclic dependency if direction_prob is in-sample.
+        # Must use OOS direction predictions with nested CV for valid training.
         if 'direction_prob' in df.columns:
             side = np.where(df['direction_prob'] > 0.5, 1, -1)
         else:
@@ -60,6 +72,9 @@ class LogisticMetaFilter:
         """
         Train the meta filter.
         
+        WARNING: If direction_prob is in feature_cols, ensure it comes from
+        OOS predictions (nested CV) to avoid cyclic dependency.
+        
         :param df: DataFrame with features
         :param y: Labels
         """
@@ -69,8 +84,12 @@ class LogisticMetaFilter:
             # Use available features if defaults not present
             available_cols = [col for col in self.feature_cols if col in df.columns]
             if len(available_cols) == 0:
-                # Fallback to any numeric columns
-                self.feature_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+                # Fallback to any numeric columns, excluding leaky features
+                leaky_patterns = ['direction_prob', 'meta_prob', 'signal', 'future_', 'target_']
+                self.feature_cols = [
+                    col for col in df.select_dtypes(include=[np.number]).columns.tolist()
+                    if not any(pattern in col.lower() for pattern in leaky_patterns)
+                ]
         
         X = df[self.feature_cols]
         self.model.fit(X, y)

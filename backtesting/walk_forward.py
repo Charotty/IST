@@ -1,133 +1,107 @@
 """
-Walk Forward Validation - Функции для валидации стратегии на временных рядах.
+Walk-forward validation — совместимо с ``TrainingOrchestrator`` и ``Backtester``.
+
+Удалены импорты несуществующих ``models.direction_model`` / ``models.dl_model_builder``.
 """
 
+from __future__ import annotations
+
+import warnings
+from typing import TYPE_CHECKING, Optional
+
 import pandas as pd
-import numpy as np
 
 from .time_series_splitter import TimeSeriesSplitter
 from .backtester import Backtester
 from .performance_metrics import PerformanceMetrics
 
+if TYPE_CHECKING:
+    from orchestration.training_orchestrator import TrainingOrchestrator
+
+
+def run_orchestrator_walk_forward_backtest(
+    orchestrator: "TrainingOrchestrator",
+    features: pd.DataFrame,
+    targets: pd.Series,
+    *,
+    commission: float = 0.0006,
+    slippage: float = 0.0002,
+) -> pd.DataFrame:
+    """
+    Обертка над ``TrainingOrchestrator.walk_forward_backtest`` (единый WFO + метрики).
+    """
+    return orchestrator.walk_forward_backtest(
+        features, targets, commission=commission, slippage=slippage
+    )
+
 
 def run_walk_forward_validation(df, n_splits=5):
     """
-    Walk-Forward валидация с DirectionModel.
-    
-    На каждом фолде: DirectionModel → get_calibrated_signals(0.52) → Backtester
-    
-    :param df: DataFrame с признаками и ценами
-    :param n_splits: Количество фолдов для валидации
-    :return: DataFrame с метриками по каждому фолду
+    .. deprecated::
+        Использовал несуществующие модули. Вызывайте
+        ``run_orchestrator_walk_forward_backtest`` с инициализированным
+        ``TrainingOrchestrator`` или ``python -m orchestration`` для smoke-теста.
     """
-    from ..models.direction_model import DirectionModel
-    
-    splitter = TimeSeriesSplitter(n_splits=n_splits, train_size=0.7)
-    all_fold_stats = []
-
-    print(f"--- Starting Walk-Forward Optimization ({n_splits} Folds) ---")
-
-    for i, (train_data, test_data) in enumerate(splitter.split(df)):
-        # 1. Initialize and Train Model on current fold
-        fold_model = DirectionModel(n_estimators=100)
-        fold_model.feature_cols = ['rsi', 'macd_hist', 'ema_slope', 'adx', 'rsi_15m', 'ema_slope_15m', 'rsi_4h', 'adx_4h']
-
-        y_train = fold_model.prepare_labels(train_data)
-        fold_model.train(train_data, y_train)
-
-        # 2. Backtest on unseen test data
-        signals, _ = fold_model.get_calibrated_signals(test_data, threshold=0.52)
-        bt = Backtester(commission=0.0006, slippage=0.0002)
-        perf = bt.run(test_data, signals)
-
-        # 3. Calculate metrics for this fold
-        metrics = PerformanceMetrics(perf).calculate_metrics()
-        metrics['Fold'] = i + 1
-        all_fold_stats.append(metrics)
-
-        print(f"Fold {i+1} Sharpe: {metrics['Sharpe Ratio']:.2f}")
-
-    return pd.DataFrame(all_fold_stats)
+    warnings.warn(
+        "run_walk_forward_validation is removed: use TrainingOrchestrator.walk_forward_backtest "
+        "or run_orchestrator_walk_forward_backtest. See orchestration.integration_smoke.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    raise NotImplementedError(
+        "Старый путь (DirectionModel) удалён. Используйте TrainingOrchestrator.walk_forward_backtest("
+        "features, targets) при тех же model_keys, что в OrchestratorConfig / config.yaml."
+    )
 
 
 def run_integrated_wfo(df, n_splits=3, window_size=24, features=None):
     """
-    Walk-Forward валидация интегрированной системы.
-    
-    Переобучение LGBM + короткое DL (3 epochs)
-    get_dynamic_meta_signal → integrated_signal → Backtester
-    
-    :param df: DataFrame с признаками и ценами
-    :param n_splits: Количество фолдов для валидации
-    :param window_size: Размер окна для DL моделей
-    :param features: Список признаков для обучения
-    :return: DataFrame с метриками по каждому фолду
+    .. deprecated::
+        См. ``run_walk_forward_validation``.
     """
-    from ..models.direction_model import DirectionModel
-    from ..models.dl_model_builder import DLModelBuilder
-    
-    if features is None:
-        features = ['rsi', 'macd_hist', 'ema_slope', 'adx', 'rsi_15m', 'ema_slope_15m', 'rsi_4h', 'adx_4h']
-    
-    splitter = TimeSeriesSplitter(n_splits=n_splits, train_size=0.7)
-    wfo_stats = []
+    warnings.warn(
+        "run_integrated_wfo is removed: use TrainingOrchestrator.walk_forward_backtest.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    raise NotImplementedError(
+        "Старый integrated WFO (DLModelBuilder) удалён. Используйте TrainingOrchestrator "
+        "с полным набором моделей из config и walk_forward_backtest."
+    )
 
-    print(f'--- Starting Walk-Forward: Integrated System ({n_splits} Folds) ---')
 
-    for i, (train_data, test_data) in enumerate(splitter.split(df)):
-        # 1. Initialize factory models for this fold
-        fold_lstm = DLModelBuilder.build_lstm(window_size, len(features))
-        fold_cnn = DLModelBuilder.build_cnn(window_size, len(features))
-        fold_trans = DLModelBuilder.build_transformer(window_size, len(features))
+def run_simple_signal_wfo(
+    df: pd.DataFrame,
+    signal_column: str,
+    n_splits: int = 5,
+    train_size: float = 0.7,
+    commission: float = 0.0006,
+    slippage: float = 0.0002,
+    position_size_column: Optional[str] = None,
+) -> pd.DataFrame:
+    """
+    Простой WFO без ML: колонка сигнала уже в ``df`` (например после batch inference).
 
-        fold_lgb = DirectionModel()
-        fold_lgb.feature_cols = features
+    Полезно для проверки связки «сигнал → Backtester» на готовых данных.
+    """
+    if "close" not in df.columns:
+        raise ValueError("df must contain 'close'")
+    if signal_column not in df.columns:
+        raise ValueError(f"Missing signal column: {signal_column}")
 
-        # 2. Data prep for fold
-        # Prepare sequences for DL models
-        def create_sequences(X, y, time_steps):
-            Xs, ys = [], []
-            for i in range(len(X) - time_steps):
-                Xs.append(X.iloc[i:(i + time_steps)].values)
-                ys.append(y.iloc[i + time_steps])
-            return np.array(Xs), np.array(ys)
-        
-        X_train_fold, y_train_fold = create_sequences(
-            train_data[features], 
-            (train_data['close'].shift(-12) > train_data['close']).astype(int).fillna(0), 
-            window_size
-        )
+    splitter = TimeSeriesSplitter(n_splits=n_splits, train_size=train_size)
+    stats = []
+    bt = Backtester(commission=commission, slippage=slippage)
 
-        # 3. Quick Train (Reduced epochs for validation speed)
-        fold_lstm.fit(X_train_fold, y_train_fold, epochs=3, batch_size=128, verbose=0)
-        fold_lgb.train(train_data, fold_lgb.prepare_labels(train_data))
+    for i, (_, test_chunk) in enumerate(splitter.split(df)):
+        sig = test_chunk[signal_column]
+        if position_size_column and position_size_column in test_chunk.columns:
+            pos = test_chunk[position_size_column].values
+        else:
+            pos = None
+        perf = bt.run(test_chunk[["close"]], sig, position_size=pos)
+        m = PerformanceMetrics(perf).calculate_metrics()
+        m["Fold"] = i + 1
+        stats.append(m)
 
-        # 4. Generate Integrated Signal on Test Data
-        test_data_copy = test_data.copy()
-        
-        # Use soft signal from LGB for logic consistency
-        soft_sig, _ = fold_lgb.get_calibrated_signals(test_data_copy, threshold=0.52)
-        test_data_copy['direction_soft_signal'] = soft_sig
-
-        # Final Signal Generation (simplified version without meta_mgmt_prob)
-        # Using median threshold on direction probability as proxy
-        dir_probs = fold_lgb.model.predict_proba(test_data_copy[features])[:, 1]
-        test_data_copy['meta_mgmt_prob'] = dir_probs
-        
-        thresh = test_data_copy['meta_mgmt_prob'].median()
-        integrated_sig = np.where(
-            (test_data_copy['meta_mgmt_prob'] > thresh) & (test_data_copy['direction_soft_signal'] != 0),
-            test_data_copy['direction_soft_signal'],
-            0
-        )
-
-        # 5. Backtest Fold
-        bt = Backtester(commission=0.0006, slippage=0.0002)
-        perf = bt.run(test_data_copy, integrated_sig)
-        metrics = PerformanceMetrics(perf).calculate_metrics()
-        metrics['Fold'] = i + 1
-        wfo_stats.append(metrics)
-
-        print(f'Fold {i+1} Result | Sharpe: {metrics["Sharpe Ratio"]:.2f} | PF: {metrics["Profit Factor"]:.2f}')
-
-    return pd.DataFrame(wfo_stats)
+    return pd.DataFrame(stats)

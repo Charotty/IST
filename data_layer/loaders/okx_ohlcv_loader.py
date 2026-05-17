@@ -9,6 +9,8 @@ from typing import Callable
 import ccxt
 import pandas as pd
 
+_MAX_FETCH_ERRORS = 8
+
 from data_layer.config import DataLayerConfig
 from data_layer.validators.ohlcv_validator import validate_ohlcv
 
@@ -42,6 +44,7 @@ class OKXDataLoader:
         if verbose:
             print(f"Начинаю загрузку {symbol} ({timeframe})...")
 
+        errors = 0
         while since < end_ts:
             try:
                 ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, since)
@@ -49,11 +52,12 @@ class OKXDataLoader:
                     break
 
                 last_ts = ohlcv[-1][0]
-                if all_ohlcv and last_ts == all_ohlcv[-1][0]:
+                if all_ohlcv and last_ts <= all_ohlcv[-1][0]:
                     break
 
                 all_ohlcv.extend(ohlcv)
                 since = last_ts + 1
+                errors = 0
 
                 if verbose:
                     current_dt = datetime.fromtimestamp(last_ts / 1000)
@@ -63,9 +67,15 @@ class OKXDataLoader:
                     time.sleep(self.exchange.rateLimit / 1000)
 
             except Exception as e:
+                errors += 1
+                if errors > _MAX_FETCH_ERRORS:
+                    if verbose:
+                        print(f"\nЗагрузка прервана после {_MAX_FETCH_ERRORS} ошибок: {e}")
+                    break
+                wait = min(60.0, 2.0**errors)
                 if verbose:
-                    print(f"\nОшибка при загрузке: {e}")
-                break
+                    print(f"\nОшибка ({errors}/{_MAX_FETCH_ERRORS}), пауза {wait:.0f}s: {e}")
+                time.sleep(wait)
 
         if not all_ohlcv:
             empty = pd.DataFrame(columns=OHLCV_COLUMNS)

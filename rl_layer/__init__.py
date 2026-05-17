@@ -16,7 +16,8 @@ from .environment import TradingEnvironment
 from .ensemble_environment import EnsembleTradingEnv
 from .microstructure_environment import MicrostructureRLenv
 from .dqn_agent import DQNAgent
-from .rl_backtest import run_rl_backtest
+from .rl_backtest import run_rl_backtest, run_rl_overlay_backtest
+from .integration import prepare_df_for_rl_env, prepare_from_training_result
 
 __all__ = [
     'TradingEnvironment',
@@ -24,4 +25,7 @@ __all__ = [
     'MicrostructureRLenv',
     'DQNAgent',
     'run_rl_backtest',
+    'run_rl_overlay_backtest',
+    'prepare_df_for_rl_env',
+    'prepare_from_training_result',
 ]

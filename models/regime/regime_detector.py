@@ -99,34 +99,47 @@ class RegimeDetector:
         """
         Get full regime information.
         
+        Uses bar-level inference (last row only) to avoid data leakage.
+        In backtesting, this ensures regime is determined using only historical data.
+        
         :param df: DataFrame with features
-        :return: Dict with regime information
+        :return: Dict with regime information including regime_pred aligned to df rows
+                  (1 = trend-like / strong movement, 0 = range-like), same length as df.
         """
-        probs = self.predict_proba(df)
-        regime_pred = self.predict(df)
+        probs = np.asarray(self.predict_proba(df))
+        strong_movement_prob = probs[:, 1].astype(float)
+        n = len(df)
+        regime_pred = np.asarray(self.predict(df), dtype=np.int64).reshape(-1)
+        if regime_pred.shape[0] != n:
+            regime_pred = np.resize(regime_pred, n)
+
+        last_prob = float(strong_movement_prob[-1])
         
-        # Determine market regime based on predictions
-        strong_movement_prob = probs[:, 1]
-        
-        # Simple regime classification
-        if strong_movement_prob.mean() > 0.6:
+        # Simple regime classification based on last bar
+        if last_prob > 0.6:
             market_regime = "trend"
         else:
             market_regime = "range"
         
-        # Volatility regime (simplified)
+        # Volatility regime based on last bar (bar-level inference)
         if 'volatility' in df.columns:
-            avg_vol = df['volatility'].mean()
-            if avg_vol > df['volatility'].quantile(0.7):
+            last_vol = df['volatility'].iloc[-1]
+            # Use rolling quantile for context (e.g., last 100 bars) instead of full df
+            vol_rolling_quantile = df['volatility'].iloc[-100:].quantile(0.7) if len(df) >= 100 else df['volatility'].quantile(0.7)
+            if last_vol > vol_rolling_quantile:
                 volatility_regime = "high_vol"
             else:
                 volatility_regime = "low_vol"
         else:
             volatility_regime = "unknown"
         
+        # Trade allowed logic: allow trading in both regimes, but models should specialize
+        # Trend-following models: trend regime
+        # Mean-reversion models: range regime
         return {
             "market_regime": market_regime,
             "volatility_regime": volatility_regime,
-            "trade_allowed": market_regime == "trend",
-            "strong_movement_prob": strong_movement_prob.mean()
+            "trade_allowed": True,  # Allow trading in both regimes
+            "strong_movement_prob": float(last_prob),
+            "regime_pred": regime_pred,
         }

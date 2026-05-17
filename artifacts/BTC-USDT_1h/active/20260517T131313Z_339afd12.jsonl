@@ -1,0 +1,41 @@
+{"step": "start", "symbol": "BTC-USDT", "timeframe": "1h", "slug": "BTC-USDT_1h", "ts": "2026-05-17T13:13:13+00:00"}
+{"step": "download", "status": "begin", "profile": "canonical_4model", "ts": "2026-05-17T13:13:19+00:00"}
+{"step": "download", "status": "done", "parquet": "D:\\IST\\data\\ohlcv\\BTC-USDT_1h.parquet", "ts": "2026-05-17T13:17:28+00:00"}
+{"step": "features", "status": "begin", "profile": "canonical_4model", "ts": "2026-05-17T13:17:28+00:00"}
+{"step": "features", "status": "done", "rows": 2070, "train_rows": 1656, "holdout_rows": 414, "train_span": {"start": "2022-01-06 10:00:00+00:00", "end": "2022-03-16 09:00:00+00:00", "rows": 1656}, "holdout_span": {"start": "2022-03-16 10:00:00+00:00", "end": "2022-04-02 15:00:00+00:00", "rows": 414}, "ts": "2026-05-17T13:17:28+00:00"}
+{"step": "tune", "status": "begin", "max_trials": 30, "ts": "2026-05-17T13:17:28+00:00"}
+{"step": "tune", "trial": 1, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131728Z_83c0edd4", "ts": "2026-05-17T13:17:28+00:00"}
+{"step": "tune", "trial": 2, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131728Z_06cd59be", "ts": "2026-05-17T13:17:28+00:00"}
+{"step": "tune", "trial": 3, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131728Z_e5749ec1", "ts": "2026-05-17T13:17:28+00:00"}
+{"step": "tune", "trial": 4, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131728Z_c8006766", "ts": "2026-05-17T13:17:29+00:00"}
+{"step": "tune", "trial": 5, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131729Z_1652d259", "ts": "2026-05-17T13:17:29+00:00"}
+{"step": "tune", "trial": 6, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131729Z_07572be3", "ts": "2026-05-17T13:17:29+00:00"}
+{"step": "tune", "trial": 7, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131729Z_21bcbd10", "ts": "2026-05-17T13:17:29+00:00"}
+{"step": "tune", "trial": 8, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131729Z_af2d100f", "ts": "2026-05-17T13:17:29+00:00"}
+{"step": "tune", "trial": 9, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131729Z_f153929e", "ts": "2026-05-17T13:17:29+00:00"}
+{"step": "tune", "trial": 10, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131729Z_1130147d", "ts": "2026-05-17T13:17:29+00:00"}
+{"step": "tune", "trial": 11, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131729Z_2731d73a", "ts": "2026-05-17T13:17:29+00:00"}
+{"step": "tune", "trial": 12, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131729Z_3020dad0", "ts": "2026-05-17T13:17:29+00:00"}
+{"step": "tune", "trial": 13, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131729Z_7321d8be", "ts": "2026-05-17T13:17:29+00:00"}
+{"step": "tune", "trial": 14, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131729Z_7b1e3185", "ts": "2026-05-17T13:17:29+00:00"}
+{"step": "tune", "trial": 15, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131730Z_3da6354c", "ts": "2026-05-17T13:17:30+00:00"}
+{"step": "tune", "trial": 16, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131730Z_cf422246", "ts": "2026-05-17T13:17:30+00:00"}
+{"step": "tune", "trial": 17, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131730Z_3064a2c4", "ts": "2026-05-17T13:17:30+00:00"}
+{"step": "tune", "trial": 18, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131730Z_28a32ad6", "ts": "2026-05-17T13:17:30+00:00"}
+{"step": "tune", "trial": 19, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131730Z_ec29cc10", "ts": "2026-05-17T13:17:30+00:00"}
+{"step": "tune", "trial": 20, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131730Z_0ed002fa", "ts": "2026-05-17T13:17:30+00:00"}
+{"step": "tune", "trial": 21, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131730Z_e0a885e0", "ts": "2026-05-17T13:17:30+00:00"}
+{"step": "tune", "trial": 22, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131730Z_8a502129", "ts": "2026-05-17T13:17:30+00:00"}
+{"step": "tune", "trial": 23, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131730Z_b6b3b195", "ts": "2026-05-17T13:17:30+00:00"}
+{"step": "tune", "trial": 24, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131730Z_c5821aa1", "ts": "2026-05-17T13:17:30+00:00"}
+{"step": "tune", "trial": 25, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131730Z_1c3019e6", "ts": "2026-05-17T13:17:31+00:00"}
+{"step": "tune", "trial": 26, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131731Z_f3520fdf", "ts": "2026-05-17T13:17:31+00:00"}
+{"step": "tune", "trial": 27, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131731Z_d22aadfa", "ts": "2026-05-17T13:17:31+00:00"}
+{"step": "tune", "trial": 28, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131731Z_d25a9dc3", "ts": "2026-05-17T13:17:31+00:00"}
+{"step": "tune", "trial": 29, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131731Z_a2914d1d", "ts": "2026-05-17T13:17:31+00:00"}
+{"step": "tune", "trial": 30, "max_trials": 30, "sharpe": null, "pf": null, "wfe": null, "acceptance": false, "run_id": "20260517T131731Z_112d9768", "ts": "2026-05-17T13:17:31+00:00"}
+{"step": "tune", "status": "done", "trials_run": 30, "best_summary": {"n_folds": 0}, "ts": "2026-05-17T13:17:31+00:00"}
+{"step": "holdout", "status": "begin", "ts": "2026-05-17T13:17:31+00:00"}
+{"step": "holdout", "status": "done", "acceptance_passed": false, "target_passed": false, "summary": {"n_folds": 2, "mean_sharpe": 6.793557161954368, "mean_profit_factor": 1.6363991377509588, "mean_total_return_pct": 3.9900897247212685, "mean_wfe": 0.5252046416402247, "mean_calmar": 565.3805353564429, "mean_sortino": 18.90550794121572, "worst_max_drawdown_pct": -1.750320435271933, "mean_recovery_factor": 3.7419973037701286, "total_trade_events": 214, "folds_positive_return": 2, "sharpe_std_across_folds": 3.7868346627833955}, "run_id": "20260517T131803Z_2a0de524", "ts": "2026-05-17T13:18:03+00:00"}
+{"step": "train_final", "status": "skipped", "reason": "holdout not passed", "ts": "2026-05-17T13:18:03+00:00"}
+{"step": "done", "manifest": "D:\\IST\\artifacts\\BTC-USDT_1h\\manifest.json", "ts": "2026-05-17T13:18:03+00:00"}

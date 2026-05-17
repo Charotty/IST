@@ -1,5 +1,5 @@
 """Position sizing module."""
 
-from .position_sizer import PositionSizer
+from .position_sizer import ConfidencePositionSizer
 
-__all__ = ['PositionSizer']
+__all__ = ['ConfidencePositionSizer']

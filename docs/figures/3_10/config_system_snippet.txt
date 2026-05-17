@@ -1,0 +1,27 @@
+# === config.yaml (корневой) ===
+app:
+  name: Intelligent Trading System
+  version: 1.0.0
+
+data_layer:
+  connectors:
+    okx:
+      api_key: ${OKX_API_KEY}
+      sandbox: true
+
+orchestration:
+  model_keys: [lgb, gru, xgb, cnn]
+  ensemble_mode: regime_adaptive
+  direction_threshold: 0.52
+  trend_weights: {lgb: 0.10, gru: 0.45, xgb: 0.10, cnn: 0.35}
+  range_weights: lgb: 0.55, gru: 0.10, xgb: 0.25, cnn: 0.10}
+
+backtesting:
+  simulation: {commission: 0.0006, slippage: 0.0002}
+
+# === config/profiles/canonical_4model.yaml ===
+feature_engineering:
+  base_indicators: {ema_fast: 20, rsi_length: 14, atr_length: 14}
+synchronization:
+  base_timeframe: "1h"
+  auxiliary_timeframes: ["15m", "4h"]

@@ -1,0 +1,527 @@
+{
+  "run_id": "20260517T104153Z_2b120945",
+  "timestamp_utc": "2026-05-17T10:41:53+00:00",
+  "label": "ablation/lgb_only",
+  "notes": "",
+  "profile": "canonical_4model",
+  "params": {
+    "variant": "lgb_only",
+    "model_keys": [
+      "lgb"
+    ],
+    "ensemble_mode": "fixed_range",
+    "apply_decision_pipeline": false,
+    "profile": "canonical_4model",
+    "config_path": "D:\\IST\\config\\profiles\\canonical_4model.yaml"
+  },
+  "symbol": null,
+  "timeframe": null,
+  "stage": "ablation",
+  "parquet": "D:\\IST\\data\\ohlcv\\demo_BTC-USDT_1h.parquet",
+  "feature_rows": 1800,
+  "max_rows": 1800,
+  "train_span": null,
+  "holdout_span": null,
+  "acceptance_passed": false,
+  "target_passed": false,
+  "summary": {
+    "n_folds": 6,
+    "mean_sharpe": -0.5301201445431827,
+    "mean_profit_factor": 1.0999596146283575,
+    "mean_total_return_pct": -0.39860661926339563,
+    "mean_wfe": 0.031936224755487526,
+    "mean_calmar": 67.25174668938332,
+    "mean_sortino": 1.684050404510793,
+    "worst_max_drawdown_pct": -7.407516872578647,
+    "mean_recovery_factor": 0.3492527196397566,
+    "total_trade_events": 496,
+    "folds_positive_return": 4,
+    "sharpe_std_across_folds": 8.649718639684844
+  },
+  "acceptance_checks": [
+    {
+      "name": "min_folds",
+      "passed": true,
+      "detail": "n_folds=6, required>=5"
+    },
+    {
+      "name": "min_oos_profit_factor",
+      "passed": false,
+      "detail": "mean_pf=1.1000, required>=1.2"
+    },
+    {
+      "name": "min_oos_sharpe",
+      "passed": false,
+      "detail": "mean_sharpe=-0.5301, required>0.5"
+    },
+    {
+      "name": "min_wfe",
+      "passed": false,
+      "detail": "mean_wfe=0.0319, required>=0.5"
+    },
+    {
+      "name": "max_drawdown_pct",
+      "passed": true,
+      "detail": "worst_dd=-7.41%, limit>=-35.0%"
+    },
+    {
+      "name": "min_recovery_factor",
+      "passed": false,
+      "detail": "mean_recovery=0.3493, required>=1.0"
+    },
+    {
+      "name": "min_total_return_pct",
+      "passed": false,
+      "detail": "mean_return=-0.40%, required>0.0%"
+    },
+    {
+      "name": "min_trade_events",
+      "passed": true,
+      "detail": "total_trade_events=496, required>=30"
+    }
+  ],
+  "target_checks": [
+    {
+      "name": "min_folds",
+      "passed": true,
+      "detail": "n_folds=6, required>=5"
+    },
+    {
+      "name": "min_oos_profit_factor",
+      "passed": false,
+      "detail": "mean_pf=1.1000, required>=1.2"
+    },
+    {
+      "name": "min_oos_sharpe",
+      "passed": false,
+      "detail": "mean_sharpe=-0.5301, required>0.5"
+    },
+    {
+      "name": "min_wfe",
+      "passed": false,
+      "detail": "mean_wfe=0.0319, required>=0.5"
+    },
+    {
+      "name": "max_drawdown_pct",
+      "passed": true,
+      "detail": "worst_dd=-7.41%, limit>=-35.0%"
+    },
+    {
+      "name": "min_recovery_factor",
+      "passed": false,
+      "detail": "mean_recovery=0.3493, required>=1.0"
+    },
+    {
+      "name": "min_total_return_pct",
+      "passed": false,
+      "detail": "mean_return=-0.40%, required>0.0%"
+    },
+    {
+      "name": "min_trade_events",
+      "passed": true,
+      "detail": "total_trade_events=496, required>=30"
+    }
+  ],
+  "fold_metrics": [
+    {
+      "Total Return (%)": 1.479395387560123,
+      "CAGR (%)": 135.7586677288166,
+      "Sharpe Ratio": 3.6170382195406297,
+      "Sortino Ratio": 5.172629018518683,
+      "Profit Factor": 1.1640850478580513,
+      "Win Rate (%)": 51.21951219512195,
+      "Max Drawdown (%)": -2.9054961173330707,
+      "Recovery Factor": 0.5091713524360332,
+      "Calmar Ratio": 46.72478029446767,
+      "Annualized Volatility (%)": 23.94584954269776,
+      "Time Underwater (bars)": 117.0,
+      "Ulcer Index": 0.013686350131565996,
+      "Max Consecutive Losses": 4.0,
+      "Trade Events": 82.0,
+      "Benchmark Return (%)": 11.430896357784759,
+      "Alpha vs Benchmark (%)": -9.951500970224636,
+      "Benchmark Sharpe Ratio": 16.691353815274663,
+      "IS_Total Return (%)": 22.681378522408036,
+      "IS_CAGR (%)": 2001.9416913435118,
+      "IS_Sharpe Ratio": 13.13945432523302,
+      "IS_Sortino Ratio": 23.24631784885951,
+      "IS_Profit Factor": 1.6934577561630089,
+      "IS_Win Rate (%)": 50.58479532163743,
+      "IS_Max Drawdown (%)": -2.464244093601726,
+      "IS_Recovery Factor": 9.204193115973773,
+      "IS_Calmar Ratio": 812.3958566204717,
+      "IS_Annualized Volatility (%)": 23.234177210026324,
+      "IS_Time Underwater (bars)": 385.0,
+      "IS_Ulcer Index": 0.0062027998906520445,
+      "IS_Max Consecutive Losses": 7.0,
+      "IS_Trade Events": 342.0,
+      "IS_Benchmark Return (%)": -2.8053608664102225,
+      "IS_Alpha vs Benchmark (%)": 25.486739388818258,
+      "IS_Benchmark Sharpe Ratio": -0.5294996203690202,
+      "Walk-Forward Efficiency": 0.06781349742394763,
+      "IS Annualized Return": 20.01941691343512,
+      "OOS Annualized Return": 1.357586677288166,
+      "Fold": 1
+    },
+    {
+      "Total Return (%)": 0.732904106561616,
+      "CAGR (%)": 53.181781807646544,
+      "Sharpe Ratio": 1.8820066276461214,
+      "Sortino Ratio": 2.37786516073467,
+      "Profit Factor": 1.105069213626667,
+      "Win Rate (%)": 45.45454545454545,
+      "Max Drawdown (%)": -2.292953811924469,
+      "Recovery Factor": 0.31963317479408443,
+      "Calmar Ratio": 23.193568719559703,
+      "Annualized Volatility (%)": 22.995468130438397,
+      "Time Underwater (bars)": 133.0,
+      "Ulcer Index": 0.013378004912128427,
+      "Max Consecutive Losses": 4.0,
+      "Trade Events": 77.0,
+      "Benchmark Return (%)": 2.5270016779290083,
+      "Alpha vs Benchmark (%)": -1.7940975713673923,
+      "Benchmark Sharpe Ratio": 4.71046621367904,
+      "IS_Total Return (%)": 28.97591639781105,
+      "IS_CAGR (%)": 4329.482033317314,
+      "IS_Sharpe Ratio": 14.000949561486976,
+      "IS_Sortino Ratio": 26.783046433362692,
+      "IS_Profit Factor": 1.7704986395537146,
+      "IS_Win Rate (%)": 49.32975871313673,
+      "IS_Max Drawdown (%)": -2.4642440936017245,
+      "IS_Recovery Factor": 11.758541482576925,
+      "IS_Calmar Ratio": 1756.9209335059697,
+      "IS_Annualized Volatility (%)": 27.201419512820234,
+      "IS_Time Underwater (bars)": 408.0,
+      "IS_Ulcer Index": 0.006740430756963645,
+      "IS_Max Consecutive Losses": 7.0,
+      "IS_Trade Events": 373.0,
+      "IS_Benchmark Return (%)": 10.676937227489503,
+      "IS_Alpha vs Benchmark (%)": 18.29897917032155,
+      "IS_Benchmark Sharpe Ratio": 2.971320084575545,
+      "Walk-Forward Efficiency": 0.012283636102053035,
+      "IS Annualized Return": 43.29482033317314,
+      "OOS Annualized Return": 0.5318178180764654,
+      "Fold": 2
+    },
+    {
+      "Total Return (%)": 2.8394008035537377,
+      "CAGR (%)": 412.99956036361107,
+      "Sharpe Ratio": 9.146620414158985,
+      "Sortino Ratio": 21.02724288876086,
+      "Profit Factor": 1.8895742464791097,
+      "Win Rate (%)": 48.57142857142857,
+      "Max Drawdown (%)": -1.1976085929488918,
+      "Recovery Factor": 2.3708921431185073,
+      "Calmar Ratio": 344.85353795489675,
+      "Annualized Volatility (%)": 17.831265199566314,
+      "Time Underwater (bars)": 139.0,
+      "Ulcer Index": 0.006709335728841033,
+      "Max Consecutive Losses": 3.0,
+      "Trade Events": 35.0,
+      "Benchmark Return (%)": 9.521314593702979,
+      "Alpha vs Benchmark (%)": -6.681913790149241,
+      "Benchmark Sharpe Ratio": 15.132218116914869,
+      "IS_Total Return (%)": 23.506614261219184,
+      "IS_CAGR (%)": 2222.7212928434747,
+      "IS_Sharpe Ratio": 13.269385210836115,
+      "IS_Sortino Ratio": 25.520355753765028,
+      "IS_Profit Factor": 1.7092454261989998,
+      "IS_Win Rate (%)": 49.59128065395095,
+      "IS_Max Drawdown (%)": -2.5757406456440073,
+      "IS_Recovery Factor": 9.126157286438236,
+      "IS_Calmar Ratio": 862.9445268887823,
+      "IS_Annualized Volatility (%)": 23.768811067594285,
+      "IS_Time Underwater (bars)": 439.0,
+      "IS_Ulcer Index": 0.00742750202240306,
+      "IS_Max Consecutive Losses": 5.0,
+      "IS_Trade Events": 367.0,
+      "IS_Benchmark Return (%)": 19.03416540594993,
+      "IS_Alpha vs Benchmark (%)": 4.472448855269251,
+      "IS_Benchmark Sharpe Ratio": 7.2244851861742925,
+      "Walk-Forward Efficiency": 0.1858080730559208,
+      "IS Annualized Return": 22.227212928434746,
+      "OOS Annualized Return": 4.129995603636111,
+      "Fold": 3
+    },
+    {
+      "Total Return (%)": 0.7416331432259726,
+      "CAGR (%)": 53.958914960326254,
+      "Sharpe Ratio": 1.6953594684296436,
+      "Sortino Ratio": 2.1373267536018337,
+      "Profit Factor": 1.0635932105298447,
+      "Win Rate (%)": 47.32142857142857,
+      "Max Drawdown (%)": -2.5571630752587065,
+      "Recovery Factor": 0.2900218411572919,
+      "Calmar Ratio": 21.10108482419224,
+      "Annualized Volatility (%)": 26.303298272414207,
+      "Time Underwater (bars)": 128.0,
+      "Ulcer Index": 0.013192909907299655,
+      "Max Consecutive Losses": 6.0,
+      "Trade Events": 112.0,
+      "Benchmark Return (%)": 1.3993663864849237,
+      "Alpha vs Benchmark (%)": -0.6577332432589511,
+      "Benchmark Sharpe Ratio": 2.2675304784901926,
+      "IS_Total Return (%)": 25.71889447041158,
+      "IS_CAGR (%)": 2925.9753525108176,
+      "IS_Sharpe Ratio": 12.903730680058844,
+      "IS_Sortino Ratio": 26.08242105950585,
+      "IS_Profit Factor": 1.674215325870804,
+      "IS_Win Rate (%)": 47.837150127226465,
+      "IS_Max Drawdown (%)": -3.426362736854569,
+      "IS_Recovery Factor": 7.5061797146503375,
+      "IS_Calmar Ratio": 853.9596000851003,
+      "IS_Annualized Volatility (%)": 26.54657575017334,
+      "IS_Time Underwater (bars)": 496.0,
+      "IS_Ulcer Index": 0.010716798756576936,
+      "IS_Max Consecutive Losses": 5.0,
+      "IS_Trade Events": 393.0,
+      "IS_Benchmark Return (%)": 22.641219315447824,
+      "IS_Alpha vs Benchmark (%)": 3.077675154963755,
+      "IS_Benchmark Sharpe Ratio": 8.891410370935787,
+      "Walk-Forward Efficiency": 0.01844134295732307,
+      "IS Annualized Return": 29.259753525108177,
+      "OOS Annualized Return": 0.5395891496032625,
+      "Fold": 4
+    },
+    {
+      "Total Return (%)": -6.931830186638943,
+      "CAGR (%)": -98.49343269703924,
+      "Sharpe Ratio": -16.166543263065314,
+      "Sortino Ratio": -16.479355436086923,
+      "Profit Factor": 0.5024977531425946,
+      "Win Rate (%)": 39.63963963963964,
+      "Max Drawdown (%)": -7.407516872578647,
+      "Recovery Factor": -0.9357832463803607,
+      "Calmar Ratio": -13.296416922335336,
+      "Annualized Volatility (%)": 25.861417002464666,
+      "Time Underwater (bars)": 145.0,
+      "Ulcer Index": 0.05005436748807082,
+      "Max Consecutive Losses": 5.0,
+      "Trade Events": 111.0,
+      "Benchmark Return (%)": -3.5755635707845457,
+      "Alpha vs Benchmark (%)": -3.3562666158543975,
+      "Benchmark Sharpe Ratio": -6.16006886762078,
+      "IS_Total Return (%)": 19.92260737741742,
+      "IS_CAGR (%)": 1397.8378740286844,
+      "IS_Sharpe Ratio": 10.645983442571449,
+      "IS_Sortino Ratio": 18.295056171911362,
+      "IS_Profit Factor": 1.5105625360575374,
+      "IS_Win Rate (%)": 49.08616187989556,
+      "IS_Max Drawdown (%)": -3.426362736854549,
+      "IS_Recovery Factor": 5.814506200154005,
+      "IS_Calmar Ratio": 407.96552536405414,
+      "IS_Annualized Volatility (%)": 25.545017295431006,
+      "IS_Time Underwater (bars)": 462.0,
+      "IS_Ulcer Index": 0.01112679344053959,
+      "IS_Max Consecutive Losses": 5.0,
+      "IS_Trade Events": 383.0,
+      "IS_Benchmark Return (%)": 14.948387918949656,
+      "IS_Alpha vs Benchmark (%)": 4.974219458467766,
+      "IS_Benchmark Sharpe Ratio": 5.641113453260915,
+      "Walk-Forward Efficiency": -0.07046127060012547,
+      "IS Annualized Return": 13.978378740286844,
+      "OOS Annualized Return": -0.9849343269703924,
+      "Fold": 5
+    },
+    {
+      "Total Return (%)": -1.2531429698428798,
+      "CAGR (%)": -52.119393531643944,
+      "Sharpe Ratio": -3.3552023339691623,
+      "Sortino Ratio": -4.131405958464365,
+      "Profit Factor": 0.8749382161338775,
+      "Win Rate (%)": 43.037974683544306,
+      "Max Drawdown (%)": -2.7336194920806514,
+      "Recovery Factor": -0.45841894728701604,
+      "Calmar Ratio": -19.06607473448109,
+      "Annualized Volatility (%)": 21.837805187116416,
+      "Time Underwater (bars)": 138.0,
+      "Ulcer Index": 0.014303173105260142,
+      "Max Consecutive Losses": 8.0,
+      "Trade Events": 79.0,
+      "Benchmark Return (%)": -1.4124065545515596,
+      "Alpha vs Benchmark (%)": 0.15926358470867985,
+      "Benchmark Sharpe Ratio": -2.492653825133163,
+      "IS_Total Return (%)": 23.917555635454548,
+      "IS_CAGR (%)": 2340.5584884146538,
+      "IS_Sharpe Ratio": 12.437241275050308,
+      "IS_Sortino Ratio": 22.11990046790401,
+      "IS_Profit Factor": 1.6403334882024605,
+      "IS_Win Rate (%)": 49.72972972972973,
+      "IS_Max Drawdown (%)": -1.4646169289322262,
+      "IS_Recovery Factor": 16.330246607822264,
+      "IS_Calmar Ratio": 1598.0687114691689,
+      "IS_Annualized Volatility (%)": 25.797676748690517,
+      "IS_Time Underwater (bars)": 425.0,
+      "IS_Ulcer Index": 0.005426528922584649,
+      "IS_Max Consecutive Losses": 5.0,
+      "IS_Trade Events": 370.0,
+      "IS_Benchmark Return (%)": 12.279894277303939,
+      "IS_Alpha vs Benchmark (%)": 11.63766135815061,
+      "IS_Benchmark Sharpe Ratio": 4.5570422331426075,
+      "Walk-Forward Efficiency": -0.022267930406193917,
+      "IS Annualized Return": 23.40558488414654,
+      "OOS Annualized Return": -0.5211939353164394,
+      "Fold": 6
+    }
+  ],
+  "criteria": {
+    "acceptance": {
+      "level": "acceptance",
+      "passed": false,
+      "summary": {
+        "n_folds": 6,
+        "mean_sharpe": -0.5301201445431827,
+        "mean_profit_factor": 1.0999596146283575,
+        "mean_total_return_pct": -0.39860661926339563,
+        "mean_wfe": 0.031936224755487526,
+        "mean_calmar": 67.25174668938332,
+        "mean_sortino": 1.684050404510793,
+        "worst_max_drawdown_pct": -7.407516872578647,
+        "mean_recovery_factor": 0.3492527196397566,
+        "total_trade_events": 496,
+        "folds_positive_return": 4,
+        "sharpe_std_across_folds": 8.649718639684844
+      },
+      "thresholds": {
+        "min_oos_profit_factor": 1.2,
+        "min_oos_sharpe": 0.5,
+        "min_wfe": 0.5,
+        "max_drawdown_pct": -35.0,
+        "min_recovery_factor": 1.0,
+        "min_folds": 5,
+        "min_trade_events": 30,
+        "min_total_return_pct": 0.0,
+        "min_calmar": null,
+        "min_sortino": null
+      },
+      "checks": [
+        {
+          "name": "min_folds",
+          "passed": true,
+          "detail": "n_folds=6, required>=5"
+        },
+        {
+          "name": "min_oos_profit_factor",
+          "passed": false,
+          "detail": "mean_pf=1.1000, required>=1.2"
+        },
+        {
+          "name": "min_oos_sharpe",
+          "passed": false,
+          "detail": "mean_sharpe=-0.5301, required>0.5"
+        },
+        {
+          "name": "min_wfe",
+          "passed": false,
+          "detail": "mean_wfe=0.0319, required>=0.5"
+        },
+        {
+          "name": "max_drawdown_pct",
+          "passed": true,
+          "detail": "worst_dd=-7.41%, limit>=-35.0%"
+        },
+        {
+          "name": "min_recovery_factor",
+          "passed": false,
+          "detail": "mean_recovery=0.3493, required>=1.0"
+        },
+        {
+          "name": "min_total_return_pct",
+          "passed": false,
+          "detail": "mean_return=-0.40%, required>0.0%"
+        },
+        {
+          "name": "min_trade_events",
+          "passed": true,
+          "detail": "total_trade_events=496, required>=30"
+        }
+      ]
+    },
+    "target": {
+      "level": "target",
+      "passed": false,
+      "summary": {
+        "n_folds": 6,
+        "mean_sharpe": -0.5301201445431827,
+        "mean_profit_factor": 1.0999596146283575,
+        "mean_total_return_pct": -0.39860661926339563,
+        "mean_wfe": 0.031936224755487526,
+        "mean_calmar": 67.25174668938332,
+        "mean_sortino": 1.684050404510793,
+        "worst_max_drawdown_pct": -7.407516872578647,
+        "mean_recovery_factor": 0.3492527196397566,
+        "total_trade_events": 496,
+        "folds_positive_return": 4,
+        "sharpe_std_across_folds": 8.649718639684844
+      },
+      "thresholds": {
+        "min_oos_profit_factor": 1.2,
+        "min_oos_sharpe": 0.5,
+        "min_wfe": 0.5,
+        "max_drawdown_pct": -35.0,
+        "min_recovery_factor": 1.0,
+        "min_folds": 5,
+        "min_trade_events": 30,
+        "min_total_return_pct": 0.0,
+        "min_calmar": null,
+        "min_sortino": null
+      },
+      "checks": [
+        {
+          "name": "min_folds",
+          "passed": true,
+          "detail": "n_folds=6, required>=5"
+        },
+        {
+          "name": "min_oos_profit_factor",
+          "passed": false,
+          "detail": "mean_pf=1.1000, required>=1.2"
+        },
+        {
+          "name": "min_oos_sharpe",
+          "passed": false,
+          "detail": "mean_sharpe=-0.5301, required>0.5"
+        },
+        {
+          "name": "min_wfe",
+          "passed": false,
+          "detail": "mean_wfe=0.0319, required>=0.5"
+        },
+        {
+          "name": "max_drawdown_pct",
+          "passed": true,
+          "detail": "worst_dd=-7.41%, limit>=-35.0%"
+        },
+        {
+          "name": "min_recovery_factor",
+          "passed": false,
+          "detail": "mean_recovery=0.3493, required>=1.0"
+        },
+        {
+          "name": "min_total_return_pct",
+          "passed": false,
+          "detail": "mean_return=-0.40%, required>0.0%"
+        },
+        {
+          "name": "min_trade_events",
+          "passed": true,
+          "detail": "total_trade_events=496, required>=30"
+        }
+      ]
+    },
+    "summary": {
+      "n_folds": 6,
+      "mean_sharpe": -0.5301201445431827,
+      "mean_profit_factor": 1.0999596146283575,
+      "mean_total_return_pct": -0.39860661926339563,
+      "mean_wfe": 0.031936224755487526,
+      "mean_calmar": 67.25174668938332,
+      "mean_sortino": 1.684050404510793,
+      "worst_max_drawdown_pct": -7.407516872578647,
+      "mean_recovery_factor": 0.3492527196397566,
+      "total_trade_events": 496,
+      "folds_positive_return": 4,
+      "sharpe_std_across_folds": 8.649718639684844
+    }
+  }
+}

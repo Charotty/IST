@@ -44,37 +44,31 @@ class ModelEvaluator:
     
     def calculate_financial_metrics(self, returns: pd.Series) -> Dict[str, float]:
         """
-        Calculate financial metrics.
-        
-        :param returns: Series of returns
-        :return: Dict with financial metrics
+        Calculate financial metrics (delegates to ``backtesting.PerformanceMetrics``).
         """
-        # Sharpe Ratio (annualized, assuming hourly data)
-        sharpe = (returns.mean() / returns.std() * np.sqrt(8760)) if returns.std() != 0 else 0
-        
-        # Profit Factor
-        gains = returns[returns > 0].sum()
-        losses = abs(returns[returns < 0].sum())
-        profit_factor = (gains / losses) if losses != 0 else np.inf
-        
-        # Max Drawdown
-        cum_returns = (1 + returns).cumprod()
-        peak = cum_returns.expanding(min_periods=1).max()
-        drawdown = (cum_returns - peak) / peak
-        max_dd = drawdown.min()
-        
-        # Total Return
-        total_return = cum_returns.iloc[-1] - 1
-        
-        # Recovery Factor
-        recovery_factor = (total_return / abs(max_dd)) if max_dd != 0 else 0
-        
+        from backtesting.performance_metrics import PerformanceMetrics
+
+        cum = (1 + returns.fillna(0)).cumprod()
+        peak = cum.expanding(min_periods=1).max()
+        frame = pd.DataFrame(
+            {
+                "net_returns": returns.fillna(0),
+                "cum_strategy_returns": cum,
+                "drawdown": (cum - peak) / peak,
+                "market_returns": returns.fillna(0) * 0,
+                "cum_market_returns": pd.Series(1.0, index=returns.index),
+            }
+        )
+        m = PerformanceMetrics(frame).calculate_metrics()
         return {
-            'sharpe_ratio': sharpe,
-            'profit_factor': profit_factor,
-            'max_drawdown': max_dd,
-            'total_return': total_return,
-            'recovery_factor': recovery_factor
+            "sharpe_ratio": float(m["Sharpe Ratio"]),
+            "sortino_ratio": float(m["Sortino Ratio"]),
+            "calmar_ratio": float(m["Calmar Ratio"]),
+            "profit_factor": float(m["Profit Factor"]),
+            "max_drawdown": float(m["Max Drawdown (%)"]) / 100.0,
+            "total_return": float(m["Total Return (%)"]) / 100.0,
+            "cagr": float(m["CAGR (%)"]) / 100.0,
+            "recovery_factor": float(m["Recovery Factor"]),
         }
     
     def evaluate_regime_attribution(self, df: pd.DataFrame, regime_col: str, metric_col: str) -> Dict[str, Dict[str, float]]:

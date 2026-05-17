@@ -5,6 +5,9 @@ ATR-based position sizing (статический).
 
 Эталонная реализация из ist.py.
 
+Для размеров на основе «уверенности» и волатильности (ML-слой) используйте
+``models.sizing.ConfidencePositionSizer``.
+
 Параметры по умолчанию:
 - risk_per_trade: 1% капитала
 - account_size: 10000

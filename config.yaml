@@ -1,43 +1,115 @@
-# Intelligent Trading System Configuration
-
 app:
-  name: "Intelligent Trading System"
-  version: "1.0.0"
   debug: true
-  log_level: "INFO"
-
-# Data Layer Configuration
+  log_level: INFO
+  name: Intelligent Trading System
+  version: 1.0.0
+backtesting:
+  acceptance:
+    max_drawdown_pct: -35.0
+    min_folds: 5
+    min_oos_profit_factor: 1.2
+    min_oos_sharpe: 0.5
+    min_recovery_factor: 1.0
+    min_total_return_pct: 0.0
+    min_trade_events: 30
+    min_wfe: 0.5
+  analysis:
+    benchmark: BTC/USDT
+    risk_free_rate: 0.02
+  bars_per_year: 8760
+  simulation:
+    commission: 0.0006
+    slippage: 0.0002
+  target:
+    max_drawdown_pct: -20.0
+    min_calmar: 1.0
+    min_folds: 8
+    min_oos_profit_factor: 1.6
+    min_oos_sharpe: 1.0
+    min_recovery_factor: 2.0
+    min_sortino: 0.5
+    min_total_return_pct: 0.0
+    min_trade_events: 100
+    min_wfe: 0.7
+  walk_forward:
+    step_size: 21
+    test_window: 63
+    train_window: 252
+    validation_window: 63
 data_layer:
   connectors:
     okx:
-      api_key: "${OKX_API_KEY}"
-      secret_key: "${OKX_SECRET_KEY}"
-      passphrase: "${OKX_PASSPHRASE}"
-      sandbox: true
+      api_key: ${OKX_API_KEY}
+      base_url: https://www.okx.cab/api/v5
+      passphrase: ${OKX_PASSPHRASE}
       rate_limit: 20
-      base_url: "https://www.okx.cab/api/v5"
-  
+      sandbox: true
+      secret_key: ${OKX_SECRET_KEY}
   storage:
     parquet:
-      path: "./data/parquet"
-      compression: "snappy"
-  
+      compression: snappy
+      path: ./data/parquet
   streaming:
-    buffer_size: 10000
     batch_size: 100
+    buffer_size: 10000
     flush_interval: 5
-
-# Logging Configuration
+feature_engineering:
+  drop_na: true
+  microstructure:
+    mode: simulated
+    simulation_seed: 42
 logging:
-  level: "INFO"
-  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
   handlers:
     console:
       enabled: true
-      level: "INFO"
+      level: INFO
     file:
-      enabled: true
-      level: "DEBUG"
-      filename: "trading_system.log"
-      max_size: "10MB"
       backup_count: 5
+      enabled: true
+      filename: trading_system.log
+      level: DEBUG
+      max_size: 10MB
+  level: INFO
+# Canonical orchestration: 4 models (lgb, gru, xgb, cnn). Full profile: config/profiles/canonical_4model.yaml
+# Archived 2-model tuning: config/archive/discussion/orchestration_tuning_best_lgb_xgb.yaml
+orchestration:
+  allow_meta_label_on_test: false
+  apply_decision_pipeline: true
+  direction_threshold: 0.52
+  embargo_period: 5
+  enable_purge: true
+  ensemble_mode: regime_adaptive
+  feature_window_size: 24
+  meta_threshold: 0.5
+  meta_threshold_mode: median
+  model_keys:
+  - lgb
+  - gru
+  - xgb
+  - cnn
+  prediction_horizon: 12
+  range_weights:
+    cnn: 0.1
+    gru: 0.10
+    lgb: 0.55
+    xgb: 0.25
+  regime_keys:
+  - trend
+  - range
+  safe_label_generation: true
+  safe_threshold_mode: true
+  signal_threshold: 0.52
+  test_window_size: 250
+  threshold_expanding: true
+  threshold_rolling_window: 100
+  trade_mode: both
+  train_threshold: null
+  train_window_size: 1500
+  trend_weights:
+    cnn: 0.35
+    gru: 0.45
+    lgb: 0.10
+    xgb: 0.10
+  use_risk_bridge: true
+  walk_forward_step: 250

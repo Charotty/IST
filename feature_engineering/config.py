@@ -46,7 +46,9 @@ class FeatureEngineeringConfig(BaseModel):
     def from_yaml(cls, path: str | Path) -> "FeatureEngineeringConfig":
         with open(path, encoding="utf-8") as f:
             raw: dict[str, Any] = yaml.safe_load(f) or {}
-        section = raw.get("feature_engineering", raw)
+        section = raw.get("feature_engineering")
+        if section is None:
+            section = {}
         return cls.model_validate(section)
 
 

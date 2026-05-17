@@ -1,0 +1,26 @@
+orchestration_tuning_best:
+  apply_decision_pipeline: true
+  config_path: config/profiles/canonical_4model.yaml
+  direction_threshold: 0.52
+  ensemble_mode: regime_adaptive
+  label_min_return: 0.0
+  max_position_fraction: 1.0
+  meta_threshold_mode: median
+  min_signal_margin: 0.0
+  model_keys:
+  - lgb
+  - gru
+  - xgb
+  - cnn
+  prediction_horizon: 12
+  profile: canonical_4model
+  regime: momentum
+  signal_strategy: ensemble
+  test_window_size: 250
+  trade_mode: both
+  train_window_size: 1500
+  use_risk_bridge: true
+  volatility_filter_percentile: 0.0
+  walk_forward_step: 250
+symbol: BTC-USDT
+timeframe: 1h

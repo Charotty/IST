@@ -40,7 +40,7 @@ class XGBoostMeanReversionModel:
         self.feature_cols = None
         self.is_fitted = False
     
-    def prepare_labels(self, df, lookback=20, threshold=2.0):
+    def prepare_labels(self, df, lookback=20, threshold=2.0, safe_mode=True):
         """
         Prepare labels for mean reversion.
         
@@ -49,8 +49,14 @@ class XGBoostMeanReversionModel:
         :param df: DataFrame with OHLCV data
         :param lookback: Lookback period for mean calculation
         :param threshold: Z-score threshold for reversal
+        :param safe_mode: If True, uses safe label generation without future leakage
         :return: Series of labels
         """
+        if safe_mode:
+            from utils.data_leakage_prevention import create_safe_mean_reversion_labels
+            return create_safe_mean_reversion_labels(df, lookback, threshold)
+        
+        # UNSAFE MODE - Only use for backtesting, not for production training
         # Calculate z-score deviation
         mean_price = df['close'].rolling(window=lookback).mean()
         std_price = df['close'].rolling(window=lookback).std()

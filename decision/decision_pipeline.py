@@ -7,7 +7,7 @@ Serves as the entry point for risk management and backtesting.
 
 import numpy as np
 import pandas as pd
-from typing import Dict, Any, Union, Literal
+from typing import Dict, Any, Union, Literal, Optional
 import yaml
 
 from .signal_rules import compute_final_signal, compute_integrated_signal, apply_asymmetric_thresholds
@@ -46,7 +46,11 @@ class DecisionPipeline:
                 'meta_threshold_value': None,
                 'use_asymmetric_thresholds': False,
                 'long_threshold': 0.52,
-                'short_threshold': 0.52
+                'short_threshold': 0.52,
+                'safe_mode': True,  # Prevent look-ahead leakage
+                'train_threshold': None,  # Fixed threshold from training
+                'threshold_window': 100,  # Rolling meta threshold window (causal; past-only)
+                'threshold_expanding': False  # Use expanding window
             }
         elif isinstance(config, str):
             # Load from file
@@ -77,7 +81,8 @@ class DecisionPipeline:
         direction_soft_signal: Union[np.ndarray, pd.Series],
         meta_prob: Union[np.ndarray, pd.Series] = None,
         meta_mgmt_prob: Union[np.ndarray, pd.Series] = None,
-        df: pd.DataFrame = None
+        df: pd.DataFrame = None,
+        train_threshold_override: Optional[float] = None,
     ) -> np.ndarray:
         """
         Generate trading signal based on configuration.
@@ -99,6 +104,16 @@ class DecisionPipeline:
             if 'meta_mgmt_prob' in df.columns:
                 meta_mgmt_prob = df['meta_mgmt_prob'].values
         
+        # Get safe mode parameters
+        safe_mode = self.config.get('safe_mode', True)
+        train_threshold = (
+            train_threshold_override
+            if train_threshold_override is not None
+            else self.config.get('train_threshold', None)
+        )
+        threshold_window = self.config.get('threshold_window', None)
+        threshold_expanding = self.config.get('threshold_expanding', False)
+        
         # Apply asymmetric thresholds if configured (roadmap feature)
         if self.config['use_asymmetric_thresholds']:
             if meta_prob is None:
@@ -110,7 +125,11 @@ class DecisionPipeline:
                 long_threshold=self.config['long_threshold'],
                 short_threshold=self.config['short_threshold'],
                 meta_threshold_mode=self.config['meta_threshold_mode'],
-                meta_threshold_value=self.config['meta_threshold_value']
+                meta_threshold_value=self.config['meta_threshold_value'],
+                safe_mode=safe_mode,
+                train_threshold=train_threshold,
+                window=threshold_window,
+                expanding=threshold_expanding
             )
         
         # Select signal source
@@ -123,7 +142,11 @@ class DecisionPipeline:
                 meta_prob=meta_prob,
                 meta_threshold_mode=self.config['meta_threshold_mode'],
                 meta_threshold_value=self.config['meta_threshold_value'],
-                direction_threshold=self.config['direction_threshold']
+                direction_threshold=self.config['direction_threshold'],
+                safe_mode=safe_mode,
+                train_threshold=train_threshold,
+                window=threshold_window,
+                expanding=threshold_expanding
             )
         
         elif self.config['signal_source'] == 'integrated':
@@ -135,7 +158,11 @@ class DecisionPipeline:
                 meta_mgmt_prob=meta_mgmt_prob,
                 meta_threshold_mode=self.config['meta_threshold_mode'],
                 meta_threshold_value=self.config['meta_threshold_value'],
-                direction_threshold=self.config['direction_threshold']
+                direction_threshold=self.config['direction_threshold'],
+                safe_mode=safe_mode,
+                train_threshold=train_threshold,
+                window=threshold_window,
+                expanding=threshold_expanding
             )
     
     def add_signal_to_df(

@@ -1,0 +1,4 @@
+{"step": "start", "symbol": "BTC-USDT", "timeframe": "1h", "slug": "BTC-USDT_1h", "ts": "2026-05-17T12:42:31+00:00"}
+{"step": "download", "status": "begin", "profile": "canonical_4model", "ts": "2026-05-17T12:42:31+00:00"}
+{"step": "download", "status": "done", "parquet": "D:\\IST\\data\\ohlcv\\BTC-USDT_1h.parquet", "ts": "2026-05-17T12:46:03+00:00"}
+{"step": "features", "status": "begin", "profile": "canonical_4model", "ts": "2026-05-17T12:46:03+00:00"}

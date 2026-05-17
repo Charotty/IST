@@ -27,6 +27,10 @@ class ExecutionConfig:
     commission_rate: float = 0.0006  # 0.06%
     slippage_rate: float = 0.0002  # 0.02%
     initial_balance: float = 10000.0
+    # Live mode credentials (required for live trading)
+    api_key: Optional[str] = None
+    secret: Optional[str] = None
+    passphrase: Optional[str] = None
 
 
 class ExecutionManager:
@@ -61,10 +65,12 @@ class ExecutionManager:
             self.broker = PaperBroker(broker_config)
         elif config.mode == "live":
             if config.exchange == "okx":
+                if not config.api_key or not config.secret or not config.passphrase:
+                    raise ValueError("Live mode requires api_key, secret, and passphrase in ExecutionConfig")
                 broker_config = {
-                    'api_key': config.get('api_key'),
-                    'secret': config.get('secret'),
-                    'passphrase': config.get('passphrase'),
+                    'api_key': config.api_key,
+                    'secret': config.secret,
+                    'passphrase': config.passphrase,
                     'sandbox': config.sandbox,
                     'commission_rate': config.commission_rate,
                     'slippage_rate': config.slippage_rate

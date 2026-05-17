@@ -71,32 +71,64 @@ class ThresholdManager:
         self,
         meta_prob: Optional[np.ndarray] = None,
         mode: Optional[str] = None,
-    ) -> float:
+        safe_mode: bool = True,
+        train_threshold: Optional[float] = None,
+        window: Optional[int] = None,
+        expanding: bool = False
+    ) -> Union[float, np.ndarray]:
         """
         Get meta threshold.
         
         Args:
             meta_prob: Meta probability array (required for adaptive modes)
             mode: Threshold mode ('median', 'fixed', 'adaptive', 'percentile')
+            safe_mode: If True, prevents look-ahead leakage
+            train_threshold: Fixed threshold from training (for safe inference)
+            window: Window size for rolling/expanding threshold
+            expanding: If True, use expanding window instead of rolling
             
         Returns:
-            Meta threshold value
+            Meta threshold value (or array if using rolling/expanding)
         """
         mode = mode or self.config.meta_threshold_mode
         
         if mode == "fixed":
             return self.config.default_meta_threshold
-        elif mode == "median":
-            if meta_prob is None:
-                raise ValueError("meta_prob required for median mode")
+        
+        if meta_prob is None:
+            raise ValueError("meta_prob required for adaptive modes")
+        
+        if safe_mode:
+            # Use safe threshold computation without look-ahead
+            from utils.data_leakage_prevention import compute_safe_threshold
+            
+            if train_threshold is not None:
+                return train_threshold
+            
+            w = self.config.dl_window_size if window is None else window
+            if mode == "adaptive":
+                return compute_safe_threshold(
+                    meta_prob, "percentile", w, expanding, None, percentile_q=0.75
+                )
+            if mode == "percentile":
+                return compute_safe_threshold(
+                    meta_prob, "percentile", w, expanding, None, percentile_q=0.60
+                )
+            
+            smode = "median"
+            if mode == "mean":
+                smode = "mean"
+            
+            return compute_safe_threshold(
+                meta_prob, smode, w, expanding, None
+            )
+        
+        # UNSAFE MODE - Only use for training, not for production inference
+        if mode == "median":
             return float(np.median(meta_prob))
         elif mode == "adaptive":
-            if meta_prob is None:
-                raise ValueError("meta_prob required for adaptive mode")
             return float(np.percentile(meta_prob, 75))
         elif mode == "percentile":
-            if meta_prob is None:
-                raise ValueError("meta_prob required for percentile mode")
             return float(np.percentile(meta_prob, 60))
         else:
             raise ValueError(f"Unknown meta_threshold_mode: {mode}")

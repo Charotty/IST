@@ -14,6 +14,10 @@ Models used:
 - CNN: Volatility structure
 - Transformer: Long-range temporal context
 
+**Orchestrator:** ``OrchestratorConfig.model_keys`` use ``lgb`` / ``gru`` / ``xgb`` / ``cnn``.
+Имена ``lstm`` / ``trans`` в этом файле — исторические алиасы колаб-скриптов; не смешивайте
+наборы ключей с прод-конфигом без явной нормализации.
+
 Purpose of baseline ensemble:
 - benchmarking
 - ensemble comparison
@@ -159,10 +163,23 @@ class EnsembleAggregator:
         return ensemble_prob
     
     def _to_ranks(self, arr: np.ndarray) -> np.ndarray:
-        """Convert array to ranks (0 to 1)."""
-        ranks = np.zeros_like(arr)
+        """Convert array to ranks (0 to 1). Handles 1D and 2D batch arrays."""
+        arr = np.asarray(arr)
+        if arr.ndim == 0:
+            return np.asarray(0.5, dtype=float)
+        if arr.ndim == 1:
+            n = arr.shape[0]
+            if n <= 1:
+                return np.ones_like(arr, dtype=float) * 0.5
+            return (np.argsort(np.argsort(arr)) + 1.0) / n
+        ranks = np.zeros_like(arr, dtype=float)
         for i in range(arr.shape[0]):
-            ranks[i] = (np.argsort(np.argsort(arr[i])) + 1) / len(arr[i])
+            row = arr[i]
+            n = row.shape[0]
+            if n <= 1:
+                ranks[i] = 0.5
+            else:
+                ranks[i] = (np.argsort(np.argsort(row)) + 1.0) / n
         return ranks
     
     def _from_ranks(self, ranks: np.ndarray) -> np.ndarray:

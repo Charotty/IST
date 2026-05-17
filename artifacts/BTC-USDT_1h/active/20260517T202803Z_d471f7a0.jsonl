@@ -1,0 +1,18 @@
+{"step": "start", "symbol": "BTC-USDT", "timeframe": "1h", "slug": "BTC-USDT_1h", "ts": "2026-05-17T20:28:03+00:00"}
+{"step": "download", "status": "begin", "profile": "canonical_4model", "ts": "2026-05-17T20:28:14+00:00"}
+{"step": "download", "status": "done", "parquet": "D:\\IST\\data\\ohlcv\\BTC-USDT_1h.parquet", "ts": "2026-05-17T20:42:11+00:00"}
+{"step": "features", "status": "begin", "profile": "canonical_4model", "ts": "2026-05-17T20:42:11+00:00"}
+{"step": "features", "status": "done", "rows": 38245, "train_rows": 30596, "holdout_rows": 7649, "train_span": {"start": "2022-01-05 08:00:00+00:00", "end": "2025-07-03 03:00:00+00:00", "rows": 30596}, "holdout_span": {"start": "2025-07-03 04:00:00+00:00", "end": "2026-05-17 20:00:00+00:00", "rows": 7649}, "ts": "2026-05-17T20:42:12+00:00"}
+{"step": "tune", "status": "begin", "max_trials": 30, "ts": "2026-05-17T20:42:12+00:00"}
+{"step": "tune", "trial": 1, "error": "Unable to allocate 163. KiB for an array with shape (14, 1488) and data type float64", "ts": "2026-05-17T20:44:04+00:00"}
+{"step": "tune", "trial": 2, "error": "Unable to allocate 163. KiB for an array with shape (14, 1488) and data type float64", "ts": "2026-05-17T20:44:08+00:00"}
+{"step": "tune", "trial": 3, "error": "Unable to allocate 3.75 MiB for an array with shape (1464, 24, 14) and data type float64", "ts": "2026-05-17T20:44:11+00:00"}
+{"step": "tune", "trial": 4, "error": "Unable to allocate 163. KiB for an array with shape (14, 1488) and data type float64", "ts": "2026-05-17T20:44:14+00:00"}
+{"step": "tune", "trial": 5, "error": "Unable to allocate 163. KiB for an array with shape (14, 1488) and data type float64", "ts": "2026-05-17T21:10:31+00:00"}
+{"step": "tune", "trial": 6, "error": "Unable to allocate 163. KiB for an array with shape (14, 1488) and data type float64", "ts": "2026-05-17T21:10:34+00:00"}
+{"step": "tune", "trial": 7, "error": "Unable to allocate 163. KiB for an array with shape (14, 1488) and data type float64", "ts": "2026-05-17T21:10:36+00:00"}
+{"step": "tune", "trial": 8, "error": "Unable to allocate 163. KiB for an array with shape (14, 1488) and data type float64", "ts": "2026-05-17T21:12:41+00:00"}
+{"step": "tune", "trial": 9, "error": "Unable to allocate 163. KiB for an array with shape (14, 1488) and data type float64", "ts": "2026-05-17T21:12:44+00:00"}
+{"step": "tune", "trial": 10, "error": "Unable to allocate 163. KiB for an array with shape (14, 1488) and data type float64", "ts": "2026-05-17T21:12:46+00:00"}
+{"step": "tune", "trial": 11, "error": "", "ts": "2026-05-17T21:12:46+00:00"}
+{"step": "tune", "trial": 12, "error": "Unable to allocate 163. KiB for an array with shape (14, 1488) and data type float64", "ts": "2026-05-17T21:12:48+00:00"}

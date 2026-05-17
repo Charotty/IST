@@ -1,0 +1,41 @@
+{"step": "start", "symbol": "BTC-USDT", "timeframe": "1h", "slug": "BTC-USDT_1h", "ts": "2026-05-17T12:46:22+00:00"}
+{"step": "download", "status": "begin", "profile": "canonical_4model", "ts": "2026-05-17T12:46:22+00:00"}
+{"step": "download", "status": "done", "parquet": "D:\\IST\\data\\ohlcv\\BTC-USDT_1h.parquet", "ts": "2026-05-17T12:50:37+00:00"}
+{"step": "features", "status": "begin", "profile": "canonical_4model", "ts": "2026-05-17T12:50:37+00:00"}
+{"step": "features", "status": "done", "rows": 2095, "train_rows": 1676, "holdout_rows": 419, "train_span": {"start": "2022-01-06 10:00:00+00:00", "end": "2022-03-17 05:00:00+00:00", "rows": 1676}, "holdout_span": {"start": "2022-03-17 06:00:00+00:00", "end": "2022-04-03 16:00:00+00:00", "rows": 419}, "ts": "2026-05-17T12:50:37+00:00"}
+{"step": "tune", "status": "begin", "max_trials": 30, "ts": "2026-05-17T12:50:37+00:00"}
+{"step": "tune", "trial": 1, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 2, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 3, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 4, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 5, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 6, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 7, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 8, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 9, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 10, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 11, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 12, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 13, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 14, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 15, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 16, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 17, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 18, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 19, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 20, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 21, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 22, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 23, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 24, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 25, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 26, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 27, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 28, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 29, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "trial": 30, "error": "No module named 'tensorflow'", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "tune", "status": "done", "trials_run": 0, "best_summary": {}, "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "holdout", "status": "begin", "ts": "2026-05-17T12:50:57+00:00"}
+{"step": "holdout", "status": "done", "acceptance_passed": false, "target_passed": false, "summary": {"n_folds": 2, "mean_sharpe": -1.9437044633903675, "mean_profit_factor": 0.9106529987712186, "mean_total_return_pct": -2.4004315221661687, "mean_wfe": 0.0016586799139267081, "mean_calmar": 27.80512613721637, "mean_sortino": -1.8307983456520778, "worst_max_drawdown_pct": -9.770729160823063, "mean_recovery_factor": 0.025940684051144247, "total_trade_events": 62, "folds_positive_return": 1, "sharpe_std_across_folds": 7.79934559125416}, "run_id": "20260517T125102Z_c3a3e76a", "ts": "2026-05-17T12:51:03+00:00"}
+{"step": "train_final", "status": "skipped", "reason": "holdout not passed", "ts": "2026-05-17T12:51:03+00:00"}
+{"step": "done", "manifest": "D:\\IST\\artifacts\\BTC-USDT_1h\\manifest.json", "ts": "2026-05-17T12:51:03+00:00"}

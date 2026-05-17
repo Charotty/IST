@@ -5,6 +5,9 @@ Dynamic position sizing for exposure, leverage, and capital allocation.
 Phase 1: Rule-based sizing
 Phase 2: Bayesian sizing
 Phase 3: RL-based allocation
+
+NOTE: This is ConfidencePositionSizer - uses confidence/volatility for sizing.
+For ATR-based risk sizing, use risk_management/PositionSizer instead.
 """
 
 import numpy as np
@@ -12,7 +15,7 @@ import pandas as pd
 from typing import Dict, Any
 
 
-class PositionSizer:
+class ConfidencePositionSizer:
     """
     Position sizer for dynamic position sizing.
     

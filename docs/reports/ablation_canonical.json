@@ -1,0 +1,57 @@
+{
+  "profile": "canonical_4model",
+  "parquet": "D:\\IST\\data\\ohlcv\\demo_BTC-USDT_1h.parquet",
+  "variants": [
+    {
+      "variant": "lgb_only",
+      "run_id": "20260517T104153Z_2b120945",
+      "model_keys": [
+        "lgb"
+      ],
+      "mean_sharpe": -0.5301201445431827,
+      "mean_pf": 1.0999596146283575,
+      "mean_wfe": 0.031936224755487526,
+      "acceptance_passed": false
+    },
+    {
+      "variant": "lgb_xgb",
+      "run_id": "20260517T104157Z_d6d1c228",
+      "model_keys": [
+        "lgb",
+        "xgb"
+      ],
+      "mean_sharpe": -0.07647009319790588,
+      "mean_pf": 1.1113105577418185,
+      "mean_wfe": 0.036956382213799585,
+      "acceptance_passed": false
+    },
+    {
+      "variant": "four_equal",
+      "run_id": "20260517T104324Z_046d3f57",
+      "model_keys": [
+        "lgb",
+        "gru",
+        "xgb",
+        "cnn"
+      ],
+      "mean_sharpe": -2.4940932385540115,
+      "mean_pf": 0.9254786804595,
+      "mean_wfe": 0.033417854642797305,
+      "acceptance_passed": false
+    },
+    {
+      "variant": "four_regime_adaptive",
+      "run_id": "20260517T104406Z_ddedebf8",
+      "model_keys": [
+        "lgb",
+        "gru",
+        "xgb",
+        "cnn"
+      ],
+      "mean_sharpe": 0.2913662966188511,
+      "mean_pf": 1.1847209691494955,
+      "mean_wfe": 0.6153705423040191,
+      "acceptance_passed": false
+    }
+  ]
+}
