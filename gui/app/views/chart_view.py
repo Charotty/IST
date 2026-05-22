@@ -45,8 +45,8 @@ class ChartView(QWidget):
             return
 
         hint = QLabel(
-            "Котировки загружаются с OKX в реальном времени (публичный API). "
-            "Сигналы модели — на вкладках «Обзор» и «Исполнение» после обучения bundle."
+            "Котировки — OKX (публичный API). Сигналы BUY/SELL/HOLD и regime — "
+            "«Обзор» (explain) и «Исполнение» (paper) после bundle; параметры — «Конфигурация»."
         )
         hint.setWordWrap(True)
         hint.setStyleSheet("color: #000000; padding: 4px 0;")

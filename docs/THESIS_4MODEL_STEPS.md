@@ -1,6 +1,6 @@
 # Диплом: пошаговый контур (4 модели, acceptance, BTC + ETH)
 
-Цель: **`acceptance_passed: true`** с `model_keys: [lgb, gru, xgb, cnn]` и `ensemble_mode: regime_adaptive`, на **≥5** WFO-фолдах, для **BTC** и повтор методики на **ETH**.
+Цель: **`acceptance_passed: true`** (8/8) с 4 моделями на **≥5** WFO-фолдах; **BTC** — эталон в reference YAML (сейчас **7/8**, FAIL только WFE). **ETH** — те же 4 ключа, overrides после `tune-thesis`.
 
 Критерии — `config.yaml` → `backtesting.acceptance` (см. `docs/BACKTESTING_CRITERIA_REFERENCE.md`).
 
@@ -26,10 +26,13 @@ python scripts/thesis_4model_steps.py --step 0
 - `data/ohlcv/BTC-USDT_1h.parquet`
 - `data/ohlcv/ETH-USDT_1h.parquet` (или `--download` на шаге 5)
 
-Семена параметров уже в:
+Конфигурация (эталон + пары):
 
-- `config/symbols/BTC-USDT_1h.yaml`
-- `config/symbols/ETH-USDT_1h.yaml`
+- **Эталон (менять один раз):** `config/reference/thesis_4model_reference.yaml` — лучший BTC confirm (variant B)
+- **BTC:** `config/symbols/BTC-USDT_1h.yaml` — `baseline_ref` + overrides (`tune_source`)
+- **ETH:** `config/symbols/ETH-USDT_1h.yaml` — `baseline_ref` + свои overrides до confirm
+
+См. [`THESIS_REFERENCE.md`](THESIS_REFERENCE.md). CLI/GUI читают merged params через `tuning_best_for()`.
 
 ---
 

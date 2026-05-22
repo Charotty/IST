@@ -58,25 +58,44 @@ class JobsView(QWidget):
 
         row1 = QHBoxLayout()
         self._btn_prepare = QPushButton("Подготовить символ")
+        self._btn_features = QPushButton("Признаки")
+        self._btn_tune = QPushButton("Тюнинг thesis")
         self._btn_train = QPushButton("Финальное обучение")
         self._btn_report = QPushButton("Отчёт WFO")
         self._btn_stop = QPushButton("Стоп")
         self._btn_stop.setEnabled(False)
         row1.addWidget(self._btn_prepare)
+        row1.addWidget(self._btn_features)
+        row1.addWidget(self._btn_tune)
         row1.addWidget(self._btn_train)
         row1.addWidget(self._btn_report)
         row1.addWidget(self._btn_stop)
         cli_layout.addLayout(row1)
 
+        row1b = QHBoxLayout()
+        row1b.addWidget(QLabel("Фаза tune-thesis:"))
+        self._tune_phase = QComboBox()
+        self._tune_phase.addItems(["all", "fast", "refine", "confirm"])
+        row1b.addWidget(self._tune_phase)
+        row1b.addStretch()
+        cli_layout.addLayout(row1b)
+
         row2 = QHBoxLayout()
         self._download = QCheckBox("Перекачать OHLCV")
         row2.addWidget(self._download)
-        row2.addWidget(QLabel("Баров:"))
+        row2.addWidget(QLabel("Баров (0=YAML):"))
         self._max_rows = QSpinBox()
-        self._max_rows.setRange(500, 50000)
-        self._max_rows.setValue(8000)
+        self._max_rows.setRange(0, 50000)
+        self._max_rows.setValue(0)
+        self._max_rows.setSpecialValueText("YAML")
         self._max_rows.setSingleStep(500)
         row2.addWidget(self._max_rows)
+        self._use_cache = QCheckBox("Кэш фичей")
+        self._use_cache.setChecked(True)
+        row2.addWidget(self._use_cache)
+        self._use_tuning = QCheckBox("tuning-best")
+        self._use_tuning.setChecked(True)
+        row2.addWidget(self._use_tuning)
         self._full_models = QCheckBox("Все 4 модели (TF)")
         row2.addWidget(self._full_models)
         row2.addStretch()
@@ -101,6 +120,8 @@ class JobsView(QWidget):
         layout.addWidget(self._log, stretch=1)
 
         self._btn_prepare.clicked.connect(self._run_prepare)
+        self._btn_features.clicked.connect(self._run_build_features)
+        self._btn_tune.clicked.connect(self._run_tune_thesis)
         self._btn_train.clicked.connect(self._run_train_final)
         self._btn_report.clicked.connect(self._run_report_real)
         self._btn_stop.clicked.connect(self._stop_cli)
@@ -113,6 +134,8 @@ class JobsView(QWidget):
         demo = getattr(self._api, "demo", False)
         can_start = (not self._cli_running) and (not demo)
         self._btn_prepare.setEnabled(can_start)
+        self._btn_features.setEnabled(can_start)
+        self._btn_tune.setEnabled(can_start)
         self._btn_train.setEnabled(can_start)
         self._btn_report.setEnabled(can_start)
         self._btn_stop.setEnabled(self._cli_running)
@@ -124,6 +147,10 @@ class JobsView(QWidget):
     def set_context(self, symbol: str, timeframe: str) -> None:
         self._symbol = symbol
         self._timeframe = timeframe
+        try:
+            self._max_rows.setValue(0)
+        except Exception:
+            pass
 
     def refresh(self) -> None:
         if self._worker and self._worker.isRunning():
@@ -277,11 +304,25 @@ class JobsView(QWidget):
         argv = self._api.cli.train_final_cmd(self._symbol, self._timeframe, force=True)
         self._start_cli(argv, "train-final-symbol")
 
+    def _run_build_features(self) -> None:
+        argv = self._api.cli.build_features_cmd(self._symbol, self._timeframe)
+        self._start_cli(argv, "build-features")
+
+    def _run_tune_thesis(self) -> None:
+        argv = self._api.cli.tune_thesis_cmd(
+            self._symbol,
+            self._timeframe,
+            phase=self._tune_phase.currentText(),
+        )
+        self._start_cli(argv, "tune-thesis")
+
     def _run_report_real(self) -> None:
         argv = self._api.cli.report_real_cmd(
             self._symbol,
             self._timeframe,
             max_rows=self._max_rows.value(),
             full_models=self._full_models.isChecked(),
+            use_tuning_best=self._use_tuning.isChecked(),
+            use_feature_cache=self._use_cache.isChecked(),
         )
         self._start_cli(argv, "report-real")

@@ -73,18 +73,33 @@ class SymbolToolbar(QWidget):
             self._emit_context()
 
     def set_pipeline_status(self, entry: Optional[SymbolEntry]) -> None:
-        if entry and entry.has_bundle and entry.latest_bundle_run_id:
-            self._bundle_label.setText(f"Модель: {entry.latest_bundle_run_id[:22]}…")
+        if not entry:
+            self._bundle_label.setText("Модель: —")
+            self._status_label.setStyleSheet("color: #999;")
+            self._status_label.setToolTip("")
+            return
+        parts = [
+            f"OHLCV:{'✓' if entry.has_ohlcv else '✗'}",
+            f"feat:{'✓' if entry.has_features else '✗'}",
+            f"bundle:{'✓' if entry.has_bundle else '✗'}",
+        ]
+        if entry.last_acceptance_passed is True:
+            parts.append("acc:PASS")
+        elif entry.last_acceptance_passed is False:
+            parts.append("acc:FAIL")
+        tip = " | ".join(parts)
+        if entry.has_bundle and entry.latest_bundle_run_id:
+            self._bundle_label.setText(f"Модель: {entry.latest_bundle_run_id[:18]}… · {tip}")
             self._status_label.setStyleSheet("color: #2e7d32; font-weight: bold;")
-            self._status_label.setToolTip("Обученная модель (bundle) найдена локально")
-        elif entry and entry.parquet_ohlcv and entry.parquet_ohlcv.exists():
-            self._bundle_label.setText("Модель: нет · данные есть")
+            self._status_label.setToolTip(tip)
+        elif entry.has_ohlcv:
+            self._bundle_label.setText(f"Модель: нет · {tip}")
             self._status_label.setStyleSheet("color: #f9a825; font-weight: bold;")
-            self._status_label.setToolTip("OHLCV есть, bundle не обучен — вкладка «Задачи»")
+            self._status_label.setToolTip(tip + " — вкладка «Задачи»")
         else:
-            self._bundle_label.setText("Модель: нет")
+            self._bundle_label.setText(f"Нет данных · {tip}")
             self._status_label.setStyleSheet("color: #c62828; font-weight: bold;")
-            self._status_label.setToolTip("Нет локальных данных для этой пары/ТФ")
+            self._status_label.setToolTip(tip)
 
     def current_symbol(self) -> str:
         data = self._symbol_combo.currentData()

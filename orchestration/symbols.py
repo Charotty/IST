@@ -26,6 +26,8 @@ DATA_DIR = REPO_ROOT / "data" / "ohlcv"
 SYMBOLS_DIR = REPO_ROOT / "config" / "symbols"
 ARTIFACTS_DIR = REPO_ROOT / "artifacts"
 BASE_CONFIG = REPO_ROOT / "config.yaml"
+THESIS_REFERENCE_BASELINE = REPO_ROOT / "config" / "reference" / "thesis_4model_reference.yaml"
+DEFAULT_BASELINE_REF = "config/reference/thesis_4model_reference.yaml"
 
 _SLUG_RE = re.compile(r"[^A-Z0-9]+")
 
@@ -118,16 +120,80 @@ def load_base_config(base_yaml: Optional[Path] = None) -> Dict[str, Any]:
     return yaml.safe_load(p.read_text(encoding="utf-8")) or {}
 
 
-def merged_config(symbol: str, timeframe: str = "1h") -> Dict[str, Any]:
-    """
-    Объединяет ``config.yaml`` (base) с ``config/symbols/<slug>.yaml`` (override).
-    Per-symbol перекрывает base только для тех ключей, которые в нём заданы.
-    """
-    base = load_base_config()
+def resolve_baseline_path(ref: str) -> Path:
+    p = Path(ref)
+    if not p.is_absolute():
+        p = REPO_ROOT / ref
+    return p.resolve()
+
+
+def load_reference_baseline(ref: Optional[str] = None) -> Dict[str, Any]:
+    """Эталонный YAML (лучший confirm); меняется одним файлом."""
+    path = resolve_baseline_path(ref or DEFAULT_BASELINE_REF)
+    if not path.is_file():
+        path = THESIS_REFERENCE_BASELINE
+    if not path.is_file():
+        return {}
+    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+
+
+def load_symbol_yaml_raw(symbol: str, timeframe: str = "1h") -> Dict[str, Any]:
     p = paths_for(symbol, timeframe).config_yaml
     if not p.is_file():
+        return {}
+    raw = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+    return dict(raw) if isinstance(raw, dict) else {}
+
+
+def tuning_overrides_from_full(
+    full: Dict[str, Any],
+    reference: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Только ключи, отличающиеся от эталона (для per-symbol YAML)."""
+    out: Dict[str, Any] = {}
+    for k, v in full.items():
+        rv = reference.get(k)
+        if rv != v:
+            out[k] = v
+    return out
+
+
+def resolve_tuning_best_block(raw_symbol: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    ``baseline_ref`` + ``orchestration_overrides`` → полный ``orchestration_tuning_best``.
+    Legacy: только ``orchestration_tuning_best`` в symbol YAML (без baseline_ref).
+    """
+    if not raw_symbol:
+        return {}
+    legacy = raw_symbol.get("orchestration_tuning_best")
+    ref_key = raw_symbol.get("baseline_ref")
+    overrides = raw_symbol.get("orchestration_overrides")
+
+    if ref_key:
+        ref_doc = load_reference_baseline(str(ref_key))
+        base = dict(ref_doc.get("orchestration_tuning_best") or {})
+        if isinstance(overrides, dict) and overrides:
+            return _deep_merge(base, overrides)
         return base
-    override = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+
+    if isinstance(legacy, dict) and legacy:
+        return dict(legacy)
+    return {}
+
+
+def merged_config(symbol: str, timeframe: str = "1h") -> Dict[str, Any]:
+    """
+    Объединяет ``config.yaml`` (base) с ``config/symbols/<slug>.yaml``.
+    Эффективный ``orchestration_tuning_best`` подставляется из эталона + overrides.
+    """
+    base = load_base_config()
+    raw = load_symbol_yaml_raw(symbol, timeframe)
+    if not raw:
+        return base
+    override = dict(raw)
+    tb = resolve_tuning_best_block(raw)
+    if tb:
+        override["orchestration_tuning_best"] = tb
     return _deep_merge(base, override)
 
 
@@ -138,10 +204,17 @@ def write_symbol_config(
     tuning_best: Optional[Dict[str, Any]] = None,
     extra: Optional[Dict[str, Any]] = None,
     allow_two_model_override: bool = False,
+    baseline_ref: Optional[str] = None,
+    store_as_overrides: bool = True,
 ) -> Path:
     sp = paths_for(symbol, timeframe)
     sp.config_yaml.parent.mkdir(parents=True, exist_ok=True)
-    payload: Dict[str, Any] = {"symbol": sp.symbol, "timeframe": sp.timeframe}
+    ref_path = baseline_ref or DEFAULT_BASELINE_REF
+    payload: Dict[str, Any] = {
+        "symbol": sp.symbol,
+        "timeframe": sp.timeframe,
+        "baseline_ref": ref_path,
+    }
     if tuning_best:
         tb = dict(tuning_best)
         mk = tb.get("model_keys")
@@ -152,7 +225,15 @@ def write_symbol_config(
             and set(mk) <= {"lgb", "xgb"}
         ):
             tb.pop("model_keys", None)
-        payload["orchestration_tuning_best"] = tb
+        ref_tb = dict(
+            load_reference_baseline(ref_path).get("orchestration_tuning_best") or {}
+        )
+        if store_as_overrides and ref_tb:
+            overrides = tuning_overrides_from_full(tb, ref_tb)
+            if overrides:
+                payload["orchestration_overrides"] = overrides
+        else:
+            payload["orchestration_tuning_best"] = tb
     if extra:
         payload.update(extra)
     sp.config_yaml.write_text(
@@ -163,12 +244,11 @@ def write_symbol_config(
 
 
 def tuning_best_for(symbol: str, timeframe: str = "1h") -> Dict[str, Any]:
-    """Per-symbol tuning_best (если задан), иначе из base ``config.yaml``."""
-    sp = paths_for(symbol, timeframe)
-    if sp.config_yaml.is_file():
-        raw = yaml.safe_load(sp.config_yaml.read_text(encoding="utf-8")) or {}
-        if isinstance(raw, dict) and raw.get("orchestration_tuning_best"):
-            return dict(raw["orchestration_tuning_best"])
+    """Эталон + per-symbol overrides; иначе legacy symbol YAML; иначе base config."""
+    raw = load_symbol_yaml_raw(symbol, timeframe)
+    resolved = resolve_tuning_best_block(raw)
+    if resolved:
+        return resolved
     base = load_base_config()
     return dict(base.get("orchestration_tuning_best") or {})
 

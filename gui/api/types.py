@@ -19,6 +19,10 @@ class SymbolEntry:
     config_yaml: Optional[Path] = None
     latest_bundle_run_id: Optional[str] = None
     has_bundle: bool = False
+    has_ohlcv: bool = False
+    has_features: bool = False
+    has_symbol_config: bool = False
+    last_acceptance_passed: Optional[bool] = None
 
 
 @dataclass

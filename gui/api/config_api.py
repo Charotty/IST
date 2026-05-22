@@ -7,7 +7,14 @@ from typing import Any, Dict, Optional, Tuple
 
 import yaml
 
-from orchestration.symbols import merged_config, paths_for, tuning_best_for, write_symbol_config
+from orchestration.symbols import (
+    DEFAULT_BASELINE_REF,
+    load_symbol_yaml_raw,
+    merged_config,
+    paths_for,
+    tuning_best_for,
+    write_symbol_config,
+)
 
 
 class ConfigApi:
@@ -27,6 +34,10 @@ class ConfigApi:
     def symbol_config_path(self, symbol: str, timeframe: str = "1h") -> Path:
         return paths_for(symbol, timeframe).config_yaml
 
+    def baseline_ref(self, symbol: str, timeframe: str = "1h") -> str:
+        raw = load_symbol_yaml_raw(symbol, timeframe)
+        return str(raw.get("baseline_ref") or DEFAULT_BASELINE_REF)
+
     def save_orchestration(
         self,
         symbol: str,
@@ -34,7 +45,15 @@ class ConfigApi:
         values: Dict[str, Any],
     ) -> Path:
         clean = {k: v for k, v in values.items() if v is not None}
-        return write_symbol_config(symbol, timeframe, tuning_best=clean)
+        merged_tb = dict(tuning_best_for(symbol, timeframe))
+        merged_tb.update(clean)
+        return write_symbol_config(
+            symbol,
+            timeframe,
+            tuning_best=merged_tb,
+            baseline_ref=self.baseline_ref(symbol, timeframe),
+            store_as_overrides=True,
+        )
 
     def save_raw_yaml(self, symbol: str, timeframe: str, text: str) -> Path:
         path = self.symbol_config_path(symbol, timeframe)

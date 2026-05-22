@@ -51,15 +51,32 @@ class SymbolsApi:
         bundle = sp.latest_bundle()
         if bundle is not None:
             latest = bundle.name
+        feat_ok = feat.is_file()
+        last_acc: Optional[bool] = None
+        try:
+            from backtesting.results_journal import BacktestResultsJournal
+
+            journal = BacktestResultsJournal()
+            for row in journal.list_runs(symbol=sp.slug, timeframe=sp.timeframe, limit=30):
+                ap = row.get("acceptance_passed")
+                if ap is not None:
+                    last_acc = bool(ap)
+                    break
+        except Exception:
+            pass
         return SymbolEntry(
             slug=sp.slug,
             symbol=sp.symbol,
             timeframe=sp.timeframe,
-            parquet_ohlcv=sp.parquet,
-            parquet_features=feat if feat.is_file() else None,
+            parquet_ohlcv=sp.parquet if sp.parquet.is_file() else None,
+            parquet_features=feat if feat_ok else None,
             config_yaml=sp.config_yaml if sp.config_yaml.is_file() else None,
             latest_bundle_run_id=latest,
             has_bundle=bundle is not None,
+            has_ohlcv=sp.parquet.is_file(),
+            has_features=feat_ok,
+            has_symbol_config=sp.config_yaml.is_file(),
+            last_acceptance_passed=last_acc,
         )
 
     def merged_config(self, symbol: str, timeframe: str = "1h") -> Dict[str, Any]:

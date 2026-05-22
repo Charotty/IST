@@ -12,13 +12,25 @@
 
 Research по-прежнему доступен через CLI (`python -m orchestration …`) и журнал `docs/backtest_journal/`.
 
+Конфиг: эталон [`config/reference/thesis_4model_reference.yaml`](../config/reference/thesis_4model_reference.yaml), пары — `baseline_ref` + `orchestration_overrides` (см. [`docs/THESIS_REFERENCE.md`](../docs/THESIS_REFERENCE.md)). Руководство: [`docs/GUI_USER_GUIDE.md`](../docs/GUI_USER_GUIDE.md).
+
 ## Статус
 
 | Компонент | Статус |
 |-----------|--------|
 | `gui/api/` | ✅ API-слой (обёртки orchestration) |
-| PyQt6 UI (`gui/app/`) | ✅ фаза 1–2 (Overview, Chart, Models, Backtests, Jobs, Settings) |
+| PyQt6 UI (`gui/app/`) | ✅ Overview, Chart, Models, Backtests, Jobs, Settings, Execution |
+| CLI из Jobs | ✅ prepare, build-features, tune-thesis, train-final, report-real (tuning-best + cache) |
 | HTTP backend | ⬜ не нужен для desktop (прямой вызов `gui.api`) |
+
+### CLI ↔ GUI (Jobs / Settings)
+
+| CLI | GUI |
+|-----|-----|
+| `build-features` | Кнопка «Признаки» |
+| `tune-thesis --phase …` | «Тюнинг thesis» + фаза |
+| `report-real --use-tuning-best --use-feature-cache` | «Отчёт WFO»; Settings → «Отчёт acceptance» |
+| `train-final-symbol` | «Финальное обучение» |
 
 ## Технологии
 

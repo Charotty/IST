@@ -39,105 +39,61 @@
 
 ## План изменений (единый список)
 
-### A. Метрики, acceptance и исследование качества
+### A. Эталон метрик и конфигурация (reference + overrides)
 
-1. Зафиксировать эталонный прогон BTC variant B в JSON:  
-   `python -m orchestration report-real --symbol BTC/USDT --use-tuning-best --use-feature-cache --json-out docs/thesis_btc_4model_acceptance.json`  
-   Сохранить run_id из журнала в этот документ и в `THESIS_CONTEXT.md`.
+**Принцип:** лучший достигнутый результат живёт в **одном** файле `config/reference/thesis_4model_reference.yaml`. Пары не дублируют полный блок — только `baseline_ref` + `orchestration_overrides` (отличия). Эталон меняется **один раз** при новом лучшем confirm; пары настраиваются **отдельно** поверх него.
 
-2. Разобрать WFE: посчитать по фолдам (train vs OOS Sharpe), выявить фолды-выбросы; при необходимости варьировать `walk_forward_step`, `train_window_size`, `test_window_size`, `volatility_filter_percentile`, `min_signal_margin` только на confirm-фазе.
-
-3. Прогнать `tune-thesis --phase all` для **ETH/USDT** 1h (скачать OHLCV при отсутствии), перенести лучший confirm в `config/symbols/ETH-USDT_1h.yaml`, JSON `docs/thesis_eth_4model_acceptance.json`.
-
-4. Сравнить variant A/B и ablation (regime_adaptive vs fixed, 2 vs 4 модели) — `scripts/run_ablation.py` или узкий grid; результаты в `docs/reports/` для таблиц диплома.
-
-5. Обновить пороги или режим проверки только если комиссия решит менять `config.yaml` → `backtesting.acceptance` (сейчас 8 проверок: Sharpe, PF, WFE, MDD, return, recovery, trades, min_folds); любое изменение — с обоснованием в тексте ВКР.
-
-6. Target-критерии (`backtesting.target`, Sharpe > 1.0) — отдельный прогон quality; не смешивать с acceptance в отчётах.
-
-7. После стабилизации params — `train-final-symbol` для BTC и ETH, проверить bundle `manifest.json` (4 model_keys, schema hash).
-
-8. Inference smoke: `explain` / Settings «Тест inference» на обеих парах после сохранения YAML.
+| Статус | Пункт |
+|--------|--------|
+| [x] | Эталон variant B в `config/reference/thesis_4model_reference.yaml` |
+| [x] | BTC: `baseline_ref` + override `tune_source` |
+| [x] | ETH: `baseline_ref` + overrides (horizon, margin, …) до своего confirm |
+| [x] | Merge в `orchestration/symbols.py` (`resolve_tuning_best_block`, `write_symbol_config`) |
+| [x] | Документ [`THESIS_REFERENCE.md`](THESIS_REFERENCE.md) |
+| [x] | JSON `docs/thesis_btc_4model_acceptance.json` (7/8 acceptance) |
+| [ ] | ETH: `tune-thesis --phase all` → overrides + `docs/thesis_eth_4model_acceptance.json` |
+| [ ] | WFE: разбор по фолдам; улучшение или обоснование в ВКР (единственный FAIL) |
+| [ ] | Ablation / variant A–B в `docs/reports/` для таблиц диплома |
+| [ ] | `train-final-symbol` BTC+ETH, smoke inference |
+| [ ] | Обновление эталона только при новом лучшем confirm (процедура в THESIS_REFERENCE) |
 
 ---
 
-### B. CLI и orchestration (доработки поверх уже реализованного)
+### B. CLI и orchestration
 
-9. `prepare-symbol` — явно описать в доке как legacy относительно `tune-thesis`; опционально делегировать fast-trials в ту же логику shortlist.
-
-10. `report-real` по умолчанию для GUI и скриптов: `--symbol`, `--use-tuning-best`, `--use-feature-cache`, `max_rows` из symbol YAML (0 = без обрезки по соглашению в коде).
-
-11. Команда или флаг **acceptance-only** в выводе JSON: все 8 checks с фактическими значениями и порогами (удобно для GUI и диплома).
-
-12. `build-features` — вызывать из GUI и из чеклиста Jobs после download OHLCV.
-
-13. `tune-thesis` — кнопки/профили в GUI: fast, refine, confirm, all; лог в `artifacts/<slug>/active/`; по завершении confirm — предложение записать params в symbol YAML.
-
-14. Shortlist `docs/thesis_tune_shortlist.json` — отображать в GUI (топ-K, mean_sharpe) на вкладке Jobs или Backtests.
-
-15. Зафиксировать в symbol YAML поля variant B, которых нет в форме Settings: `volatility_filter_percentile`, `prediction_horizon`, `max_wfo_folds`, `dl_epochs`, `use_risk_bridge`, `tune_source`, `walk_forward_step`, `train_window_size`, `test_window_size`.
-
-16. ETH: тот же `config/profiles/canonical_4model.yaml` и `config/profiles/thesis_tuning.yaml`; при необходимости слегка другие окна WFO под ликвидность.
-
-17. Риск-мост и trailing: если включать `use_risk_bridge` / `apply_atr_trailing` — только после baseline PASS или в отдельной ветке ablation.
-
-18. Feature cache: везде, где WFO/tune/report, единый флаг `--use-feature-cache`; инвалидация при смене OHLCV (manifest stale).
-
-19. Журнал: каждый confirm-run с тегами `tune_level=confirm`, `symbol`, `model_keys`, `ensemble_mode`, `acceptance_passed`.
-
-20. Репозиторий на быстром диске (`~/IST`) — рекомендация в README для длинных tune; не менять код.
+| Статус | Пункт |
+|--------|--------|
+| [x] | `tune-thesis`, `build-features`, feature cache |
+| [x] | `report-real`: `--symbol`, `--use-tuning-best`, `--use-feature-cache`, `max_rows=0` → YAML |
+| [x] | `tuning_best_for` через reference + overrides |
+| [ ] | `prepare-symbol` как legacy в доке; опционально делегирование в tune-thesis |
+| [ ] | Shortlist в GUI (Jobs/Backtests) |
+| [ ] | ETH tune confirm → overrides only |
 
 ---
 
-### C. GUI — функциональная полнота и мульти-пара
+### C. GUI — мульти-пара и CLI
 
-21. **`gui/api/cli_api.py` — `report_real_cmd`:** добавить `--symbol`, `--use-tuning-best`, `--use-feature-cache`; `max_rows` из merged config или spinbox «0 = из YAML».
-
-22. **`prepare_symbol_cmd`:** опции `max_trials`, профиль `canonical_4model` / `thesis_tuning`, галочка skip-final; отображать ожидаемое время.
-
-23. **Jobs:** кнопки `build-features`, `tune-thesis` (фаза из комбобокса), прогресс и tail лога; после CLI — автообновление pipeline checklist.
-
-24. **Settings:** поля `volatility_filter_percentile`, `prediction_horizon`, `max_wfo_folds`, `dl_epochs`, `model_keys` (read-only список 4), `use_risk_bridge`; загрузка/сохранение полного блока `orchestration_tuning_best` + YAML tab как сейчас.
-
-25. **Settings → «Отчёт acceptance»:** запуск `report-real` с правильными флагами и вывод 8 checks в `_result`.
-
-26. **SymbolToolbar:** индикаторы по паре — OHLCV ✓, features ✓, bundle ✓, last acceptance PASS/FAIL из последнего journal run.
-
-27. **Backtests:** фильтр по symbol/timeframe; подсветка FAIL по имени критерия (в т.ч. WFE); экспорт equity PNG для слайдов.
-
-28. **Overview / Chart:** при смене пары — перезагрузка explain и свечей; предупреждение, если bundle отсутствует.
-
-29. **Models:** показ весов regime-adaptive и model_keys из manifest текущего bundle.
-
-30. **Execution (paper):** сохранение сессии, несколько шагов подряд, сводка PnL; опционально тот же `min_signal_margin` / vol filter из config.
-
-31. **Демо-режим:** оставить `--demo`; в прод-режиме все CLI-кнопки активны (как сейчас, без регрессии).
-
-32. **Новая пара из GUI:** мастер «Добавить символ» — slug, download OKX, prepare/build-features, ссылка на tune-thesis (без обязательного wizard на один экран — можно пошаговые кнопки в Jobs).
-
-33. **Импорт OHLCV:** file picker → копирование в `data/ohlcv/<slug>.parquet` + пересбор features (для не-OKX данных).
-
-34. **Согласованность:** после Save в Settings — подсказка «запустите report-real / train-final».
-
-35. Обновить `gui/README.md` — таблица «CLI ↔ GUI», статус фаз 3–4.
+| Статус | Пункт |
+|--------|--------|
+| [x] | `cli_api`: report-real, build-features, tune-thesis |
+| [x] | Jobs: признаки, тюнинг, флаги tuning-best / cache, баров 0=YAML |
+| [x] | Settings: vol filter, horizon, dl_epochs, эталон, отчёт acceptance |
+| [x] | SymbolToolbar: OHLCV/feat/bundle/acc |
+| [ ] | Backtests: фильтр symbol, подсветка FAIL-критерия |
+| [ ] | Импорт OHLCV / мастер новой пары |
+| [x] | `gui/README.md` + [`GUI_USER_GUIDE.md`](GUI_USER_GUIDE.md) |
 
 ---
 
-### D. Документация и материалы диплома
+### D. Документация
 
-36. Переписать `docs/THESIS_CONTEXT.md`: variant B, 7/8 acceptance, команды tune-thesis/report-real, ссылка на acceleration plan как «реализовано».
-
-37. Обновить `docs/THESIS_4MODEL_STEPS.md` под `tune-thesis` вместо только `thesis_push_4model`.
-
-38. `docs/3_11_SYSTEM_TESTING.md` — таблицы с актуальными 4-model прогонами (BTC variant B, ETH когда готов).
-
-39. `docs/BACKTESTING_CRITERIA_REFERENCE.md` — пример JSON с 8 полями checks.
-
-40. Краткий `docs/GUI_USER_GUIDE.md` — сценарий защиты: выбор BTC → Overview → Backtests → Settings → paper step.
-
-41. `THESIS_ACCELERATION_IMPLEMENTATION_PLAN.md` — финальный статус DoD (ETH YAML, acceptance JSON, GUI parity).
-
-42. Слайды / рисунки: схема pipeline, скрин GUI Overview + Backtests PASS/FAIL, таблица ablation.
+| Статус | Пункт |
+|--------|--------|
+| [x] | `THESIS_CONTEXT.md`, `THESIS_REFERENCE.md`, `GUI_USER_GUIDE.md` |
+| [ ] | `THESIS_4MODEL_STEPS.md` — reference + overrides |
+| [ ] | `3_11_SYSTEM_TESTING.md` — BTC variant B, ETH |
+| [ ] | Слайды / figures GUI |
 
 ---
 
@@ -165,15 +121,14 @@
 
 ---
 
-### G. Paper trading и визуализация (продолжение текущей линии)
+### G. Paper и визуализация
 
-51. Paper: прогон N баров подряд с записью equity в journal или локальный CSV для графика в Execution.
-
-52. Chart: overlay сигналов BUY/SELL/HOLD на хвосте; легенда regime.
-
-53. Сравнение paper vs backtester на том же окне (уже есть PaperCompareWorker — расширить отчёт в UI).
-
-54. Live OKX — вне scope диплома; в GUI оставить предупреждение и env-переменные без реализации ордеров.
+| Статус | Пункт |
+|--------|--------|
+| [x] | Execution: серия шагов, график баланса, сверка Backtester |
+| [x] | Chart: подсказка про сигналы в Обзоре/Исполнении |
+| [ ] | Overlay сигналов на свечах (локальные features) |
+| [ ] | Экспорт equity paper в CSV |
 
 ---
 

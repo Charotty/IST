@@ -1,32 +1,5 @@
-orchestration_tuning_best:
-  apply_decision_pipeline: true
-  config_path: config/profiles/canonical_4model.yaml
-  direction_threshold: 0.56
-  dl_batch_size: 64
-  dl_epochs: 3
-  ensemble_mode: regime_adaptive
-  label_min_return: 0.0
-  max_position_fraction: 0.35
-  max_rows: 8000
-  max_wfo_folds: 0
-  meta_threshold_mode: percentile
-  min_signal_margin: 0.06
-  model_keys:
-  - lgb
-  - gru
-  - xgb
-  - cnn
-  prediction_horizon: 12
-  profile: canonical_4model
-  regime: momentum
-  signal_strategy: ensemble
-  test_window_size: 170
-  trade_mode: both
-  train_window_size: 1500
-  tune_level: confirm
-  tune_source: variant_b_vol_filter_90
-  use_risk_bridge: false
-  volatility_filter_percentile: 90.0
-  walk_forward_step: 360
 symbol: BTC-USDT
 timeframe: 1h
+baseline_ref: config/reference/thesis_4model_reference.yaml
+orchestration_overrides:
+  tune_source: variant_b_vol_filter_90

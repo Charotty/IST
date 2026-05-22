@@ -135,16 +135,25 @@ class ExecutionView(QWidget):
         row = QHBoxLayout()
         self._btn_step = QPushButton("Выполнить шаг")
         self._btn_step.setEnabled(False)
+        self._btn_batch = QPushButton("Серия шагов")
+        self._btn_batch.setEnabled(False)
+        self._batch_n = QSpinBox()
+        self._batch_n.setRange(2, 50)
+        self._batch_n.setValue(5)
         self._auto = QComboBox()
         self._auto.addItems(["Вручную", "Авто каждые 30 с", "Авто каждые 60 с"])
         self._window = QSpinBox()
         self._window.setRange(64, 512)
         self._window.setValue(256)
         row.addWidget(self._btn_step)
+        row.addWidget(self._btn_batch)
+        row.addWidget(QLabel("×"))
+        row.addWidget(self._batch_n)
         row.addWidget(QLabel("Окно:"))
         row.addWidget(self._window)
         row.addWidget(self._auto)
         step_l.addLayout(row)
+        self._batch_remaining = 0
         self._step_log = QPlainTextEdit()
         self._step_log.setReadOnly(True)
         step_l.addWidget(self._step_log)
@@ -173,6 +182,7 @@ class ExecutionView(QWidget):
         self._btn_reset.clicked.connect(self._reset_portfolio)
         self._btn_emergency.clicked.connect(self._emergency_stop)
         self._btn_step.clicked.connect(self._run_step)
+        self._btn_batch.clicked.connect(self._run_batch)
         self._auto.currentIndexChanged.connect(self._on_auto_changed)
 
         self._update_live_hint()
@@ -206,6 +216,7 @@ class ExecutionView(QWidget):
         self._btn_connect.setEnabled(False)
         self._btn_disconnect.setEnabled(True)
         self._btn_step.setEnabled(True)
+        self._btn_batch.setEnabled(True)
         self._btn_emergency.setEnabled(True)
         self._btn_reset.setEnabled(True)
         self._status_conn.setText("Подключено (paper)")
@@ -226,6 +237,7 @@ class ExecutionView(QWidget):
         self._btn_connect.setEnabled(True)
         self._btn_disconnect.setEnabled(False)
         self._btn_step.setEnabled(False)
+        self._btn_batch.setEnabled(False)
         self._btn_emergency.setEnabled(False)
         self._status_conn.setText("Не подключено")
         self._status_conn.setStyleSheet("color: #c62828;")
@@ -255,6 +267,11 @@ class ExecutionView(QWidget):
         elif index == 2:
             self._auto_timer.start(60_000)
 
+    def _run_batch(self) -> None:
+        self._batch_remaining = self._batch_n.value()
+        self._append_log(f"Серия из {self._batch_remaining} шагов…")
+        self._run_step()
+
     def _run_step(self) -> None:
         if not self._session or not self._session.connected:
             self._append_log("Сначала подключите paper-сессию.")
@@ -262,6 +279,7 @@ class ExecutionView(QWidget):
         if self._step_worker and self._step_worker.isRunning():
             return
         self._btn_step.setEnabled(False)
+        self._btn_batch.setEnabled(False)
         self._step_worker = PaperStepWorker(
             self._session,
             self._symbol,
@@ -274,6 +292,7 @@ class ExecutionView(QWidget):
 
     def _on_step(self, result: ExecutionStepResult) -> None:
         self._btn_step.setEnabled(True)
+        self._btn_batch.setEnabled(True)
         self._last_step = result
         line = (
             f"[{result.as_of}] {result.direction} сигнал={result.signal} "
@@ -283,6 +302,12 @@ class ExecutionView(QWidget):
         self._append_log(line)
         self._refresh_account()
         self._run_compare(result)
+        if self._batch_remaining > 0:
+            self._batch_remaining -= 1
+            if self._batch_remaining > 0:
+                QTimer.singleShot(400, self._run_step)
+            else:
+                self._append_log("Серия шагов завершена.")
 
     def _run_compare(self, step: ExecutionStepResult) -> None:
         if self._compare_worker and self._compare_worker.isRunning():
@@ -303,6 +328,8 @@ class ExecutionView(QWidget):
 
     def _on_step_failed(self, msg: str) -> None:
         self._btn_step.setEnabled(True)
+        self._btn_batch.setEnabled(True)
+        self._batch_remaining = 0
         self._append_log(f"Ошибка шага: {msg}")
 
     def _refresh_account(self) -> None:
