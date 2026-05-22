@@ -1,0 +1,27 @@
+symbol: ETH-USDT
+timeframe: 1h
+orchestration_tuning_best:
+  profile: canonical_4model
+  config_path: config/profiles/canonical_4model.yaml
+  model_keys:
+    - lgb
+    - gru
+    - xgb
+    - cnn
+  ensemble_mode: regime_adaptive
+  apply_decision_pipeline: true
+  regime: momentum
+  prediction_horizon: 24
+  direction_threshold: 0.6
+  min_signal_margin: 0.08
+  meta_threshold_mode: percentile
+  trade_mode: both
+  use_risk_bridge: false
+  train_window_size: 1500
+  test_window_size: 170
+  walk_forward_step: 360
+  signal_strategy: ensemble
+  label_min_return: 0.0
+  volatility_filter_percentile: 0.0
+  max_position_fraction: 1.0
+  dl_epochs: 3

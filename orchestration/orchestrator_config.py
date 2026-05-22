@@ -67,7 +67,8 @@ class OrchestratorConfig:
     train_window_size: int = 1000
     test_window_size: int = 200
     walk_forward_step: int = 100
-    
+    max_wfo_folds: int = 0  # 0 = all folds; >0 caps WFO folds (faster tuning)
+
     # Feature parameters
     feature_window_size: int = 24
     
@@ -77,7 +78,12 @@ class OrchestratorConfig:
     enable_purge: bool = True  # Whether to apply purge (remove H bars from end of train)
     allow_meta_label_on_test: bool = False  # Never allow meta-label on test
     safe_label_generation: bool = True  # Use safe label generation by default
-    
+
+    # Profile YAML fields (tuning / risk bridge; not all used inside WFO loop)
+    use_risk_bridge: bool = False
+    safe_threshold_mode: bool = True
+    apply_atr_trailing: bool = False
+
     def __post_init__(self):
         """Initialize default weights if not provided."""
         # Default trend weights: sequential models dominant

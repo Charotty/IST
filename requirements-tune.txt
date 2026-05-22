@@ -1,0 +1,2 @@
+# Optional: multilevel thesis tuning (Optuna-ready; core path uses built-in pruner)
+optuna>=3.0.0

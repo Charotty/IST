@@ -309,14 +309,29 @@ def _fit_wfo_windows_to_rows(cfg, n_rows: int):
     )
 
 
+class TrialPrunedError(Exception):
+    """Raised when early fold pruning stops a trial."""
+
+
 def run_single_trial(
     features,
     params: Dict[str, Any],
     *,
     config_path: str | Path = "config.yaml",
     parquet_label: str = "",
+    on_fold_done: Optional[Any] = None,
+    pruner: Optional[Any] = None,
+    dl_batch_size: Optional[int] = None,
+    mixed_precision: Optional[bool] = None,
+    tune_level: Optional[str] = None,
 ) -> Dict[str, Any]:
-    cfg = _fit_wfo_windows_to_rows(orchestrator_config_from_params(params), len(features))
+    from orchestration.tabular_accel import tabular_profile_for_level
+    from orchestration.tuning_config import dl_epochs_from_params, orchestrator_config_from_tuning_params
+
+    cfg = _fit_wfo_windows_to_rows(
+        orchestrator_config_from_tuning_params(params, config_path=config_path),
+        len(features),
+    )
     from orchestration import TrainingOrchestrator
     from orchestration.model_factory import build_orchestration_models, meta_weighting_from_config
     from risk_management import OrchestratorRiskBridge
@@ -326,27 +341,58 @@ def run_single_trial(
         cfg.prediction_horizon,
         min_return=float(getattr(cfg, "label_min_return", 0.0) or 0.0),
     )
-    models = build_orchestration_models(cfg, features, dl_epochs=5)
+    level = tune_level or params.get("tune_level")
+    tab_prof = tabular_profile_for_level(str(level or "confirm"))
+    mp = mixed_precision if mixed_precision is not None else bool(params.get("_mixed_precision", False))
+    bs = dl_batch_size if dl_batch_size is not None else int(params.get("_dl_batch_size", 64))
+    models = build_orchestration_models(
+        cfg,
+        features,
+        dl_epochs=dl_epochs_from_params(params, default=3),
+        dl_batch_size=bs,
+        mixed_precision=mp,
+        tabular_profile=tab_prof,
+        tune_level=level,
+    )
     orch = TrainingOrchestrator(cfg)
     cap = float(params.get("max_position_fraction", getattr(cfg, "max_position_fraction", 1.0)) or 1.0)
     risk = (
         OrchestratorRiskBridge(max_position_fraction=cap)
-        if params["use_risk_bridge"]
+        if bool(params.get("use_risk_bridge", False))
         else None
     )
     orch.initialize(
         models=models,
-        regime_detector=regime_detector_for(params["regime"]),
+        regime_detector=regime_detector_for(str(params.get("regime", "momentum"))),
         meta_weighting=meta_weighting_from_config(cfg),
         risk_manager=risk,
     )
-    folds = orch.walk_forward_backtest(features, y)
+
+    def _fold_cb(fold_rows: List[Dict[str, Any]]) -> bool:
+        if pruner is not None and hasattr(pruner, "should_prune") and pruner.should_prune(fold_rows):
+            return True
+        if on_fold_done is not None:
+            return bool(on_fold_done(fold_rows))
+        cb = params.get("_on_fold_prune")
+        if cb is not None:
+            return bool(cb(fold_rows))
+        return False
+
+    folds = orch.walk_forward_backtest(features, y, on_fold_done=_fold_cb)
+    if pruner is not None and hasattr(pruner, "should_prune"):
+        fold_list = folds.to_dict("records") if len(folds) else []
+        if fold_list and pruner.should_prune(fold_list):
+            raise TrialPrunedError("trial pruned after partial WFO")
+
     from orchestration.canonical_pipeline import journal_profile_tag
 
     report_params = {k: v for k, v in params.items() if not k.startswith("_")}
     report_params.setdefault("profile", journal_profile_tag(config_path))
     report_params.setdefault("config_path", str(config_path))
-    return build_report(
+    if level:
+        report_params["tune_level"] = level
+    report_params["tabular_device"] = tab_prof.tabular_device
+    report = build_report(
         folds,
         parquet=parquet_label,
         feature_rows=len(features),
@@ -355,6 +401,7 @@ def run_single_trial(
         label=params.get("_label", ""),
         params=report_params,
     )
+    return report
 
 
 def tune_until_criteria(

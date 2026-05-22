@@ -77,32 +77,16 @@ def regime_detector_for(name: str):
     return SimpleHourlyRegimeStub()
 
 
-def orchestrator_config_from_params(p: Dict[str, Any]) -> OrchestratorConfig:
-    cfg = lgb_xgb_config(
-        train_window_size=p["train_window_size"],
-        test_window_size=p["test_window_size"],
-        walk_forward_step=p["walk_forward_step"],
-        prediction_horizon=p["prediction_horizon"],
-        direction_threshold=p["direction_threshold"],
-        apply_decision_pipeline=p["apply_decision_pipeline"],
-        meta_threshold_mode=p["meta_threshold_mode"],
-        ensemble_mode=p["ensemble_mode"],
+def orchestrator_config_from_params(
+    p: Dict[str, Any],
+    *,
+    config_path: str | Path = "config.yaml",
+) -> OrchestratorConfig:
+    from orchestration.tuning_config import orchestrator_config_from_tuning_params
+
+    return orchestrator_config_from_tuning_params(
+        p, config_path=p.get("config_path", config_path)
     )
-    cfg.trade_mode = p.get("trade_mode", "both")
-    cfg.min_signal_margin = float(p.get("min_signal_margin", 0.0))
-    cfg.signal_strategy = p.get("signal_strategy", "ensemble")
-    cfg.momentum_sma_period = int(p.get("momentum_sma_period", 100))
-    cfg.label_min_return = float(p.get("label_min_return", 0.0))
-    cfg.volatility_filter_percentile = float(p.get("volatility_filter_percentile", 0.0))
-    cfg.max_position_fraction = float(p.get("max_position_fraction", 1.0))
-    if p.get("model_keys"):
-        mk = list(p["model_keys"])
-        w = {k: 1.0 / len(mk) for k in mk}
-        cfg.model_keys = mk
-        cfg.trend_weights = w.copy()
-        cfg.range_weights = w.copy()
-        cfg.breakout_weights = w.copy()
-    return cfg
 
 
 def config_from_tuning_best(
@@ -124,7 +108,7 @@ def config_from_tuning_best(
     for key in required:
         if key not in p:
             return lgb_xgb_config()
-    return orchestrator_config_from_params(p)
+    return orchestrator_config_from_params(p, config_path=config_path)
 
 
 def run_wfo_on_features(
@@ -135,15 +119,28 @@ def run_wfo_on_features(
     regime: str = "momentum",
     dl_epochs: int = 5,
     config_path: str | Path = "config.yaml",
+    tuning_params: Optional[Dict[str, Any]] = None,
 ) -> pd.DataFrame:
+    from orchestration.tuning_loop import _fit_wfo_windows_to_rows
+
     if "close" not in features.columns:
         raise ValueError("features must include 'close'")
+    cfg = _fit_wfo_windows_to_rows(cfg, len(features))
+    tp = tuning_params or {}
     y = default_horizon_labels(
         features["close"],
         cfg.prediction_horizon,
         min_return=float(getattr(cfg, "label_min_return", 0.0) or 0.0),
     )
-    models = build_orchestration_models(cfg, features, dl_epochs=dl_epochs)
+    level = str(tp.get("tune_level", "confirm"))
+    models = build_orchestration_models(
+        cfg,
+        features,
+        dl_epochs=dl_epochs,
+        dl_batch_size=int(tp.get("dl_batch_size", 64)),
+        mixed_precision=bool(tp.get("_mixed_precision", level != "confirm")),
+        tune_level=level,
+    )
     orch = TrainingOrchestrator(cfg)
     cap = float(getattr(cfg, "max_position_fraction", 1.0) or 1.0)
     risk = (

@@ -81,7 +81,15 @@ class GRUTrendModel:
         
         return np.array(Xs), np.array(ys)
     
-    def train(self, df: pd.DataFrame, y: pd.Series, epochs=10, batch_size=64, validation_split=0.1):
+    def train(
+        self,
+        df: pd.DataFrame,
+        y: pd.Series,
+        epochs=10,
+        batch_size=64,
+        validation_split=0.1,
+        mixed_precision: bool = False,
+    ):
         """
         Train the GRU model.
         
@@ -104,15 +112,22 @@ class GRUTrendModel:
         X_train, X_val = X[:split_idx], X[split_idx:]
         y_train, y_val = y_seq[:split_idx], y_seq[split_idx:]
         
+        from orchestration.dl_training import DLTrainingProfile, fit_dl_model
+
         early_stopping = EarlyStopping(patience=5, restore_best_weights=True)
-        
-        self.model.fit(
-            X_train, y_train,
-            epochs=epochs,
+        profile = DLTrainingProfile(
+            mixed_precision=mixed_precision,
             batch_size=batch_size,
+            epochs=epochs,
+        )
+        fit_dl_model(
+            self.model,
+            X_train,
+            y_train,
             validation_data=(X_val, y_val),
+            profile=profile,
             callbacks=[early_stopping],
-            verbose=0
+            verbose=0,
         )
         
         self.is_fitted = True

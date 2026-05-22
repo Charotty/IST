@@ -23,10 +23,11 @@ class LightGBMTabularModel:
         n_estimators: int = 200,
         learning_rate: float = 0.05,
         max_depth: int = -1,
+        **lgb_params,
     ):
         if lgb is None:
             raise ImportError("lightgbm is required for LightGBMTabularModel")
-        self.model = lgb.LGBMClassifier(
+        kwargs = dict(
             n_estimators=n_estimators,
             learning_rate=learning_rate,
             max_depth=max_depth,
@@ -37,6 +38,13 @@ class LightGBMTabularModel:
             subsample=0.8,
             colsample_bytree=0.8,
         )
+        kwargs.update(lgb_params)
+        try:
+            self.model = lgb.LGBMClassifier(**kwargs)
+        except Exception:
+            # GPU build unavailable — retry without device_type
+            kwargs.pop("device_type", None)
+            self.model = lgb.LGBMClassifier(**kwargs)
         self.feature_cols: Optional[list] = None
         self.is_fitted = False
 

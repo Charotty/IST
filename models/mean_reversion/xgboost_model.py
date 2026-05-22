@@ -20,7 +20,13 @@ class XGBoostMeanReversionModel:
     - indicator-based reversals
     """
     
-    def __init__(self, n_estimators=200, learning_rate=0.05, max_depth=6):
+    def __init__(
+        self,
+        n_estimators=200,
+        learning_rate=0.05,
+        max_depth=6,
+        **xgb_params,
+    ):
         """
         Initialize XGBoost mean reversion model.
         
@@ -28,15 +34,22 @@ class XGBoostMeanReversionModel:
         :param learning_rate: Learning rate
         :param max_depth: Maximum tree depth
         """
-        self.model = xgb.XGBClassifier(
+        kwargs = dict(
             n_estimators=n_estimators,
             learning_rate=learning_rate,
             max_depth=max_depth,
             objective='binary:logistic',
             eval_metric='logloss',
             use_label_encoder=False,
-            verbosity=0
+            verbosity=0,
         )
+        kwargs.update(xgb_params)
+        try:
+            self.model = xgb.XGBClassifier(**kwargs)
+        except Exception:
+            kwargs.pop("device", None)
+            kwargs.setdefault("tree_method", "hist")
+            self.model = xgb.XGBClassifier(**kwargs)
         self.feature_cols = None
         self.is_fitted = False
     

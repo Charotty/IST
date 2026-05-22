@@ -452,6 +452,7 @@ class TrainingOrchestrator:
         *,
         commission: Optional[float] = None,
         slippage: Optional[float] = None,
+        on_fold_done: Optional[Any] = None,
     ) -> pd.DataFrame:
         """
         Walk-forward (leakage-safe) training per fold, then OOS backtest on ``Backtester``
@@ -479,6 +480,9 @@ class TrainingOrchestrator:
             self.config.walk_forward_step,
             self.config.prediction_horizon,
         )
+        cap = int(getattr(self.config, "max_wfo_folds", 0) or 0)
+        if cap > 0:
+            splits = splits[:cap]
 
         for fold_idx, (train_features, train_targets, test_features, test_targets) in enumerate(splits):
             validation = self.leakage_preventer.validate_no_leakage(
@@ -531,6 +535,10 @@ class TrainingOrchestrator:
             metrics["OOS Annualized Return"] = oos_ann
             metrics["Fold"] = fold_idx + 1
             rows.append(metrics)
+            if on_fold_done is not None:
+                fold_rows = [dict(r) for r in rows]
+                if on_fold_done(fold_rows):
+                    break
 
         return pd.DataFrame(rows)
     

@@ -83,22 +83,43 @@ def _cmd_report_real(args: argparse.Namespace) -> None:
         write_benchmark_artifacts,
     )
 
+    from orchestration.benchmark_runner import load_tuning_best_params
+
     pq = Path(args.parquet) if args.parquet else default_real_parquet()
-    max_rows = None if args.max_rows == 0 else args.max_rows
     use_best = getattr(args, "use_tuning_best", False)
-    cfg = None
     if getattr(args, "no_tuning_best", False):
         use_best = False
+    symbol = getattr(args, "symbol", None)
+    timeframe = getattr(args, "timeframe", None) or "1h"
+    config_path = args.config
+    tuning: dict = {}
+    if use_best:
+        tuning = load_tuning_best_params(args.config, symbol=symbol, timeframe=timeframe) or {}
+        if tuning.get("config_path"):
+            config_path = tuning["config_path"]
+    if args.max_rows == 0:
+        max_rows = int(tuning["max_rows"]) if tuning.get("max_rows") else None
+    else:
+        max_rows = args.max_rows
+    cfg = None
     if not use_best:
         from orchestration.benchmark_runner import orchestrator_config_from_yaml
 
-        cfg = orchestrator_config_from_yaml(args.config)
+        cfg = orchestrator_config_from_yaml(config_path)
+    dl_epochs = int(getattr(args, "dl_epochs", 5))
+    if tuning:
+        dl_epochs = int(tuning.get("dl_epochs", dl_epochs))
     report = run_benchmark_report(
         pq,
         max_rows=max_rows,
-        config_path=args.config,
+        config_path=config_path,
         orchestrator_config=cfg,
         use_tuning_best=use_best,
+        dl_epochs=dl_epochs,
+        symbol=symbol,
+        timeframe=timeframe,
+        label="report-real",
+        use_feature_cache=getattr(args, "use_feature_cache", False),
     )
     folds = report["fold_metrics"]
     print(folds.to_string(index=False))
@@ -287,6 +308,55 @@ def _cmd_manifest_show(args: argparse.Namespace) -> None:
     print(_json.dumps(man, indent=2, ensure_ascii=False))
 
 
+def _cmd_build_features(args: argparse.Namespace) -> None:
+    import json as _json
+
+    from .feature_store import build_features, read_manifest
+
+    df = build_features(
+        args.symbol,
+        args.timeframe,
+        config_path=args.config,
+        force=args.force,
+    )
+    man = read_manifest(args.symbol, args.timeframe)
+    print(
+        _json.dumps(
+            {
+                "rows": len(df),
+                "columns": len(df.columns),
+                "manifest": man,
+            },
+            indent=2,
+            ensure_ascii=False,
+            default=str,
+        )
+    )
+
+
+def _cmd_tune_thesis(args: argparse.Namespace) -> None:
+    import json as _json
+
+    from .dl_training import configure_tf_runtime
+    from .thesis_tuning import run_multilevel
+
+    configure_tf_runtime()
+
+    use_cache = not getattr(args, "no_feature_cache", False)
+    out = run_multilevel(
+        args.symbol,
+        args.timeframe,
+        phase=args.phase,
+        config_path=args.config,
+        journal_root=args.journal_root,
+        use_feature_cache=use_cache,
+    )
+    print(_json.dumps(out, indent=2, ensure_ascii=False, default=str))
+    confirm = out.get("confirm") or {}
+    if args.phase in ("confirm", "all") and not confirm.get("acceptance_passed"):
+        raise SystemExit(1)
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description="Orchestration pipeline CLI")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -345,8 +415,8 @@ def main() -> None:
     pr.add_argument(
         "--max-rows",
         type=int,
-        default=2200,
-        help="Tail-N bars after FeatureEngine; 0 = use all rows",
+        default=0,
+        help="Tail-N feature rows; 0 = orchestration_tuning_best.max_rows or all rows",
     )
     pr.add_argument("--train-window", type=int, default=900)
     pr.add_argument("--test-window", type=int, default=180)
@@ -359,8 +429,11 @@ def main() -> None:
     pr.add_argument(
         "--use-tuning-best",
         action="store_true",
-        help="Use archived 2-model tuning profile (config/archive/discussion/) or symbol YAML",
+        help="Use orchestration_tuning_best from symbol YAML or config/archive",
     )
+    pr.add_argument("--symbol", default=None, help="e.g. BTC/USDT — load config/symbols/<slug>.yaml")
+    pr.add_argument("--timeframe", default="1h")
+    pr.add_argument("--dl-epochs", type=int, default=3, help="GRU/CNN epochs per WFO fold (thesis: 2–3)")
     pr.add_argument(
         "--no-tuning-best",
         action="store_true",
@@ -371,7 +444,48 @@ def main() -> None:
         action="store_true",
         help="Force all model_keys from canonical config (requires TensorFlow for gru/cnn)",
     )
+    pr.add_argument(
+        "--use-feature-cache",
+        action="store_true",
+        help="Load data/features/<slug>.parquet instead of inline FeatureEngine",
+    )
     pr.set_defaults(func=_cmd_report_real)
+
+    pbf = sub.add_parser(
+        "build-features",
+        help="Build canonical feature parquet + manifest for a symbol",
+    )
+    pbf.add_argument("--symbol", required=True, help="e.g. BTC/USDT")
+    pbf.add_argument("--timeframe", default="1h")
+    pbf.add_argument(
+        "--config",
+        default="config/profiles/canonical_4model.yaml",
+    )
+    pbf.add_argument("--force", action="store_true", help="Rebuild even if cache valid")
+    pbf.set_defaults(func=_cmd_build_features)
+
+    ptt = sub.add_parser(
+        "tune-thesis",
+        help="Multilevel thesis tune: fast → refine → confirm",
+    )
+    ptt.add_argument("--symbol", required=True)
+    ptt.add_argument("--timeframe", default="1h")
+    ptt.add_argument(
+        "--phase",
+        choices=("fast", "refine", "confirm", "all"),
+        default="all",
+    )
+    ptt.add_argument(
+        "--config",
+        default="config/profiles/canonical_4model.yaml",
+    )
+    ptt.add_argument("--journal-root", default="docs/backtest_journal")
+    ptt.add_argument(
+        "--no-feature-cache",
+        action="store_true",
+        help="Rebuild features inline from OHLCV each run",
+    )
+    ptt.set_defaults(func=_cmd_tune_thesis)
 
     pt = sub.add_parser(
         "tune-until",

@@ -246,8 +246,10 @@ def prepare_canonical_dataset(
     elif _needs_mtf_columns(sp.parquet, config_path):
         merge_mtf_from_disk(symbol, timeframe, config_path=config_path)
 
+    from orchestration.feature_store import build_features
+
+    build_features(symbol, timeframe, config_path=config_path, ohlcv_path=sp.parquet)
     feat_path = features_parquet_for(symbol, timeframe)
-    build_canonical_features(sp.parquet, config_path=config_path, output_path=feat_path)
     return sp.parquet, feat_path
 
 

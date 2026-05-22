@@ -43,7 +43,22 @@ def features_from_ohlcv_parquet(
     parquet_path: str | Path,
     *,
     max_rows: Optional[int] = None,
+    use_feature_cache: bool = False,
+    symbol: Optional[str] = None,
+    timeframe: str = "1h",
+    config_path: str | Path = "config/profiles/canonical_4model.yaml",
 ) -> pd.DataFrame:
+    if use_feature_cache and symbol:
+        from orchestration.feature_store import load_features_from_parquet
+
+        return load_features_from_parquet(
+            parquet_path,
+            symbol=symbol,
+            timeframe=timeframe,
+            max_rows=max_rows,
+            use_feature_cache=True,
+            config_path=config_path,
+        )
     raw = pd.read_parquet(parquet_path)
     fe = FeatureEngine(raw, FeatureEngineeringConfig())
     fe.add_indicators()
@@ -84,19 +99,31 @@ def run_benchmark_report(
     orchestrator_config: Optional[OrchestratorConfig] = None,
     use_tuning_best: bool = False,
     use_risk_bridge: Optional[bool] = None,
+    dl_epochs: int = 5,
     label: str = "report-real",
     symbol: Optional[str] = None,
     timeframe: Optional[str] = None,
     stage: Optional[str] = None,
     train_span: Optional[Any] = None,
     holdout_span: Optional[Any] = None,
+    use_feature_cache: bool = False,
 ) -> Dict[str, Any]:
-    feat = features_from_ohlcv_parquet(parquet_path, max_rows=max_rows)
+    feat = features_from_ohlcv_parquet(
+        parquet_path,
+        max_rows=max_rows,
+        use_feature_cache=use_feature_cache,
+        symbol=symbol,
+        timeframe=timeframe or "1h",
+        config_path=config_path,
+    )
     tuning = (
         load_tuning_best_params(config_path, symbol=symbol, timeframe=timeframe)
         if use_tuning_best
         else {}
     )
+    eval_config_path = config_path
+    if tuning.get("config_path"):
+        eval_config_path = tuning["config_path"]
     from orchestration.benchmark_runner import orchestrator_config_from_yaml
 
     cfg = orchestrator_config or (
@@ -107,17 +134,28 @@ def run_benchmark_report(
     bridge = (
         use_risk_bridge
         if use_risk_bridge is not None
-        else bool(tuning.get("use_risk_bridge", True))
+        else bool(tuning.get("use_risk_bridge", False))
     )
     regime = str(tuning.get("regime", "momentum"))
     params = {**tuning, **(cfg.to_dict() if hasattr(cfg, "to_dict") else {})}
-    folds = run_wfo_on_features(feat, cfg, use_risk_bridge=bridge, regime=regime)
+    from orchestration.tuning_config import dl_epochs_from_params
+
+    epochs = dl_epochs_from_params(tuning, default=dl_epochs)
+    folds = run_wfo_on_features(
+        feat,
+        cfg,
+        use_risk_bridge=bridge,
+        regime=regime,
+        dl_epochs=epochs,
+        config_path=eval_config_path,
+        tuning_params=tuning if use_tuning_best else None,
+    )
     report = build_report(
         folds,
         parquet=str(Path(parquet_path).resolve()),
         feature_rows=len(feat),
         max_rows=max_rows,
-        config_path=config_path,
+        config_path=eval_config_path,
         label=label,
         params=params,
         symbol=symbol,
