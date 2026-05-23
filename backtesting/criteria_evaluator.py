@@ -37,6 +37,9 @@ def summarize_wfo_folds(fold_metrics: pd.DataFrame) -> Dict[str, Any]:
         "mean_profit_factor": _safe_mean(df.get("Profit Factor", pd.Series(dtype=float))),
         "mean_total_return_pct": _safe_mean(df.get("Total Return (%)", pd.Series(dtype=float))),
         "mean_wfe": _safe_mean(df.get("Walk-Forward Efficiency", pd.Series(dtype=float))),
+        "mean_wfe_sharpe": _safe_mean(
+            df.get("Walk-Forward Efficiency (Sharpe)", pd.Series(dtype=float))
+        ),
         "mean_calmar": _safe_mean(df.get("Calmar Ratio", pd.Series(dtype=float))),
         "mean_sortino": _safe_mean(df.get("Sortino Ratio", pd.Series(dtype=float))),
         "worst_max_drawdown_pct": _safe_min(df.get("Max Drawdown (%)", pd.Series(dtype=float))),

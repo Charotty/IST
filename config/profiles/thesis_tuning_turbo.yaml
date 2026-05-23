@@ -1,0 +1,56 @@
+# Ускоренный профиль tune-thesis (оценка ~3–6× быстрее default на fast+refine).
+# Confirm остаётся близким к quality; финальную проверку — report-real.
+
+levels:
+  fast:
+    max_rows: 4000
+    max_wfo_folds: 5
+    walk_forward_step: 600
+    dl_epochs: 1
+    dl_batch_size: 128
+    mixed_precision: true
+    cnn_mixed_precision: false
+    n_trials: 12
+    pruner: median
+    pruner_min_completed_trials: 2
+    tabular_profile: fast
+  refine:
+    max_rows: 6000
+    max_wfo_folds: 8
+    walk_forward_step: 500
+    dl_epochs: 1
+    dl_batch_size: 128
+    mixed_precision: true
+    cnn_mixed_precision: false
+    n_trials: 8
+    pruner: median
+    pruner_min_completed_trials: 2
+    tabular_profile: fast
+    seed_from: fast_shortlist
+  confirm:
+    max_rows: 8000
+    max_wfo_folds: 0
+    walk_forward_step: 360
+    dl_epochs: 3
+    dl_batch_size: 64
+    mixed_precision: false
+    n_trials: 3
+    pruner: none
+    tabular_profile: confirm
+    seed_from: refine_best
+
+top_k: 5
+tabular_first_fast_refine: true
+
+tabular_accel:
+  lightgbm:
+    num_threads: -1
+    max_bin: 63
+    device_type: cpu
+    n_estimators_fast: 50
+    n_estimators_confirm: 150
+  xgboost:
+    tree_method: hist
+    device: cuda
+    n_estimators_fast: 50
+    n_estimators_confirm: 150

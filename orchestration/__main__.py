@@ -85,12 +85,24 @@ def _cmd_report_real(args: argparse.Namespace) -> None:
 
     from orchestration.benchmark_runner import load_tuning_best_params
 
-    pq = Path(args.parquet) if args.parquet else default_real_parquet()
+    symbol = getattr(args, "symbol", None)
+    timeframe = getattr(args, "timeframe", None) or "1h"
+    if args.parquet:
+        pq = Path(args.parquet)
+    elif symbol:
+        from orchestration.symbols import paths_for
+
+        pq = paths_for(symbol, timeframe).parquet
+        if not pq.is_file():
+            raise FileNotFoundError(
+                f"OHLCV not found for {symbol} {timeframe}: {pq}. "
+                "Run prepare-symbol with --download or place parquet under data/ohlcv/."
+            )
+    else:
+        pq = default_real_parquet()
     use_best = getattr(args, "use_tuning_best", False)
     if getattr(args, "no_tuning_best", False):
         use_best = False
-    symbol = getattr(args, "symbol", None)
-    timeframe = getattr(args, "timeframe", None) or "1h"
     config_path = args.config
     tuning: dict = {}
     if use_best:
@@ -350,6 +362,8 @@ def _cmd_tune_thesis(args: argparse.Namespace) -> None:
         config_path=args.config,
         journal_root=args.journal_root,
         use_feature_cache=use_cache,
+        tuning_yaml=getattr(args, "tuning_yaml", None),
+        tuning_profile=getattr(args, "profile", "default"),
     )
     print(_json.dumps(out, indent=2, ensure_ascii=False, default=str))
     confirm = out.get("confirm") or {}
@@ -484,6 +498,17 @@ def main() -> None:
         "--no-feature-cache",
         action="store_true",
         help="Rebuild features inline from OHLCV each run",
+    )
+    ptt.add_argument(
+        "--tuning-yaml",
+        default=None,
+        help="Override thesis_tuning levels (default: config/profiles/thesis_tuning.yaml)",
+    )
+    ptt.add_argument(
+        "--profile",
+        choices=("default", "turbo"),
+        default="default",
+        help="turbo = config/profiles/thesis_tuning_turbo.yaml (fewer folds/trials, tabular-first)",
     )
     ptt.set_defaults(func=_cmd_tune_thesis)
 

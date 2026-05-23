@@ -526,11 +526,19 @@ class TrainingOrchestrator:
             is_ann = pm_is.annualized_return_from_results()
             oos_ann = pm_oos.annualized_return_from_results()
             wfe = (oos_ann / is_ann) if is_ann not in (0.0, -0.0) and np.isfinite(is_ann) else float("nan")
+            is_sh = float(pm_is.calculate_metrics().get("Sharpe Ratio", 0.0))
+            oos_sh = float(pm_oos.calculate_metrics().get("Sharpe Ratio", 0.0))
+            wfe_sharpe = (
+                (oos_sh / is_sh)
+                if is_sh not in (0.0, -0.0) and np.isfinite(is_sh) and np.isfinite(oos_sh)
+                else float("nan")
+            )
 
             metrics = pm_oos.calculate_metrics().to_dict()
             for k, v in pm_is.calculate_metrics().to_dict().items():
                 metrics[f"IS_{k}"] = v
             metrics["Walk-Forward Efficiency"] = wfe
+            metrics["Walk-Forward Efficiency (Sharpe)"] = wfe_sharpe
             metrics["IS Annualized Return"] = is_ann
             metrics["OOS Annualized Return"] = oos_ann
             metrics["Fold"] = fold_idx + 1

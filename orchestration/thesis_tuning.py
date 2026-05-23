@@ -28,6 +28,15 @@ from orchestration.tuning_loop import _score_report, run_single_trial
 
 SHORTLIST_PATH = REPO_ROOT / "docs" / "thesis_tune_shortlist.json"
 DEFAULT_TUNING_YAML = REPO_ROOT / "config" / "profiles" / "thesis_tuning.yaml"
+TURBO_TUNING_YAML = REPO_ROOT / "config" / "profiles" / "thesis_tuning_turbo.yaml"
+
+
+def resolve_tuning_yaml(path: Optional[str | Path] = None, profile: str = "default") -> Path:
+    if path:
+        return Path(path)
+    if profile == "turbo":
+        return TURBO_TUNING_YAML
+    return DEFAULT_TUNING_YAML
 
 # Never copied from fast/refine shortlist — always taken from params_for_level(level).
 _LEVEL_STRUCTURAL: Dict[str, frozenset] = {
@@ -397,8 +406,11 @@ def run_level(
     use_feature_cache: bool = True,
     shortlist: Optional[List[Dict[str, Any]]] = None,
     n_trials: Optional[int] = None,
+    tuning_yaml: Optional[str | Path] = None,
+    tuning_profile: str = "default",
 ) -> Dict[str, Any]:
-    raw = load_tuning_yaml()
+    yaml_path = resolve_tuning_yaml(tuning_yaml, tuning_profile)
+    raw = load_tuning_yaml(yaml_path)
     lc = level_config(level, raw)
     base = params_for_level(
         level,
