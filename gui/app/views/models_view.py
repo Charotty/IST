@@ -5,8 +5,10 @@ from __future__ import annotations
 from typing import Optional
 
 from PyQt6.QtWidgets import (
+    QHBoxLayout,
     QLabel,
     QPlainTextEdit,
+    QPushButton,
     QTabWidget,
     QVBoxLayout,
     QWidget,
@@ -47,6 +49,16 @@ class ModelsView(QWidget):
         self._summary.setStyleSheet("color: #000000;")
         layout.addWidget(self._summary)
 
+        btn_row = QHBoxLayout()
+        self._btn_refresh = QPushButton("Обновить")
+        self._btn_schema = QPushButton("Проверить схему признаков")
+        self._btn_refresh.clicked.connect(lambda: self.refresh(validate_schema=False))
+        self._btn_schema.clicked.connect(lambda: self.refresh(validate_schema=True))
+        btn_row.addWidget(self._btn_refresh)
+        btn_row.addWidget(self._btn_schema)
+        btn_row.addStretch()
+        layout.addLayout(btn_row)
+
         tabs = QTabWidget()
         self._features = QPlainTextEdit()
         self._features.setReadOnly(True)
@@ -62,11 +74,16 @@ class ModelsView(QWidget):
         self._symbol = symbol
         self._timeframe = timeframe
 
-    def refresh(self) -> None:
+    def refresh(self, *, validate_schema: bool = False) -> None:
         if self._worker and self._worker.isRunning():
             return
         self._summary.setText("Загрузка…")
-        self._worker = BundleInfoWorker(self._symbol, self._timeframe, api=self._api)
+        self._worker = BundleInfoWorker(
+            self._symbol,
+            self._timeframe,
+            validate_schema=validate_schema,
+            api=self._api,
+        )
         self._worker.finished.connect(self._on_bundle)
         self._worker.failed.connect(self._on_fail)
         self._worker.start()

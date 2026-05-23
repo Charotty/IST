@@ -231,7 +231,7 @@ def _cmd_train_final_symbol(args: argparse.Namespace) -> None:
         new_run_id,
     )
     from .symbol_pipeline import _span_of
-    from .symbols import paths_for
+    from .symbols import paths_for, tuning_best_for
 
     sp = paths_for(args.symbol, args.timeframe)
     if not sp.parquet.is_file():
@@ -240,6 +240,7 @@ def _cmd_train_final_symbol(args: argparse.Namespace) -> None:
     feat = build_features(sp.parquet)
     rid = new_run_id()
     bundle_dir = train_final_for_symbol(sp, feat, run_id=rid)
+    best_params = tuning_best_for(sp.symbol, sp.timeframe)
 
     existing = read_symbol_manifest(sp) or {}
     manifest = SymbolManifest(
@@ -251,7 +252,7 @@ def _cmd_train_final_symbol(args: argparse.Namespace) -> None:
         train_span=existing.get("train_span") or _span_of(feat),
         holdout_span=existing.get("holdout_span") or {"start": None, "end": None, "rows": 0},
         full_span=_span_of(feat),
-        tuning_best_params=existing.get("tuning_best_params") or {},
+        tuning_best_params=best_params or existing.get("tuning_best_params") or {},
         tune_run_ids=existing.get("tune_run_ids") or [],
         holdout_run_id=existing.get("holdout_run_id"),
         holdout_summary=existing.get("holdout_summary") or {},

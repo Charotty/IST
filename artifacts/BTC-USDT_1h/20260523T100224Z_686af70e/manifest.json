@@ -1,0 +1,86 @@
+{
+  "bundle_version": "1",
+  "created_at": "2026-05-23T10:08:54.699903+00:00",
+  "orchestrator_config": {
+    "model_keys": [
+      "lgb",
+      "gru",
+      "xgb",
+      "cnn"
+    ],
+    "regime_keys": [
+      "trend",
+      "range"
+    ],
+    "direction_threshold": 0.56,
+    "meta_threshold": 0.5,
+    "signal_threshold": 0.6,
+    "meta_threshold_mode": "percentile",
+    "threshold_rolling_window": 100,
+    "apply_decision_pipeline": true,
+    "trade_mode": "both",
+    "min_signal_margin": 0.06,
+    "signal_strategy": "ensemble",
+    "momentum_sma_period": 100,
+    "label_min_return": 0.0,
+    "volatility_filter_percentile": 90.0,
+    "max_position_fraction": 0.35,
+    "ensemble_mode": "regime_adaptive",
+    "trend_weights": {
+      "lgb": 0.1,
+      "gru": 0.45,
+      "xgb": 0.1,
+      "cnn": 0.35
+    },
+    "range_weights": {
+      "lgb": 0.55,
+      "gru": 0.1,
+      "xgb": 0.25,
+      "cnn": 0.1
+    },
+    "breakout_weights": {
+      "lgb": 0.25,
+      "gru": 0.25,
+      "xgb": 0.25,
+      "cnn": 0.25
+    },
+    "train_window_size": 1500,
+    "test_window_size": 170,
+    "walk_forward_step": 360,
+    "max_wfo_folds": 0,
+    "feature_window_size": 24,
+    "prediction_horizon": 12,
+    "embargo_period": 5,
+    "enable_purge": true,
+    "allow_meta_label_on_test": false,
+    "safe_label_generation": true,
+    "use_risk_bridge": true,
+    "safe_threshold_mode": true,
+    "apply_atr_trailing": false
+  },
+  "feature_columns": [
+    "rsi_15m",
+    "ema_slope_15m",
+    "rsi_4h",
+    "adx_4h",
+    "ema_fast",
+    "ema_slow",
+    "ema_slope",
+    "rsi",
+    "macd",
+    "macd_hist",
+    "atr",
+    "log_ret",
+    "volatility",
+    "adx"
+  ],
+  "feature_schema_hash": "aa1545a68dbbcae3",
+  "model_paths": {
+    "lgb": "artifacts/lgb.pkl",
+    "gru": "artifacts/gru.pkl",
+    "xgb": "artifacts/xgb.pkl",
+    "cnn": "artifacts/cnn.pkl"
+  },
+  "regime_detector_path": "artifacts/regime_detector.pkl",
+  "train_meta_threshold": 0.5033612561862933
+}

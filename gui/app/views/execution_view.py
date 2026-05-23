@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QPlainTextEdit,
     QPushButton,
+    QScrollArea,
     QSpinBox,
     QSplitter,
     QTableWidget,
@@ -49,8 +50,14 @@ class ExecutionView(QWidget):
         self._last_step: Optional[ExecutionStepResult] = None
         self._orders: List[OrderRecord] = []
         self._balance_history: List[float] = []
+        self._balance_step = 0
 
-        layout = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        body = QWidget()
+        layout = QVBoxLayout(body)
 
         about = help_label(
             "<b>Исполнение (paper)</b> — симуляция сделок на последнем баре: "
@@ -172,10 +179,14 @@ class ExecutionView(QWidget):
         right_l.addWidget(step_box)
         split.addWidget(right)
         split.setSizes([480, 400])
+        split.setMinimumHeight(420)
         layout.addWidget(split, stretch=1)
 
+        scroll.setWidget(body)
+        outer.addWidget(scroll)
+
         self._auto_timer = QTimer(self)
-        self._auto_timer.timeout.connect(self._run_step)
+        self._auto_timer.timeout.connect(self._on_auto_timer)
 
         self._btn_connect.clicked.connect(self._connect_paper)
         self._btn_disconnect.clicked.connect(self._disconnect)
@@ -222,8 +233,10 @@ class ExecutionView(QWidget):
         self._status_conn.setText("Подключено (paper)")
         self._status_conn.setStyleSheet("color: #2e7d32; font-weight: bold;")
         self._append_log("Paper-сессия подключена.")
+        self._balance_step = 0
         self._balance_history = [float(session.config.initial_balance)]
-        self._refresh_account()
+        self._plot_balance()
+        self._refresh_account(record_balance_step=False)
 
     def _on_connect_failed(self, msg: str) -> None:
         self._btn_connect.setEnabled(True)
@@ -247,6 +260,7 @@ class ExecutionView(QWidget):
     def _reset_portfolio(self) -> None:
         if self._session:
             self._session.reset()
+            self._balance_step = 0
             self._balance_history.clear()
             self._plot_balance()
             self._append_log("Портфель сброшен.")
@@ -260,6 +274,10 @@ class ExecutionView(QWidget):
         self._append_log(f"Аварийная остановка — отменено ордеров: {n}.")
         self._refresh_account()
 
+    def hideEvent(self, event) -> None:
+        self._auto_timer.stop()
+        super().hideEvent(event)
+
     def _on_auto_changed(self, index: int) -> None:
         self._auto_timer.stop()
         if index == 1:
@@ -267,12 +285,20 @@ class ExecutionView(QWidget):
         elif index == 2:
             self._auto_timer.start(60_000)
 
+    def _on_auto_timer(self) -> None:
+        if self._auto.currentIndex() == 0:
+            self._auto_timer.stop()
+            return
+        self._run_step(from_auto=True)
+
     def _run_batch(self) -> None:
         self._batch_remaining = self._batch_n.value()
         self._append_log(f"Серия из {self._batch_remaining} шагов…")
         self._run_step()
 
-    def _run_step(self) -> None:
+    def _run_step(self, *, from_auto: bool = False) -> None:
+        if from_auto and self._auto.currentIndex() == 0:
+            return
         if not self._session or not self._session.connected:
             self._append_log("Сначала подключите paper-сессию.")
             return
@@ -300,7 +326,7 @@ class ExecutionView(QWidget):
             f"{result.message}"
         )
         self._append_log(line)
-        self._refresh_account()
+        self._refresh_account(record_balance_step=True)
         self._run_compare(result)
         if self._batch_remaining > 0:
             self._batch_remaining -= 1
@@ -332,23 +358,25 @@ class ExecutionView(QWidget):
         self._batch_remaining = 0
         self._append_log(f"Ошибка шага: {msg}")
 
-    def _refresh_account(self) -> None:
+    def _refresh_account(self, *, record_balance_step: bool = False) -> None:
         if not self._session:
             return
         snap = self._session.account_snapshot()
-        self._apply_account(snap)
+        self._apply_account(snap, record_balance_step=record_balance_step)
         self._orders = self._session.order_history(limit=40)
         self._fill_orders_table(self._orders)
 
-    def _apply_account(self, snap: ExecutionAccountSnapshot) -> None:
+    def _apply_account(
+        self, snap: ExecutionAccountSnapshot, *, record_balance_step: bool = False
+    ) -> None:
         self._balance.setText(f"{snap.balance:,.2f} USDT")
         pnl = snap.balance - snap.initial_balance
         self._pnl.setText(f"{pnl:+,.2f} USDT ({100 * pnl / snap.initial_balance:+.2f}%)")
         self._fees.setText(f"{snap.total_fees:.4f}")
-        bal = float(snap.balance)
-        if not self._balance_history or abs(self._balance_history[-1] - bal) > 1e-6:
-            self._balance_history.append(bal)
-        self._plot_balance()
+        if record_balance_step:
+            self._balance_step += 1
+            self._balance_history.append(float(snap.balance))
+            self._plot_balance()
 
         self._positions.setRowCount(len(snap.positions))
         for row, p in enumerate(snap.positions):
@@ -372,14 +400,18 @@ class ExecutionView(QWidget):
                 self._orders_table.setItem(row, col, QTableWidgetItem(text))
 
     def _plot_balance(self) -> None:
-        if not _HAS_PG or self._bal_plot is None or not self._balance_history:
-            if _HAS_PG and self._bal_plot is not None:
-                self._bal_plot.clear()
+        if not _HAS_PG or self._bal_plot is None:
             return
         self._bal_plot.clear()
+        if not self._balance_history:
+            self._bal_plot.setTitle("Баланс по шагам")
+            return
         ys = np.array(self._balance_history, dtype=float)
         xs = np.arange(len(ys))
-        self._bal_plot.plot(xs, ys, pen=pg.mkPen("#2e7d32", width=2), symbol="o", symbolSize=6)
+        self._bal_plot.plot(
+            xs, ys, pen=pg.mkPen("#2e7d32", width=2), symbol="o", symbolSize=6
+        )
+        self._bal_plot.setTitle(f"Баланс по шагам ({len(ys)} точек)")
 
     def _append_log(self, text: str) -> None:
         self._step_log.appendPlainText(text)

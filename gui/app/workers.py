@@ -74,6 +74,8 @@ class ResolveSymbolWorker(_BaseWorker):
 
 
 class OkxChartWorker(_BaseWorker):
+    """OKX OHLCV: ``history`` (пагинация) или ``live`` (хвост + тикер)."""
+
     finished = pyqtSignal(object)
 
     def __init__(
@@ -82,21 +84,28 @@ class OkxChartWorker(_BaseWorker):
         timeframe: str,
         *,
         limit: int = 300,
+        mode: str = "history",
         api: Optional[IstGuiClient] = None,
     ):
         super().__init__(api)
         self._symbol = symbol
         self._tf = timeframe
         self._limit = limit
+        self._mode = mode
 
     def run(self) -> None:
         from gui.api import okx_api
         from gui.api.types import ChartPayload
 
         try:
-            bars = okx_api.fetch_ohlcv_bars(
-                self._symbol, self._tf, limit=self._limit
-            )
+            if self._mode in ("tail", "live"):
+                bars = okx_api.fetch_okx_live_tail(
+                    self._symbol, self._tf, ohlcv_limit=3, use_ticker=True
+                )
+            else:
+                bars = okx_api.fetch_ohlcv_history(
+                    self._symbol, self._tf, max_bars=self._limit
+                )
             self.finished.emit(ChartPayload(bars=bars, regime_segments=[]))
         except Exception as e:
             if getattr(self._api, "demo", False):
@@ -195,6 +204,7 @@ class ChartPayloadWorker(_BaseWorker):
         max_bars: int = 1200,
         window: int = 384,
         regime_step: int = 1,
+        include_signals: bool = True,
         api: Optional[IstGuiClient] = None,
     ):
         super().__init__(api)
@@ -203,6 +213,7 @@ class ChartPayloadWorker(_BaseWorker):
         self._max_bars = max_bars
         self._window = window
         self._step = regime_step
+        self._include_signals = include_signals
 
     def run(self) -> None:
         try:
@@ -212,8 +223,65 @@ class ChartPayloadWorker(_BaseWorker):
                 max_bars=self._max_bars,
                 window=self._window,
                 regime_step=self._step,
+                include_signals=self._include_signals,
             )
             self.finished.emit(payload)
+        except Exception as e:
+            self.failed.emit(str(e))
+
+
+class RegimeSeriesWorker(_BaseWorker):
+    finished = pyqtSignal(list)
+
+    def __init__(
+        self,
+        symbol: str,
+        timeframe: str,
+        *,
+        step: int = 1,
+        api: Optional[IstGuiClient] = None,
+    ):
+        super().__init__(api)
+        self._symbol = symbol
+        self._tf = timeframe
+        self._step = step
+
+    def run(self) -> None:
+        try:
+            rows = self._api.inference.regime_series(
+                self._symbol, self._tf, step=self._step
+            )
+            self.finished.emit(rows)
+        except Exception as e:
+            self.failed.emit(str(e))
+
+
+class ManifestWorker(_BaseWorker):
+    finished = pyqtSignal(object)
+
+    def __init__(self, symbol: str, timeframe: str, api: Optional[IstGuiClient] = None):
+        super().__init__(api)
+        self._symbol = symbol
+        self._tf = timeframe
+
+    def run(self) -> None:
+        from orchestration.symbol_pipeline import read_symbol_manifest
+        from orchestration.symbols import paths_for
+
+        try:
+            sp = paths_for(self._symbol, self._tf)
+            man = read_symbol_manifest(sp)
+            self.finished.emit(man or {})
+        except Exception as e:
+            self.failed.emit(str(e))
+
+
+class SymbolsListWorker(_BaseWorker):
+    finished = pyqtSignal(list)
+
+    def run(self) -> None:
+        try:
+            self.finished.emit(self._api.symbols.list_symbols())
         except Exception as e:
             self.failed.emit(str(e))
 
@@ -334,7 +402,7 @@ class BacktestListWorker(_BaseWorker):
         self,
         symbol: Optional[str] = None,
         timeframe: Optional[str] = None,
-        limit: int = 100,
+        limit: Optional[int] = 100,
         api: Optional[IstGuiClient] = None,
     ):
         super().__init__(api)
@@ -347,10 +415,11 @@ class BacktestListWorker(_BaseWorker):
             norm_sym = None
             if self._symbol:
                 norm_sym = self._api.symbols.normalize_symbol(self._symbol)
+            kwargs: dict = {"symbol": norm_sym, "timeframe": self._tf}
+            if self._limit is not None:
+                kwargs["limit"] = self._limit
             rows: List[BacktestRunSummary] = self._api.backtests.list_runs(
-                symbol=norm_sym,
-                timeframe=self._tf,
-                limit=self._limit,
+                **kwargs
             )
             self.finished.emit(rows)
         except Exception as e:

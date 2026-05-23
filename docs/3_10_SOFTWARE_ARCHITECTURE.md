@@ -1,199 +1,142 @@
-# 3.10 Реализация архитектуры программного обеспечения
+# 3.10 Архитектура программного обеспечения
 
-Интеллектуальная торговая система (ИТС) реализована как **модульный монолит** на языке Python 3.11: логически выделенные пакеты с явными контрактами данных, единый оркестратор сквозного пайплайна и иерархическая система конфигурации YAML. Ниже приведены структура репозитория, назначение модулей, схема взаимодействия, применяемые проектные паттерны и организация конфигураций.
+Интеллектуальная торговая система (ИТС) реализована как модульный Python-проект с разделением по слоям: данные, признаки, модели, мета-уровень, решения, риски, бэктест и опционально GUI/исполнение. Сквозной контракт пайплайна зафиксирован в `OrchestratorConfig` и `TrainingOrchestrator` (пакет `orchestration`). Ниже — структура репозитория, назначение модулей и конфигурация без UML-формализмов.
 
-## 3.10.1. Структура репозитория
+## 3.10.1. Дерево проекта
 
-Проект размещён в корневом каталоге `IST/`. Исходный код сгруппирован по слоям обработки данных и принятия решений; артефакты обучения, сырые parquet-файлы и журналы бэктестов вынесены в отдельные каталоги.
-
-**Рисунок 3.32 — Дерево проекта ИТС (фрагмент, уровни 1–3)**
-
-Полное дерево каталогов (без `data/`, `artifacts/`, кэшей) подготовлено в файле `docs/figures/3_10/project_tree.txt` и воспроизводится ниже в сокращённом виде. При оформлении дипломной работы рекомендуется вставить **скриншот проводника IDE** (VS Code / Cursor) с корнем `IST` или распечатку полного `project_tree.txt`.
+Актуальный снимок каталогов (уровни 1–3) хранится в `docs/figures/3_10/project_tree.txt` (генерация: `docs/scripts/generate_3_10_tree.py`). Фрагмент корневой структуры:
 
 ```
 IST/
-|-- backtesting/           # тестирование на истории, метрики, WFO
-|-- config/                # профили YAML, per-symbol overrides
-|-- data_layer/            # загрузка OHLCV (OKX, ccxt)
-|-- decision/              # BUY / SELL / HOLD, DecisionPipeline
-|-- feature_engineering/   # индикаторы, FeatureEngine
-|-- meta_learning/         # dynamic weighting, ensemble
-|-- models/                # LGB, XGB, GRU, CNN, regime
-|-- orchestration/         # TrainingOrchestrator, CLI, glue
-|-- risk_management/       # ATR stop, position sizing
-|-- synchronization/       # MTF merge
-|-- execution/             # paper trading (расширение)
-|-- gui/                   # графический интерфейс
-|-- rl_layer/              # RL risk overlay (опционально)
-|-- tests/                 # unit / integration tests
-|-- scripts/               # ablation, отчёты, генерация рисунков
-|-- docs/                  # документация ВКР, figures, journal
-|-- config.yaml            # корневой конфиг приложения
-|-- requirements.txt
-+-- ist.py                 # эталонный research-скрипт (Colab lineage)
+|-- data_layer/          # загрузка OHLCV, Parquet
+|-- synchronization/     # MTF, слияние таймфреймов
+|-- feature_engineering/ # индикаторы, feature_engine
+|-- models/              # LGB, XGB, GRU, CNN, regime, router (legacy)
+|-- meta_learning/       # DynamicMetaWeighting, ensemble baseline
+|-- orchestration/       # WFO, фабрика моделей, glue
+|-- decision/            # DecisionPipeline, signal_rules
+|-- risk_management/     # RiskPipeline, OrchestratorRiskBridge
+|-- backtesting/         # Backtester, метрики, журнал
+|-- execution/           # paper/OKX broker (опционально)
+|-- gui/                 # PyQt6, IstGuiClient
+|-- config/              # profiles, symbols, archive
+|-- artifacts/           # сохранённые модели по символу
++-- docs/                # разделы ВКР, figures, backtest_journal
 ```
 
-Каталоги `data/ohlcv/`, `data/features/`, `artifacts/` содержат данные и сериализованные модели; в дереве исходников они опущены для компактности.
+**Рисунок 3.23 — Дерево проекта ИТС (полный текст)**
 
-## 3.10.2. Таблица модулей
+Полное дерево — в файле `figures/3_10/project_tree.txt` (при оформлении ВКР вставляется как рисунок или листинг в приложении).
 
-**Таблица 3.29 — Модули ИТС и их назначение**
+## 3.10.2. Назначение основных пакетов
 
-| Module | Purpose |
-|--------|---------|
-| `data_layer` | Загрузка исторических OHLCV с биржи OKX (REST, ccxt), валидация, сохранение Parquet |
-| `synchronization` | Синхронизация мультитаймфреймовых рядов (15m, 4h → 1h), MTF-признаки |
-| `feature_engineering` | Расчёт технических индикаторов и матрицы признаков для ML/DL |
-| `models` | Реализации предикторов: LightGBM, XGBoost, GRU, CNN, детектор режима |
-| `meta_learning` | Режимно-адаптивное взвешивание (`DynamicMetaWeighting`), сбор сигналов |
-| `decision` | Пороговая логика BUY / SELL / HOLD (`DecisionPipeline`) |
-| `risk_management` | ATR trailing stop, position sizing, `RiskPipeline` |
-| `orchestration` | Сквозной оркестратор обучения и инференса, фабрика моделей, CLI |
-| `backtesting` | Walk-forward, симуляция сделок, критерии приёмки, журнал прогонов |
-| `execution` | Контур бумажной / live-торговли (интеграция с OKX) |
-| `gui` | Визуализация сигналов, режимов, бэктестов |
-| `rl_layer` | Динамический множитель риска (DQN), опциональный overlay |
-| `utils` | Предотвращение утечки данных, логирование, вспомогательные функции |
-| `config` | Профили эксперимента (`canonical_4model`), overrides по символам |
-| `tests` | Автоматизированная проверка модулей и пайплайна |
+**Таблица 3.22 — Модули ИТС и точки входа**
 
-## 3.10.3. UML-подобная схема архитектуры
+| Пакет | Ключевые файлы | Роль |
+|-------|----------------|------|
+| `data_layer` | `okx_ohlcv_loader.py`, `cli.py` | CCXT/OKX, валидация OHLCV, Parquet |
+| `synchronization` | `multi_timeframe_engine.py` | 15m/1h/4h → базовый 1h |
+| `feature_engineering` | `feature_engine.py`, `indicators.py` | матрица признаков для ML |
+| `models` | `tabular/`, `trend/`, `volatility/`, `regime/` | обучаемые предикторы и детектор режима |
+| `meta_learning` | `dynamic_meta.py`, `ensemble.py` | взвешивание прогнозов (п. 3.7) |
+| `orchestration` | `training_orchestrator.py`, `model_factory.py`, `symbol_pipeline.py` | WFO, сборка пайплайна |
+| `decision` | `decision_pipeline.py` | BUY/SELL/HOLD (п. 3.8) |
+| `risk_management` | `risk_pipeline.py`, `orchestrator_risk_bridge.py` | размер позиции (п. 3.9) |
+| `backtesting` | `backtester.py`, `results_journal.py` | симуляция и критерии acceptance |
+| `gui` | `app/main_window.py`, `api/client.py` | просмотр прогонов и графиков |
+| `utils` | `data_leakage_prevention.py` | purge, embargo, safe thresholds |
 
-Центральным координирующим компонентом выступает **Orchestrator** (`TrainingOrchestrator`, `InferenceOrchestrator`). Он не дублирует бизнес-логику слоёв, а задаёт порядок вызовов и единый контракт данных.
+Legacy-контур `models.router.ModelRouter` + `InferenceEngine` (одна модель на бар) сохранён для сравнения; **прод-путь** — `TrainingOrchestrator` / `InferenceOrchestrator` со вызовом всех `model_keys`.
 
-**Рисунок 3.33 — Логическая архитектура (UML-подобная схема)**
+## 3.10.3. Сквозной пайплайн оркестратора
 
-```
-Orchestrator
-├── Data
-│     data_layer          → OHLCV
-│     synchronization     → MTF features
-│     feature_engineering → X_t
-│
-├── Models
-│     models.lgb / xgb / gru / cnn
-│     models.regime       → r_t
-│
-├── Ensemble
-│     meta_learning.DynamicMetaWeighting  → P̂_t
-│     decision.DecisionPipeline           → s_t
-│
-├── Risk
-│     risk_management.RiskPipeline        → Q_t, stop
-│
-└── Backtesting / Execution
-      backtesting.Backtester
-      execution (paper loop)
-```
-
-```mermaid
-flowchart TB
-    O[Orchestrator]
-    O --> D[Data Layer]
-    O --> M[Models]
-    O --> E[Ensemble + Decision]
-    O --> R[Risk]
-    O --> B[Backtesting / Execution]
-    D --> DL[data_layer]
-    D --> SY[synchronization]
-    D --> FE[feature_engineering]
-    M --> MD[models/*]
-    E --> ML[meta_learning]
-    E --> DC[decision]
-    R --> RM[risk_management]
-```
-
-**Контракт пайплайна** (зафиксирован в `orchestration/README.md`):
+Контракт из docstring `OrchestratorConfig`:
 
 ```text
-features[t] → regime[t] → {p_lgb, p_gru, p_xgb, p_cnn}[t]
-            → meta_mgmt[t] → direction_soft[t] → decision → risk → backtest
+features → regime → {p_lgb, p_xgb, p_gru, p_cnn} → meta_mgmt_prob → decision → risk → backtest
 ```
 
-## 3.10.4. Проектные паттерны
+**Рисунок 3.24 — Логическая схема оркестратора (поток данных)**
 
-В реализации ИТС используются типовые паттерны проектирования, обеспечивающие расширяемость и тестируемость.
-
-**Таблица 3.30 — Паттерны проектирования в ИТС**
-
-| Pattern | Usage |
-|---------|--------|
-| **Pipeline** | Последовательная обработка: data → features → models → ensemble → decision → risk (`RiskPipeline`, `DecisionPipeline`, WFO) |
-| **Factory** | Создание моделей по ключам конфигурации: `build_orchestration_models()` (`orchestration/model_factory.py`) |
-| **Strategy** | Переключаемые режимы ансамбля: `regime_adaptive`, `fixed_trend`, `fixed_range` (`ensemble_mode`) |
-| **Adapter** | Приведение risk API к оркестратору: `OrchestratorRiskBridge` |
-| **Facade** | Единая точка входа CLI: `python -m orchestration` (`__main__.py`) |
-| **Configuration** | Иерархия YAML + dataclass `OrchestratorConfig`, валидация `validate-config` |
-| **Template Method** | Общий каркас WFO в `TrainingOrchestrator.walk_forward_optimization` |
-| **Dependency Injection** | Передача `regime_detector`, `decision_pipeline`, `risk_manager` в конструктор оркестратора |
-
-Паттерн **Repository** реализуется неявно через слой хранения Parquet (`data_layer.storage`, каталоги `data/`).
-
-## 3.10.5. Система конфигурации
-
-Конфигурация ИТС **декларативна**: параметры эксперимента задаются в YAML и загружаются без перекомпиляции кода.
-
-| Уровень | Файл | Назначение |
-|---------|------|------------|
-| Корень | `config.yaml` | Приложение, data_layer, orchestration, backtesting |
-| Профиль | `config/profiles/canonical_4model.yaml` | Канонический 4-model pipeline для ВКР |
-| Символ | `config/symbols/BTC-USDT_1h.yaml` | Overrides после тюнинга по BTC 1h |
-| Архив | `config/archive/discussion/` | Экспериментальные профили (не default) |
-
-Загрузка:
-
-```python
-from orchestration.orchestrator_config import OrchestratorConfig
-cfg = OrchestratorConfig.from_yaml("config/profiles/canonical_4model.yaml")
+```
+[Parquet features]
+       |
+       v
+ TrainingOrchestrator.walk_forward_backtest
+       |
+       +-- DataLeakagePreventer (purge / embargo)
+       +-- build_orchestration_models (model_factory)
+       +-- RegimeDetector -> regime_pred
+       +-- collect_predictions -> dict probabilities
+       +-- DynamicMetaWeighting.apply_dynamic_weighting
+       +-- DecisionPipeline.generate_signal
+       +-- OrchestratorRiskBridge.calculate_position_sizes
+       +-- Backtester.run + PerformanceMetrics
+       v
+ docs/backtest_journal/, docs/reports/
 ```
 
-Секреты API (`OKX_API_KEY`, `OKX_SECRET_KEY`) подставляются через переменные окружения `${OKX_API_KEY}`.
+Типовые CLI/сценарии:
 
-**Рисунок 3.34 — Фрагмент системы конфигурации (YAML)**
+- `python -m orchestration validate-config --config config/profiles/canonical_4model.yaml`;
+- `orchestration/glue.py` — `run_wfo_backtest_from_parquet`;
+- `orchestration/symbol_pipeline.py` — подготовка символа end-to-end;
+- `scripts/run_ablation.py` — сравнение вариантов ансамбля.
 
-При оформлении диплома рекомендуется скриншот редактора с открытыми файлами `config.yaml` и `config/profiles/canonical_4model.yaml`. Ниже — репрезентативный фрагмент:
+## 3.10.4. Конфигурация
+
+Конфигурация — YAML, без жёсткой привязки к коду.
+
+| Файл | Назначение |
+|------|------------|
+| `config.yaml` | корень: data_layer, backtesting, orchestration |
+| `config/profiles/canonical_4model.yaml` | канон: 4 модели, WFO, regime weights |
+| `config/symbols/BTC-USDT_1h.yaml` | переопределения по символу (тюнинг) |
+| `config/archive/discussion/` | архив экспериментов (не default) |
+
+Загрузка: `OrchestratorConfig.from_yaml(path)` (`orchestrator_config.py`, dataclass). Веса trend/range нормируются под активный список `model_keys` (`_renormalize_weight_subset`).
+
+Фрагмент секции orchestration (канон):
 
 ```yaml
 orchestration:
   model_keys: [lgb, gru, xgb, cnn]
   ensemble_mode: regime_adaptive
+  apply_decision_pipeline: true
   direction_threshold: 0.52
-  feature_window_size: 24
-  prediction_horizon: 12
-  trend_weights:
-    lgb: 0.10
-    gru: 0.45
-    xgb: 0.10
-    cnn: 0.35
-  range_weights:
-    lgb: 0.55
-    gru: 0.10
-    xgb: 0.25
-    cnn: 0.10
-
-backtesting:
-  walk_forward:
-    train_window: 252
-    test_window: 63
-  simulation:
-    commission: 0.0006
-    slippage: 0.0002
+  train_window_size: 1500
+  test_window_size: 250
+  walk_forward_step: 250
+  use_risk_bridge: true
+  trend_weights: { lgb: 0.10, gru: 0.45, xgb: 0.10, cnn: 0.35 }
+  range_weights: { lgb: 0.55, gru: 0.10, xgb: 0.25, cnn: 0.10 }
 ```
 
-Полный сниппет: `docs/figures/3_10/config_system_snippet.txt`.
+Переменные окружения для API: `OKX_API_KEY`, `OKX_SECRET_KEY`, `OKX_PASSPHRASE` (см. `data_layer` connectors).
 
-## 3.10.6. Технологический стек
+## 3.10.5. Паттерны реализации
 
-| Компонент | Технология |
-|-----------|------------|
-| Язык | Python 3.11 |
-| Табличные ML | LightGBM, XGBoost, scikit-learn |
-| Deep Learning | TensorFlow / Keras (GRU, CNN) |
-| Данные | pandas, NumPy, Parquet (pyarrow) |
-| Конфигурация | YAML, Pydantic (dataclasses) |
-| Тестирование | pytest |
-| Визуализация | matplotlib |
+| Паттерн | Где проявляется |
+|---------|------------------|
+| **Factory** | `build_orchestration_models`, `meta_weighting_from_config` |
+| **Dataclass config** | `OrchestratorConfig`, `LeakageConfig`, `MetricsConfig` |
+| **Adapter** | `_TrainCallableAdapter`, `OrchestratorRiskBridge` |
+| **Lazy import** | `models/__init__.py` (`__getattr__`), тяжёлый TF только для gru/cnn |
+| **Journal / artifacts** | `backtesting/results_journal.py`, `orchestration/artifact_bundle.py` |
+
+Тесты: каталог `tests/` (`test_orchestration_four_models.py`, `test_wfo_backtest.py`, `test_data_leakage` и др.).
+
+## 3.10.6. GUI и исполнение
+
+**GUI** (`gui/`): PyQt6, `IstGuiClient` агрегирует API (`backtests_api`, `inference_api`, `jobs_api`). Экраны: `overview_view`, `chart_view`, `backtests_view`, `models_view`, `execution_view`, `settings_view`. Журнал WFO читается из `docs/backtest_journal/`.
+
+**Execution** (`execution/`): `paper_broker`, `okx_broker`, `execution_manager` — вне основного WFO-контура диплома, заготовка под бумажную торговлю.
 
 ## 3.10.7. Выводы по разделу
 
-Архитектура ИТС построена как слоистый модульный монолит с явным оркестратором и декларативной конфигурацией. Дерево проекта отражает разделение ответственности (data, models, ensemble, risk, backtesting); UML-подобная схема фиксирует поток данных от котировок до сделки. Применение паттернов Pipeline, Factory и Strategy обеспечивает расширяемость (добавление моделей, режимов ансамбля) без нарушения сквозного контракта пайплайна, описанного в разделах 3.1–3.9.
+1. ИТС организована слоями с явным оркестратором и единым YAML-конфигом.
+2. Прод-пайплайн объединяет все модели, meta-weighting, decision и risk в одном WFO-цикле.
+3. Дерево проекта и схема потока (рис. 3.23–3.24) задают карту кода для сопровождения и ВКР.
+4. GUI и execution — вспомогательные подсистемы поверх того же API и журналов экспериментов.
+
+Комплексное тестирование и метрики — п. 3.11.

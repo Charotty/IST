@@ -1,0 +1,305 @@
+{
+  "run_id": "20260521T111347Z_75ea9493",
+  "timestamp_utc": "2026-05-21T11:13:47+00:00",
+  "label": "report-real",
+  "notes": "",
+  "profile": null,
+  "params": {
+    "model_keys": [
+      "lgb",
+      "gru",
+      "xgb",
+      "cnn"
+    ],
+    "regime_keys": [
+      "trend",
+      "range"
+    ],
+    "direction_threshold": 0.52,
+    "meta_threshold": 0.5,
+    "signal_threshold": 0.52,
+    "meta_threshold_mode": "median",
+    "threshold_rolling_window": 100,
+    "apply_decision_pipeline": true,
+    "trade_mode": "both",
+    "min_signal_margin": 0.0,
+    "signal_strategy": "ensemble",
+    "momentum_sma_period": 100,
+    "label_min_return": 0.0,
+    "volatility_filter_percentile": 0.0,
+    "max_position_fraction": 1.0,
+    "ensemble_mode": "regime_adaptive",
+    "trend_weights": {
+      "cnn": 0.35,
+      "gru": 0.45,
+      "lgb": 0.1,
+      "xgb": 0.1
+    },
+    "range_weights": {
+      "cnn": 0.1,
+      "gru": 0.1,
+      "lgb": 0.55,
+      "xgb": 0.25
+    },
+    "breakout_weights": {
+      "lgb": 0.25,
+      "gru": 0.25,
+      "xgb": 0.25,
+      "cnn": 0.25
+    },
+    "train_window_size": 1500,
+    "test_window_size": 250,
+    "walk_forward_step": 250,
+    "feature_window_size": 24,
+    "prediction_horizon": 12,
+    "embargo_period": 5,
+    "enable_purge": true,
+    "allow_meta_label_on_test": false,
+    "safe_label_generation": true
+  },
+  "symbol": null,
+  "timeframe": null,
+  "stage": null,
+  "parquet": "/mnt/d/IST/data/ohlcv/BTC-USDT_1h.parquet",
+  "feature_rows": 200,
+  "max_rows": 200,
+  "train_span": null,
+  "holdout_span": null,
+  "acceptance_passed": false,
+  "target_passed": false,
+  "summary": {
+    "n_folds": 0
+  },
+  "acceptance_checks": [
+    {
+      "name": "min_folds",
+      "passed": false,
+      "detail": "n_folds=0, required>=5"
+    },
+    {
+      "name": "min_oos_profit_factor",
+      "passed": false,
+      "detail": "mean_pf=nan, required>=1.2"
+    },
+    {
+      "name": "min_oos_sharpe",
+      "passed": false,
+      "detail": "mean_sharpe=nan, required>0.5"
+    },
+    {
+      "name": "min_wfe",
+      "passed": false,
+      "detail": "mean_wfe=nan, required>=0.5"
+    },
+    {
+      "name": "max_drawdown_pct",
+      "passed": false,
+      "detail": "worst_dd=nan%, limit>=-35.0%"
+    },
+    {
+      "name": "min_recovery_factor",
+      "passed": false,
+      "detail": "mean_recovery=nan, required>=1.0"
+    },
+    {
+      "name": "min_total_return_pct",
+      "passed": false,
+      "detail": "mean_return=nan%, required>0.0%"
+    },
+    {
+      "name": "min_trade_events",
+      "passed": false,
+      "detail": "total_trade_events=0, required>=30"
+    }
+  ],
+  "target_checks": [
+    {
+      "name": "min_folds",
+      "passed": false,
+      "detail": "n_folds=0, required>=8"
+    },
+    {
+      "name": "min_oos_profit_factor",
+      "passed": false,
+      "detail": "mean_pf=nan, required>=1.6"
+    },
+    {
+      "name": "min_oos_sharpe",
+      "passed": false,
+      "detail": "mean_sharpe=nan, required>1.0"
+    },
+    {
+      "name": "min_wfe",
+      "passed": false,
+      "detail": "mean_wfe=nan, required>=0.7"
+    },
+    {
+      "name": "max_drawdown_pct",
+      "passed": false,
+      "detail": "worst_dd=nan%, limit>=-20.0%"
+    },
+    {
+      "name": "min_recovery_factor",
+      "passed": false,
+      "detail": "mean_recovery=nan, required>=2.0"
+    },
+    {
+      "name": "min_total_return_pct",
+      "passed": false,
+      "detail": "mean_return=nan%, required>0.0%"
+    },
+    {
+      "name": "min_trade_events",
+      "passed": false,
+      "detail": "total_trade_events=0, required>=100"
+    },
+    {
+      "name": "min_calmar",
+      "passed": false,
+      "detail": "mean_calmar=nan, required>=1.0"
+    },
+    {
+      "name": "min_sortino",
+      "passed": false,
+      "detail": "mean_sortino=nan, required>=0.5"
+    }
+  ],
+  "fold_metrics": [],
+  "criteria": {
+    "acceptance": {
+      "level": "acceptance",
+      "passed": false,
+      "summary": {
+        "n_folds": 0
+      },
+      "thresholds": {
+        "min_oos_profit_factor": 1.2,
+        "min_oos_sharpe": 0.5,
+        "min_wfe": 0.5,
+        "max_drawdown_pct": -35.0,
+        "min_recovery_factor": 1.0,
+        "min_folds": 5,
+        "min_trade_events": 30,
+        "min_total_return_pct": 0.0,
+        "min_calmar": null,
+        "min_sortino": null
+      },
+      "checks": [
+        {
+          "name": "min_folds",
+          "passed": false,
+          "detail": "n_folds=0, required>=5"
+        },
+        {
+          "name": "min_oos_profit_factor",
+          "passed": false,
+          "detail": "mean_pf=nan, required>=1.2"
+        },
+        {
+          "name": "min_oos_sharpe",
+          "passed": false,
+          "detail": "mean_sharpe=nan, required>0.5"
+        },
+        {
+          "name": "min_wfe",
+          "passed": false,
+          "detail": "mean_wfe=nan, required>=0.5"
+        },
+        {
+          "name": "max_drawdown_pct",
+          "passed": false,
+          "detail": "worst_dd=nan%, limit>=-35.0%"
+        },
+        {
+          "name": "min_recovery_factor",
+          "passed": false,
+          "detail": "mean_recovery=nan, required>=1.0"
+        },
+        {
+          "name": "min_total_return_pct",
+          "passed": false,
+          "detail": "mean_return=nan%, required>0.0%"
+        },
+        {
+          "name": "min_trade_events",
+          "passed": false,
+          "detail": "total_trade_events=0, required>=30"
+        }
+      ]
+    },
+    "target": {
+      "level": "target",
+      "passed": false,
+      "summary": {
+        "n_folds": 0
+      },
+      "thresholds": {
+        "min_oos_profit_factor": 1.6,
+        "min_oos_sharpe": 1.0,
+        "min_wfe": 0.7,
+        "max_drawdown_pct": -20.0,
+        "min_recovery_factor": 2.0,
+        "min_folds": 8,
+        "min_trade_events": 100,
+        "min_total_return_pct": 0.0,
+        "min_calmar": 1.0,
+        "min_sortino": 0.5
+      },
+      "checks": [
+        {
+          "name": "min_folds",
+          "passed": false,
+          "detail": "n_folds=0, required>=8"
+        },
+        {
+          "name": "min_oos_profit_factor",
+          "passed": false,
+          "detail": "mean_pf=nan, required>=1.6"
+        },
+        {
+          "name": "min_oos_sharpe",
+          "passed": false,
+          "detail": "mean_sharpe=nan, required>1.0"
+        },
+        {
+          "name": "min_wfe",
+          "passed": false,
+          "detail": "mean_wfe=nan, required>=0.7"
+        },
+        {
+          "name": "max_drawdown_pct",
+          "passed": false,
+          "detail": "worst_dd=nan%, limit>=-20.0%"
+        },
+        {
+          "name": "min_recovery_factor",
+          "passed": false,
+          "detail": "mean_recovery=nan, required>=2.0"
+        },
+        {
+          "name": "min_total_return_pct",
+          "passed": false,
+          "detail": "mean_return=nan%, required>0.0%"
+        },
+        {
+          "name": "min_trade_events",
+          "passed": false,
+          "detail": "total_trade_events=0, required>=100"
+        },
+        {
+          "name": "min_calmar",
+          "passed": false,
+          "detail": "mean_calmar=nan, required>=1.0"
+        },
+        {
+          "name": "min_sortino",
+          "passed": false,
+          "detail": "mean_sortino=nan, required>=0.5"
+        }
+      ]
+    },
+    "summary": {
+      "n_folds": 0
+    }
+  }
+}

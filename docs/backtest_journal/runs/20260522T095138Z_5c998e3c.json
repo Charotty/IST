@@ -1,0 +1,62 @@
+{
+  "run_id": "20260522T095138Z_5c998e3c",
+  "timestamp_utc": "2026-05-22T09:51:38+00:00",
+  "label": "fast_10",
+  "notes": "Random ops require a seed to be set when determinism is enabled. Please set a seed before running the op, e.g. by calling tf.random.set_seed(1).",
+  "profile": "canonical_4model",
+  "params": {
+    "profile": "canonical_4model",
+    "config_path": "config/profiles/canonical_4model.yaml",
+    "model_keys": [
+      "lgb",
+      "gru",
+      "xgb",
+      "cnn"
+    ],
+    "ensemble_mode": "fixed_range",
+    "apply_decision_pipeline": true,
+    "regime": "momentum",
+    "prediction_horizon": 12,
+    "direction_threshold": 0.58,
+    "min_signal_margin": 0.06,
+    "meta_threshold_mode": "percentile",
+    "trade_mode": "long_only",
+    "use_risk_bridge": false,
+    "train_window_size": 1500,
+    "test_window_size": 170,
+    "walk_forward_step": 500,
+    "signal_strategy": "ensemble",
+    "label_min_return": 0.0,
+    "volatility_filter_percentile": 0.0,
+    "max_position_fraction": 0.5,
+    "dl_epochs": 2,
+    "max_wfo_folds": 8,
+    "max_rows": 6000,
+    "dl_batch_size": 128,
+    "tune_level": "fast"
+  },
+  "symbol": null,
+  "timeframe": null,
+  "stage": null,
+  "parquet": "/mnt/d/IST/data/ohlcv/BTC-USDT_1h.parquet",
+  "feature_rows": 6000,
+  "max_rows": null,
+  "train_span": null,
+  "holdout_span": null,
+  "acceptance_passed": false,
+  "target_passed": false,
+  "summary": {},
+  "acceptance_checks": [],
+  "target_checks": [],
+  "fold_metrics": [],
+  "criteria": {
+    "acceptance": {
+      "passed": false,
+      "checks": []
+    },
+    "target": {
+      "passed": false,
+      "checks": []
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "symbol": "BTC-USDT",
+  "timeframe": "1h",
+  "slug": "BTC-USDT_1h",
+  "built_at": "2026-05-22T12:06:46Z",
+  "config_path": "config/profiles/canonical_4model.yaml",
+  "config_hash": "2ec10ea180db7c95",
+  "row_count": 38332,
+  "columns_hash": "e713cfc466fbc27c",
+  "features_parquet": "/mnt/d/IST/data/features/BTC-USDT_1h.parquet",
+  "ohlcv_parquet": "/mnt/d/IST/data/ohlcv/BTC-USDT_1h.parquet"
+}

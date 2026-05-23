@@ -1,154 +1,105 @@
 # 3.8 Реализация системы принятия решений
 
-Система принятия решений (decision layer) преобразует вероятностный прогноз ансамбля \( \hat{P}_t \) (п. 3.7) в дискретные торговые действия **BUY**, **SELL** или **HOLD**. Реализация сосредоточена в модуле `decision` и вызывается оркестратором обучения/инференса после режимной классификации (п. 3.6). Ключевые компоненты: пороговая логика направления, каузальный фильтр уверенности (meta-threshold) и конвейер `DecisionPipeline`.
+Слой принятия решений (decision layer) преобразует вероятность адаптивного ансамбля `meta_mgmt_prob` (п. 3.7) и вспомогательный направленный сигнал `direction_soft_signal` в дискретные команды **BUY** (+1), **SELL** (−1) или **HOLD** (0). Реализация — пакет `decision`: правила в `signal_rules.py`, фасад — `DecisionPipeline` в `decision_pipeline.py`. Оркестратор подключает пайплайн при `apply_decision_pipeline: true` (`TrainingOrchestrator._build_decision_pipeline`). Формулы порогов не приводятся; ниже — логика кода и конфигурация.
 
-## 3.8.1. Логика BUY / SELL / HOLD
+## 3.8.1. Коды сигналов и два варианта правил
 
-Торговое решение кодируется целочисленным сигналом \( s_t \in \{-1,\, 0,\, 1\} \):
+**Таблица 3.19 — Кодировка торгового сигнала**
 
-| Код | Действие | Интерпретация |
-|-----|----------|---------------|
-| \( +1 \) | **BUY** (Long) | Открытие / удержание длинной позиции |
-| \( -1 \) | **SELL** (Short) | Открытие / удержание короткой позиции |
-| \( 0 \) | **HOLD** (Flat) | Отсутствие сделки, ожидание |
+| Значение | Действие | Колонка в DataFrame |
+|----------|----------|---------------------|
+| +1 | BUY (long) | `signal` |
+| −1 | SELL (short) | `signal` |
+| 0 | HOLD (flat) | `signal` |
 
-На первом этапе по вероятности ансамбля \( \hat{P}_t \in [0,1] \) формируется **направленная нога** \( d_t \):
+В `DecisionPipeline` задаётся `signal_source`:
 
-\[
-d_t =
-\begin{cases}
-+1 \; (\mathrm{BUY}), & \text{если } \hat{P}_t > \tau_{\mathrm{buy}}, \\
--1 \; (\mathrm{SELL}), & \text{если } \hat{P}_t < \tau_{\mathrm{sell}}, \\
-0 \; (\mathrm{HOLD}), & \text{иначе}.
-\end{cases}
-\]
+| Вариант | Функция | Вход «мета»-вероятности |
+|---------|---------|-------------------------|
+| `final` | `compute_final_signal` | `meta_prob` (MetaFilter, legacy) |
+| `integrated` | `compute_integrated_signal` | `meta_mgmt_prob` (DynamicMetaWeighting) |
 
-В канонической конфигурации ИТС используется симметричная пара порогов относительно 0,5:
+В каноническом профиле используется **`integrated`** — согласован с regime-adaptive ансамблем.
 
-\[
-\tau_{\mathrm{buy}} = \theta_d, \qquad \tau_{\mathrm{sell}} = 1 - \theta_d, \qquad \theta_d = 0{,}52.
-\]
+Общая логика обоих вариантов в `signal_rules.py`:
 
-На втором этапе применяется **фильтр уверенности**: сделка допускается только если \( \hat{P}_t > \tau_{\mathrm{meta},t} \), где \( \tau_{\mathrm{meta},t} \) — каузальный скользящий медианный порог по истории \( \hat{P} \) (режим `median`, окно 100 баров). Итоговый сигнал:
+1. по `direction_soft_signal` и `direction_threshold` формируется направление: выше порога → +1, ниже отрицательного порога → −1, иначе 0;
+2. вычисляется **каузальный** мета-порог по истории `meta_mgmt_prob` (или `meta_prob`) — режим `median` / `mean` / `fixed`, окно по умолчанию 100 бар (`threshold_window`);
+3. сделка разрешена, если мета-вероятность **строго выше** порога на этом баре и направление ненулевое; иначе 0.
 
-\[
-s_t =
-\begin{cases}
-d_t, & \text{если } d_t \neq 0 \;\text{и}\; \hat{P}_t > \tau_{\mathrm{meta},t}, \\
-0 \; (\mathrm{HOLD}), & \text{иначе}.
-\end{cases}
-\]
+При `safe_mode: true` порог считается через `utils.data_leakage_prevention.compute_safe_threshold` (только прошлые бары, без look-ahead). На OOS допускается фиксированный `train_threshold` с обучающего фолда.
 
-Дополнительно оркестратор может применять `min_signal_margin`, фильтр волатильности и режим торговли (`trade_mode`: long_only / short_only / both).
+## 3.8.2. Класс DecisionPipeline
 
-## 3.8.2. Формулы пороговой обработки
+**Точка входа:** `DecisionPipeline.generate_signal(...)` или `add_signal_to_df(df, signal_column='signal')`.
 
-Обобщённая запись **интегрированного сигнала** (вариант B, `compute_integrated_signal`, рекомендуемый в ИТС):
+Параметры из конфигурации (словарь или YAML-секция `decision`):
 
-\[
-\tau_{\mathrm{meta},t} =
-\begin{cases}
-\mathrm{fixed}, & \text{режим fixed}, \\
-\mathrm{median}\bigl(\hat{P}_{t-W+1:t}\bigr), & \text{режим median, } W=100, \\
-\mathrm{mean}\bigl(\hat{P}_{t-W+1:t}\bigr), & \text{режим mean}.
-\end{cases}
-\]
+| Параметр | Значение в `canonical_4model` | Назначение |
+|----------|-------------------------------|------------|
+| `signal_source` | `integrated` | выбор `compute_integrated_signal` |
+| `direction_threshold` | 0,52 | порог направления относительно «нейтрали» 0,5 |
+| `meta_threshold_mode` | `median` | скользящая медиана `meta_mgmt_prob` |
+| `meta_threshold` | 0,5 | запасное значение для режима `fixed` |
+| `threshold_rolling_window` | 100 | длина окна мета-порога |
+| `safe_mode` | true | каузальный расчёт порога |
+| `use_asymmetric_thresholds` | false | отдельные long/short пороги (roadmap) |
 
-\[
-s_t = d_t \cdot \mathbb{1}\bigl[ \hat{P}_t > \tau_{\mathrm{meta},t} \bigr] \cdot \mathbb{1}\bigl[ d_t \neq 0 \bigr].
-\]
+Дополнительные фильтры задаются в **оркестраторе**, не в `DecisionPipeline`:
 
-**Фильтр маржи сигнала** (при `min_signal_margin = \delta > 0\)):
+- `min_signal_margin` — «мёртвая зона» вокруг 0,5 по вероятности;
+- `trade_mode` — `both` / `long_only` / `short_only`;
+- `volatility_filter_percentile` — отсечение по волатильности.
 
-\[
-| \hat{P}_t - 0{,}5 | \geq \delta \quad \Rightarrow \quad \text{иначе } s_t := 0.
-\]
+Диагностика блокировки сигнала: `orchestration/introspect.py` (поле `why_blocked`).
 
-**Усиленная постановка** (консервативная торговля, для снижения частоты входов):
-
-\[
-\tau_{\mathrm{buy}} = 0{,}65, \qquad \tau_{\mathrm{sell}} = 0{,}35, \qquad \hat{P}_t > \tau_{\mathrm{meta}} \;\text{дополнительно}.
-\]
-
-## 3.8.3. Таблица порогов
-
-**Таблица 3.25 — Пороги системы принятия решений**
-
-| Сигнал / условие | Порог | Параметр в конфигурации |
-|------------------|-------|-------------------------|
-| BUY (Long) | \( \hat{P}_t > 0{,}65 \) * | `direction_threshold` (усиленный режим) |
-| BUY (Long), канон | \( \hat{P}_t > 0{,}52 \) | `direction_threshold: 0.52` |
-| SELL (Short), канон | \( \hat{P}_t < 0{,}48 \) | \( 1 - \theta_d \) |
-| HOLD | \( 0{,}48 \leq \hat{P}_t \leq 0{,}52 \) или фильтр meta | — |
-| Meta-фильтр | \( \hat{P}_t > \tau_{\mathrm{meta},t} \) | `meta_threshold_mode: median` |
-| Meta (фикс.) | \( \hat{P}_t > 0{,}50 \) | `meta_threshold: 0.5` |
-| Окно meta-порога | 100 баров | `threshold_rolling_window` |
-
-\* Значение 0,65 соответствует постановке «высокой уверенности» в дипломном эксперименте; в промышленном профиле `canonical_4model` применяется \( \theta_d = 0{,}52 \) для баланса частоты сделок и OOS-метрик.
-
-**Таблица 3.26 — Сводка сигналов (пользовательская постановка)**
-
-| Signal | Threshold |
-|--------|-----------|
-| BUY | \( \hat{P}_t > 0{,}65 \) |
-| SELL | \( \hat{P}_t < 0{,}35 \) |
-| HOLD | иначе, либо \( \hat{P}_t \leq \tau_{\mathrm{meta},t} \) |
-
-## 3.8.4. Схема decision pipeline
-
-**Рисунок 3.26 — Конвейер принятия решений**
+## 3.8.3. Конвейер в оркестраторе
 
 ```
-Prediction  P̂_t  (adaptive ensemble)
-        │
-        ▼
-Confidence Filter   (P̂_t  >  τ_meta,t)
-        │
-        ▼
-Signal Validation   (направление: BUY / SELL / HOLD)
-        │
-        ▼
-Trade Execution     (risk bridge, position size)
+meta_mgmt_prob, direction_soft_signal
+         ↓
+   DecisionPipeline.generate_signal
+         ↓
+   final_signals  →  risk bridge (п. 3.9)  →  Backtester
 ```
 
-```mermaid
-flowchart TD
-    P["Prediction<br/>P̂_t"] --> CF["Confidence Filter<br/>τ_meta"]
-    CF --> SV["Signal Validation<br/>τ_buy, τ_sell"]
-    SV --> TR["Trade<br/>s_t ∈ BUY, SELL, HOLD"]
-```
+`TrainingOrchestrator` при инициализации создаёт `DecisionPipeline` из полей `OrchestratorConfig` (`direction_threshold`, `meta_threshold_mode`, `threshold_rolling_window`, …). Результат попадает в `TrainingResult.final_signals`.
 
-Класс `DecisionPipeline` (`decision/decision_pipeline.py`) выбирает источник meta-вероятности:
+Устаревный путь: `DynamicMetaWeighting.get_integrated_signal` — дублирует фильтр порога внутри meta-модуля; в новых прогонах предпочтителен отдельный `DecisionPipeline`.
 
-- **integrated** (рекомендуется) — \( \hat{P}_t = \hat{p}_{\mathrm{ens},t} \) после dynamic weighting;
-- **final** — отдельный meta-filter `meta_prob`.
+## 3.8.4. Пороги и консервативный режим
 
-В оркестраторе (`TrainingOrchestrator.run_pipeline`) последовательность: режим → прогнозы моделей → ансамбль → `DecisionPipeline.generate_signal` → риск-менеджмент → бэктест.
+**Таблица 3.20 — Пороги в конфигурации ИТС**
 
-## 3.8.5. Примеры сигналов
+| Условие | Параметр | Канон / примечание |
+|---------|----------|-------------------|
+| Long | `direction_threshold` | 0,52 (симметрично: short при значении ниже `1 − 0,52`) |
+| Уверенность ансамбля | `meta_threshold_mode` + окно 100 | медиана `meta_mgmt_prob` по прошлому |
+| Усиленная торговля (эксперимент) | пороги 0,65 / 0,35 | отдельные прогоны в журнале (`direction_threshold: 0.6`) |
 
-На рис. 3.27 представлен фрагмент ряда BTC/USDT (1h): цена закрытия, маркеры **BUY** (треугольник вверх) и **SELL** (треугольник вниз); отсутствие маркера соответствует **HOLD**. Нижняя панель — траектория \( \hat{P}_t \) и линии порогов \( \tau_{\mathrm{buy}} \), \( \tau_{\mathrm{sell}} \), \( \tau_{\mathrm{meta}} \).
+Функция `apply_asymmetric_thresholds` в `signal_rules.py` поддерживает разные `long_threshold` и `short_threshold`; в каноническом YAML отключена (`use_asymmetric_thresholds: false`).
 
-![Рис. 3.27 — График цены с маркерами BUY / SELL](figures/3_8/signals_buy_sell_chart.png)
+## 3.8.5. Примеры сигналов на графике
 
-![Рис. 3.28 — Сигналы при усиленном пороге BUY (P̂ > 0,65)](figures/3_8/signals_strict_threshold.png)
+**Рисунок 3.19 — Маркеры BUY/SELL на свечном графике (канонические пороги)**
 
-**Таблица 3.27 — Фрагмент журнала сигналов**
+![Рис. 3.19 — signals buy/sell](figures/3_8/signals_buy_sell_chart.png)
 
-| Timestamp (UTC) | \( \hat{P}_t \) | Сигнал | Close |
-|-----------------|-----------------|--------|-------|
-| 2023-04-01 20:00 | 0,522 | BUY | 28 447,7 |
-| 2023-04-01 22:00 | 0,548 | BUY | 28 516,1 |
-| 2023-04-03 08:00 | 0,578 | BUY | 28 333,5 |
-| 2023-04-03 11:00 | 0,546 | BUY | 28 251,5 |
-| 2023-04-04 06:00 | 0,539 | BUY | 28 078,7 |
+**Рисунок 3.20 — Сигналы при ужесточённых порогах (сравнение)**
 
-Полный фрагмент: `docs/figures/3_8/signal_examples.csv`. На участке 2023-04 — 2023-06 зафиксировано 603 сигнала BUY, 72 SELL и 1149 баров HOLD (канонические пороги 0,52 / 0,48 с meta-median).
+![Рис. 3.20 — strict thresholds](figures/3_8/signals_strict_threshold.png)
 
-## 3.8.6. Каузальность и защита от утечки
+Фрагмент журнала сигналов для таблиц в приложении: `docs/figures/3_8/signal_examples.csv` (колонки `timestamp`, `P_hat`, `signal`, `close`).
 
-Порог \( \tau_{\mathrm{meta},t} \) вычисляется функцией `compute_safe_threshold` (`utils/data_leakage_prevention.py`) **только по прошлым** значениям \( \hat{P} \); глобальная медиана по полной выборке в production-режиме запрещена (`safe_mode: true`). При walk-forward калибровочный порог оценивается на train-фолде и переносится на test (`train_threshold_override`).
+## 3.8.6. Статистика и выводы
 
-## 3.8.7. Выводы по разделу
+`DecisionPipeline.get_signal_stats(signal)` возвращает число и доли long / short / flat — используется в отчётах и GUI.
 
-Реализована система принятия решений с явной логикой BUY / SELL / HOLD, формализованными порогами \( \tau_{\mathrm{buy}}, \tau_{\mathrm{sell}}, \tau_{\mathrm{meta}} \) и конвейером «прогноз → фильтр уверенности → валидация → сделка». Интеграция с adaptive ensemble обеспечивает согласованность \( \hat{P}_t \) и итогового сигнала \( s_t \); графическая иллюстрация подтверждает работу порогов на реальных котировках BTC/USDT.
+**Выводы по разделу:**
+
+1. Реализован единый пайплайн с двумя источниками правил; в прод-контуре — вариант **integrated** + `meta_mgmt_prob`.
+2. Мета-порог считается **каузально** (`safe_mode`, rolling median), что согласовано с WFO и purge/embargo (п. 3.11).
+3. Дискретный сигнал передаётся в риск-менеджмент и бэктест; дополнительные ограничения — на уровне оркестратора.
+4. Рис. 3.19–3.20 иллюстрируют различие частоты входов при стандартных и ужесточённых порогах.
+
+Далее — подсистема управления рисками (п. 3.9).

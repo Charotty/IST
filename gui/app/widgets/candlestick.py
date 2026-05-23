@@ -16,6 +16,14 @@ class CandlestickItem(pg.GraphicsObject):
         self.picture = QPicture()
         self.generate_picture()
 
+    def set_data(self, data: list) -> None:
+        """Replace OHLC series and repaint (for live updates)."""
+        self.data = data
+        self.picture = QPicture()
+        self.generate_picture()
+        self.informViewBoundsChanged()
+        self.update()
+
     def generate_picture(self) -> None:
         painter = QPainter(self.picture)
         w = 0.35

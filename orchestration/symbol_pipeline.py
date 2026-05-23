@@ -151,15 +151,16 @@ def _merge_symbol_tuning_overrides(
     *,
     allow_two_model_override: bool = False,
 ) -> Dict[str, Any]:
-    """Apply per-symbol hyperparams; never downgrade ``model_keys`` unless explicitly allowed."""
-    if not sp.config_yaml.is_file():
-        return params
-    import yaml
+    """Эталон + overrides (``tuning_best_for``); не понижать ``model_keys`` до 2 без флага."""
+    from orchestration.symbols import tuning_best_for
 
-    raw = yaml.safe_load(sp.config_yaml.read_text(encoding="utf-8")) or {}
-    over = dict(raw.get("orchestration_tuning_best") or {})
+    over = dict(tuning_best_for(sp.symbol, sp.timeframe) or {})
+    if not over:
+        return params
     if not allow_two_model_override:
-        over.pop("model_keys", None)
+        mk = over.get("model_keys")
+        if isinstance(mk, list) and len(mk) < 4 and set(mk) <= {"lgb", "xgb"}:
+            over.pop("model_keys", None)
     return {**params, **over}
 
 

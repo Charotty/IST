@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Optional
 
-from PyQt6.QtCore import QSettings
+from PyQt6.QtCore import QSettings, pyqtSignal
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -30,6 +30,10 @@ from gui.app.workers import ExplainWorker
 
 
 class SettingsView(QWidget):
+    """Per-symbol config editor; emits ``config_saved`` after successful save."""
+
+    config_saved = pyqtSignal()
+
     def __init__(self, api: Optional[IstGuiClient] = None, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self._api = api or IstGuiClient()
@@ -55,9 +59,16 @@ class SettingsView(QWidget):
         )
         layout.addWidget(head)
 
-        self._demo_cb = QCheckBox("Синтетические данные ML (скрытый demo, перезапуск)")
+        self._demo_cb = QCheckBox(
+            "Синтетические данные ML (требуется перезапуск приложения)"
+        )
         self._demo_cb.setChecked(bool(self._api.demo))
-        self._demo_cb.setToolTip("py -3 -m gui.app --demo или переменная IST_GUI_DEMO=1")
+        self._demo_cb.setToolTip(
+            "Сохраняет настройку в QSettings. Применится только после:\n"
+            "  python -m gui.app --demo\n"
+            "или запуска без --demo.\n"
+            "Не совпадает с мгновенным переключением режима."
+        )
         self._demo_cb.toggled.connect(self._on_demo_toggled)
         layout.addWidget(self._demo_cb)
 
@@ -117,11 +128,15 @@ class SettingsView(QWidget):
         self._btn_test = QPushButton("Тест: inference")
         self._btn_check = QPushButton("Проверить pipeline")
         self._btn_accept = QPushButton("Отчёт acceptance")
+        self._btn_manifest = QPushButton("Manifest символа")
+        self._btn_symbols = QPushButton("Список символов")
         btn_row.addWidget(self._btn_load)
         btn_row.addWidget(self._btn_save)
         btn_row.addWidget(self._btn_test)
         btn_row.addWidget(self._btn_check)
         btn_row.addWidget(self._btn_accept)
+        btn_row.addWidget(self._btn_manifest)
+        btn_row.addWidget(self._btn_symbols)
         btn_row.addStretch()
         layout.addLayout(btn_row)
 
@@ -140,6 +155,11 @@ class SettingsView(QWidget):
         self._merged_view.setReadOnly(True)
         tabs.addTab(self._merged_view, "Итоговый merged config")
 
+        self._manifest_view = QPlainTextEdit()
+        self._manifest_view.setReadOnly(True)
+        self._manifest_view.setPlaceholderText("artifacts/<slug>/manifest.json — кнопка «Manifest символа»")
+        tabs.addTab(self._manifest_view, "Symbol manifest")
+
         layout.addWidget(tabs, stretch=1)
 
         scroll.setWidget(body)
@@ -150,8 +170,21 @@ class SettingsView(QWidget):
         self._btn_test.clicked.connect(self._test_inference)
         self._btn_check.clicked.connect(self._check_pipeline)
         self._btn_accept.clicked.connect(self._run_acceptance_report)
+        self._btn_manifest.clicked.connect(self._load_manifest)
+        self._btn_symbols.clicked.connect(self._load_symbols_list)
+        self._manifest_worker = None
+        self._symbols_worker = None
 
     def _on_demo_toggled(self, checked: bool) -> None:
+        if checked != bool(self._api.demo):
+            QMessageBox.information(
+                self,
+                "Демо-режим",
+                "Изменение вступит в силу только после перезапуска приложения:\n\n"
+                "  python -m gui.app --demo     — синтетика, CLI отключён\n"
+                "  python -m gui.app          — реальные данные и CLI\n\n"
+                "Текущая сессия не переключается мгновенно.",
+            )
         self._settings.setValue("demo_mode", checked)
         self._settings.sync()
 
@@ -228,9 +261,12 @@ class SettingsView(QWidget):
         self._result.setPlainText(f"Запуск: {' '.join(argv)}\n→ {out}")
         worker = CliProcessWorker(argv, cwd=str(self._api.cli.repo_cwd()))
         worker.line.connect(lambda ln: self._result.appendPlainText(ln.rstrip()))
-        worker.finished_code.connect(
-            lambda c: self._result.appendPlainText(f"\nКод выхода: {c}")
-        )
+        def _on_accept_done(code: int) -> None:
+            self._result.appendPlainText(f"\nКод выхода: {code}")
+            if code == 0:
+                self.config_saved.emit()
+
+        worker.finished_code.connect(_on_accept_done)
         worker.start()
         self._accept_worker = worker
 
@@ -245,6 +281,7 @@ class SettingsView(QWidget):
             self._result.setPlainText(f"Сохранено: {path}")
             QMessageBox.information(self, "Конфигурация", f"Сохранено:\n{path}")
             self._load_form()
+            self.config_saved.emit()
         except Exception as e:
             QMessageBox.warning(self, "Ошибка", str(e))
 
@@ -274,5 +311,51 @@ class SettingsView(QWidget):
         self._result.setPlainText(
             f"OK — {snap.direction} signal={snap.signal} "
             f"meta={snap.meta_probability:.4f} regime={snap.regime}\n"
-            f"blocked: {snap.why_blocked or 'нет'}"
+            f"blocked: {snap.why_blocked or 'нет'}\n"
+            f"bundle: {snap.bundle_dir}"
         )
+
+    def _load_manifest(self) -> None:
+        from gui.app.workers import ManifestWorker
+
+        if self._manifest_worker and self._manifest_worker.isRunning():
+            return
+        self._manifest_view.setPlainText("Загрузка…")
+        self._manifest_worker = ManifestWorker(self._symbol, self._timeframe, api=self._api)
+        self._manifest_worker.finished.connect(self._on_manifest)
+        self._manifest_worker.failed.connect(
+            lambda m: self._manifest_view.setPlainText(f"Ошибка: {m}")
+        )
+        self._manifest_worker.start()
+
+    def _on_manifest(self, man: dict) -> None:
+        if not man:
+            self._manifest_view.setPlainText(
+                "Manifest не найден. Запустите prepare-symbol или train-final."
+            )
+            return
+        self._manifest_view.setPlainText(
+            json.dumps(man, indent=2, ensure_ascii=False, default=str)
+        )
+
+    def _load_symbols_list(self) -> None:
+        from gui.app.workers import SymbolsListWorker
+
+        if self._symbols_worker and self._symbols_worker.isRunning():
+            return
+        self._result.setPlainText("Загрузка list_symbols…")
+        self._symbols_worker = SymbolsListWorker(api=self._api)
+        self._symbols_worker.finished.connect(self._on_symbols_list)
+        self._symbols_worker.failed.connect(
+            lambda m: self._result.setPlainText(f"Ошибка: {m}")
+        )
+        self._symbols_worker.start()
+
+    def _on_symbols_list(self, entries: list) -> None:
+        rows = []
+        for e in entries:
+            rows.append(
+                f"{e.symbol} {e.timeframe}: ohlcv={e.has_ohlcv} feat={getattr(e, 'has_features', '?')} "
+                f"bundle={e.has_bundle} run={e.latest_bundle_run_id or '—'}"
+            )
+        self._result.setPlainText("\n".join(rows) if rows else "(пусто)")

@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QListWidget,
     QListWidgetItem,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -26,15 +27,30 @@ class OverviewView(QWidget):
         self._timeframe = "1h"
         self._worker: Optional[ExplainWorker] = None
 
-        layout = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        body = QWidget()
+        layout = QVBoxLayout(body)
+
         self._explain = ExplainCard()
         layout.addWidget(self._explain)
 
-        layout.addWidget(QLabel("Шаги decision pipeline"))
+        steps_title = QLabel(
+            "Шаги decision pipeline — проверки на последнем баре (✓ прошло / ✗ нет)"
+        )
+        steps_title.setWordWrap(True)
+        steps_title.setStyleSheet("color: #555; font-size: 11px;")
+        layout.addWidget(steps_title)
         self._steps = QListWidget()
-        self._steps.setMaximumHeight(160)
+        self._steps.setMinimumHeight(120)
         layout.addWidget(self._steps)
         layout.addStretch()
+
+        scroll.setWidget(body)
+        outer.addWidget(scroll)
 
     def set_context(self, symbol: str, timeframe: str) -> None:
         self._symbol = symbol
@@ -62,29 +78,30 @@ class OverviewView(QWidget):
         thr = float(cfg.get("direction_threshold", 0.52))
         margin = float(cfg.get("min_signal_margin", 0.0))
 
+        p = snap.meta_probability
         items = [
             (
-                f"Ensemble P(up) = {snap.meta_probability:.4f}",
-                abs(snap.meta_probability - 0.5) >= (thr - 0.5),
+                f"P(up) ансамбля = {p:.4f} (порог направления thr={thr})",
+                abs(p - 0.5) >= (thr - 0.5),
             ),
             (
-                f"Direction: {snap.direction} (signal {snap.signal})",
+                f"Итог: {snap.direction.upper()} (сигнал {snap.signal})",
                 snap.signal != 0,
             ),
             (
-                "Фильтр meta (интегрированный порог)",
-                snap.why_blocked is None or snap.signal != 0,
+                "Нет блокировки risk/decision (см. поле «Блокировка»)",
+                snap.why_blocked is None,
             ),
             (
-                f"Мёртвая зона (min_signal_margin={margin})",
-                margin <= 0 or abs(snap.meta_probability - 0.5) >= margin,
+                f"Вне мёртвой зоны: |P−0.5| ≥ margin ({margin})",
+                margin <= 0 or abs(p - 0.5) >= margin,
             ),
             (
-                f"Режим сделок: {cfg.get('trade_mode', 'both')}",
+                f"trade_mode={cfg.get('trade_mode', 'both')} допускает сторону",
                 True,
             ),
             (
-                f"Position size fraction: {snap.position_size_frac:.4f}",
+                f"Доля позиции > 0: {snap.position_size_frac:.4f}",
                 snap.position_size_frac > 0,
             ),
         ]

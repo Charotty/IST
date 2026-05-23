@@ -38,6 +38,10 @@ class ExplainCard(QGroupBox):
         self._close = QLabel("—")
         self._meta = QLabel("—")
         self._confidence = QLabel("—")
+        self._confidence.setToolTip(
+            "Уверенность = |P(up) − 0.5| × 2 (шкала 0…1).\n"
+            "0.23 ≈ 23% «силы» сигнала от нейтрали 50/50, не 0.23%."
+        )
         self._signal = QLabel("—")
         self._pos = QLabel("—")
         self._blocked = QLabel("")

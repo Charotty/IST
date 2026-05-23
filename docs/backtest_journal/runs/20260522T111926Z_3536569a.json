@@ -1,0 +1,41 @@
+{
+  "run_id": "20260522T111926Z_3536569a",
+  "timestamp_utc": "2026-05-22T11:19:26+00:00",
+  "label": "confirm_2_ERROR",
+  "notes": "KeyError: 'use_risk_bridge'",
+  "profile": "canonical_4model",
+  "params": {
+    "max_wfo_folds": 0,
+    "config_path": "config/profiles/canonical_4model.yaml",
+    "tune_level": "confirm",
+    "dl_batch_size": 64,
+    "max_rows": 8000,
+    "profile": "canonical_4model",
+    "dl_epochs": 3,
+    "walk_forward_step": 360
+  },
+  "symbol": null,
+  "timeframe": null,
+  "stage": null,
+  "parquet": "/mnt/d/IST/data/ohlcv/BTC-USDT_1h.parquet",
+  "feature_rows": 8000,
+  "max_rows": null,
+  "train_span": null,
+  "holdout_span": null,
+  "acceptance_passed": false,
+  "target_passed": false,
+  "summary": {},
+  "acceptance_checks": [],
+  "target_checks": [],
+  "fold_metrics": [],
+  "criteria": {
+    "acceptance": {
+      "passed": false,
+      "checks": []
+    },
+    "target": {
+      "passed": false,
+      "checks": []
+    }
+  }
+}

@@ -10,18 +10,22 @@
 - статус подготовки символа (parquet, features, bundle);
 - позже — paper/live через **execution**.
 
-Research по-прежнему доступен через CLI (`python -m orchestration …`) и журнал `docs/backtest_journal/`.
+Research по-прежнему доступен через CLI (`python -m orchestration …`) и журнал `docs/backtest_journal/`. Справочник всех команд и приёмки GUI: [`docs/PROJECT_CLI_AND_GUI_COMMANDS.md`](../docs/PROJECT_CLI_AND_GUI_COMMANDS.md).
 
-Конфиг: эталон [`config/reference/thesis_4model_reference.yaml`](../config/reference/thesis_4model_reference.yaml), пары — `baseline_ref` + `orchestration_overrides` (см. [`docs/THESIS_REFERENCE.md`](../docs/THESIS_REFERENCE.md)). Руководство: [`docs/GUI_USER_GUIDE.md`](../docs/GUI_USER_GUIDE.md).
+Конфиг: эталон [`config/reference/thesis_4model_reference.yaml`](../config/reference/thesis_4model_reference.yaml), пары — `baseline_ref` + `orchestration_overrides` (см. [`docs/THESIS_REFERENCE.md`](../docs/THESIS_REFERENCE.md)). Руководство: [`docs/GUI_USER_GUIDE.md`](../docs/GUI_USER_GUIDE.md).  
+Описание окон и расположения виджетов: [`docs/GUI_LAYOUT_REFERENCE.md`](../docs/GUI_LAYOUT_REFERENCE.md).
 
 ## Статус
 
 | Компонент | Статус |
 |-----------|--------|
 | `gui/api/` | ✅ API-слой (обёртки orchestration) |
-| PyQt6 UI (`gui/app/`) | ✅ Overview, Chart, Models, Backtests, Jobs, Settings, Execution |
-| CLI из Jobs | ✅ prepare, build-features, tune-thesis, train-final, report-real (tuning-best + cache) |
+| PyQt6 UI (`gui/app/`) | ✅ 3 вкладки: **График** (chart+решение/режим/bundle), **Задачи** (pipeline/журнал/paper), **Конфигурация** |
+| CLI из Jobs | ✅ prepare, build-features, tune-thesis, train-final, report-real + smoke, validate, tune-until, from-parquet, regime-history, list-symbols, manifest-show |
+| Вкладка «Режим» | ✅ `inference.regime_series` |
+| График IST | ✅ `chart_payload`: regime overlay, сигналы, meta P(up) |
 | HTTP backend | ⬜ не нужен для desktop (прямой вызов `gui.api`) |
+| Live OKX trading | ⬜ (paper только) |
 
 ### CLI ↔ GUI (Jobs / Settings)
 

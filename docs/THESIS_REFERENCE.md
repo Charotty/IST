@@ -43,6 +43,8 @@ python -m orchestration tune-thesis --symbol ETH/USDT --phase all
 
 См. `docs/thesis_btc_4model_acceptance.json`: mean Sharpe ~2.48, PF ~1.78, recovery ~1.26; **WFE ~0.21** (не проходит `min_wfe: 0.5`). Остальные 7 проверок acceptance — PASS.
 
+Разбор WFE (почему низкий при сильном OOS Sharpe): [`WFE_ANALYSIS.md`](WFE_ANALYSIS.md). Диагностика: `python scripts/analyze_wfe.py`.
+
 ## Обновление эталона
 
 1. Прогнать `tune-thesis --phase confirm` и `report-real` с кандидатом.

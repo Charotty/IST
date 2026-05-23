@@ -101,6 +101,7 @@ class ChartBar:
     signal: Optional[int] = None
     regime_int: Optional[int] = None
     meta_probability: Optional[float] = None
+    ts_ms: Optional[int] = None  # open time UTC ms (для live merge)
 
 
 @dataclass

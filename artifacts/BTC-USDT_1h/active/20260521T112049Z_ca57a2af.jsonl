@@ -1,0 +1,8 @@
+{"step": "start", "symbol": "BTC-USDT", "timeframe": "1h", "slug": "BTC-USDT_1h", "ts": "2026-05-21T11:20:49+00:00"}
+{"step": "download", "status": "begin", "profile": "canonical_4model", "ts": "2026-05-21T11:21:29+00:00"}
+{"step": "download", "status": "done", "parquet": "/mnt/d/IST/data/ohlcv/BTC-USDT_1h.parquet", "ts": "2026-05-21T11:36:58+00:00"}
+{"step": "features", "status": "begin", "profile": "canonical_4model", "ts": "2026-05-21T11:36:58+00:00"}
+{"step": "features", "status": "done", "rows": 38332, "train_rows": 30665, "holdout_rows": 7667, "train_span": {"start": "2022-01-05 08:00:00+00:00", "end": "2025-07-06 00:00:00+00:00", "rows": 30665}, "holdout_span": {"start": "2025-07-06 01:00:00+00:00", "end": "2026-05-21 11:00:00+00:00", "rows": 7667}, "ts": "2026-05-21T11:36:58+00:00"}
+{"step": "tune", "status": "begin", "max_trials": 30, "ts": "2026-05-21T11:36:59+00:00"}
+{"step": "tune", "trial": 1, "max_trials": 30, "sharpe": -0.054188228682457276, "pf": 1.2238581433540032, "wfe": 0.04305076478564757, "acceptance": false, "run_id": "20260521T120235Z_b6275976", "ts": "2026-05-21T12:02:35+00:00"}
+{"step": "tune", "trial": 2, "max_trials": 30, "sharpe": -0.04794498655162049, "pf": 1.672570391958511, "wfe": 0.04777521948972618, "acceptance": false, "run_id": "20260521T123110Z_fb441bef", "ts": "2026-05-21T12:31:10+00:00"}

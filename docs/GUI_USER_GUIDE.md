@@ -1,5 +1,9 @@
 # Руководство по GUI IST
 
+Полный список CLI-команд и чеклист «команда → вкладка GUI»: [`PROJECT_CLI_AND_GUI_COMMANDS.md`](PROJECT_CLI_AND_GUI_COMMANDS.md).
+
+**Расположение всех элементов на каждом экране:** [`GUI_LAYOUT_REFERENCE.md`](GUI_LAYOUT_REFERENCE.md) (TOC, сценарии, empty-states, связь с CLI §7, UX-аномалии).
+
 ## Запуск
 
 ```bash
@@ -19,21 +23,23 @@ py -3 -m gui.app --demo
 
 | Вкладка | Назначение |
 |---------|------------|
-| **Обзор** | Explain: 4 модели, regime, сигнал, HOLD/why_blocked |
-| **График** | Свечи OKX; сигналы — в Обзоре и Исполнении |
-| **Модели** | manifest bundle, model_keys, веса |
-| **Бэктесты** | Журнал WFO, PASS/FAIL, equity по фолдам |
-| **Исполнение** | Paper: шаг, серия шагов, сверка с Backtester |
-| **Задачи** | Чеклист pipeline + CLI |
+| **График** | Live OKX / IST; подпанели **Решение**, **Bundle** |
+| **Режим** | Таблица trend/range (отдельный экран) |
+| **Задачи** | **Pipeline** (CLI) · **Журнал WFO** · **Paper** |
 | **Конфигурация** | Параметры (merged с эталоном), acceptance-отчёт |
+
+**Пошаговая проверка:**
+
+- [`GUI_VERIFICATION_PLAN.md`](GUI_VERIFICATION_PLAN.md) — только GUI  
+- [`GUI_VERIFICATION_PLAN_WSL.md`](GUI_VERIFICATION_PLAN_WSL.md) — **GUI + команды WSL на каждый шаг** (обучение, report-real, быстрый контур)
+
+Структура вкладок: [`GUI_TAB_REDESIGN.md`](GUI_TAB_REDESIGN.md).
 
 ## Задачи (CLI из GUI)
 
-1. **Подготовить символ** — `prepare-symbol` (+ опционально скачать OHLCV)
-2. **Признаки** — `build-features`
-3. **Тюнинг thesis** — `tune-thesis` (фаза: all / fast / refine / confirm)
-4. **Финальное обучение** — `train-final-symbol --force`
-5. **Отчёт WFO** — `report-real` с `--use-tuning-best`, `--use-feature-cache`, баров `0` = из YAML
+**Основные:** prepare-symbol, build-features, tune-thesis, train-final, report-real.
+
+**Дополнительные:** smoke, validate-config, tune-until, from-parquet (выбор файла), regime-history, list-symbols, manifest-show.
 
 ## Конфигурация
 
@@ -44,10 +50,10 @@ py -3 -m gui.app --demo
 
 ## Сценарий защиты (5 мин)
 
-1. BTC/USDT 1h → **Обзор** (4 prob, regime)
-2. **Бэктесты** — последний run, 7/8 или PASS
+1. BTC/USDT 1h → **График** → подпанель **Решение** (4 prob, regime)
+2. **Задачи** → **Журнал WFO** — последний run, PASS/FAIL
 3. **Конфигурация** — margin, vol filter, эталон
-4. Переключить **ETH** — статус pipeline
-5. **Исполнение** — paper, 1–5 шагов
+4. Переключить **ETH** — статус pipeline на панели символа
+5. **Задачи** → **Paper** — 1–5 шагов
 
 Исследование и финальный тюнинг по-прежнему можно вести в CLI; GUI повторяет те же флаги для отчётов.

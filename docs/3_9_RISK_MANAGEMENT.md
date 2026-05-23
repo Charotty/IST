@@ -1,174 +1,110 @@
 # 3.9 Реализация подсистемы управления рисками
 
-Подсистема управления рисками (risk management) ограничивает капитальную экспозицию на сделку, задаёт уровни защитного стоп-лосса на основе Average True Range (ATR) и формирует масштаб позиции для передачи в модуль исполнения и бэктестинга. Реализация сосредоточена в пакете `risk_management` и интегрирована с оркестратором через `OrchestratorRiskBridge`.
+Подсистема управления рисками ограничивает размер позиции, задаёт защитные уровни по ATR и подготавливает масштаб для бэктестера и исполнения. Код сосредоточен в пакете `risk_management`; связь с оркестратором — класс `OrchestratorRiskBridge`. Вход — сигналы после `DecisionPipeline` (п. 3.8). Формулы не приводятся; ниже — порядок вызовов, колонки DataFrame и параметры по умолчанию.
 
-## 3.9.1. ATR stop-loss и trailing stop
+## 3.9.1. Состав модулей
 
-### Начальный стоп-лосс (для расчёта размера позиции)
+| Модуль | Класс / функция | Назначение |
+|--------|-----------------|------------|
+| `risk_pipeline.py` | `RiskPipeline` | Цепочка: trailing stop → position sizing → (опц.) RL overlay |
+| `position_sizer.py` | `PositionSizer` | Размер позиции от ATR и доли риска на сделку |
+| `atr_trailing_stop.py` | `ATRTrailingStop`, `apply_atr_trailing_stop` | Сопровождающий стоп и принудительный выход |
+| `orchestrator_risk_bridge.py` | `OrchestratorRiskBridge` | API для `TrainingOrchestrator.risk_manager` |
 
-Расстояние до стоп-лосса в ценовых единицах задаётся как кратное ATR:
+Экспорт пакета: `risk_management/__init__.py` (`PositionSizer`, `RiskPipeline`, `OrchestratorRiskBridge`).
 
-\[
-D^{\mathrm{stop}}_t = m_{\mathrm{sl}} \cdot \mathrm{ATR}_t,
-\]
+Альтернатива в слое моделей: `models.sizing.ConfidencePositionSizer` (размер от уверенности ML) — в каноническом WFO используется **ATR-вариант** из `risk_management`.
 
-где \( m_{\mathrm{sl}} = 2{,}0 \) — параметр `atr_stop_multiplier` (по умолчанию в `PositionSizer`).
+## 3.9.2. RiskPipeline — порядок обработки
 
-Для длинной позиции уровень начального стопа:
+Метод `RiskPipeline.apply_pipeline(df, signal_col='final_signal')`:
 
-\[
-S^{\mathrm{init}}_{t,\mathrm{long}} = C_t - D^{\mathrm{stop}}_t.
-\]
+1. **ATR trailing stop** (если `trailing_stop_enabled`, по умолчанию `true`): колонки `trailing_stop`, `exit_signal`; рабочий сигнал — `combined_signal` (`get_combined_signals`: при `exit_signal == 1` сигнал обнуляется).
+2. **Position sizing**: `pos_size`, `final_pos_size` — объём в единицах актива с учётом модуля сигнала.
+3. **RL overlay** (если `rl_overlay_enabled`): колонка `rl_adjusted_return` — в каноническом профиле выключен.
 
-Для короткой позиции:
+Отдельные методы: `apply_trailing_stop_only`, `apply_position_sizing_only`. Конфигурация — словарь или `RiskPipeline.from_yaml()` (секция `risk_management`).
 
-\[
-S^{\mathrm{init}}_{t,\mathrm{short}} = C_t + D^{\mathrm{stop}}_t.
-\]
+## 3.9.3. PositionSizer
 
-### Trailing stop (сопровождающий стоп)
+Класс `PositionSizer` (`position_sizer.py`):
 
-После входа в позицию применяется **ATR trailing stop** с множителем \( m_{\mathrm{tr}} = 3{,}0 \) (`atr_mult`). Для long:
+- `risk_per_trade` — доля капитала на одну сделку (по умолчанию **0,01**, 1%);
+- `account_size` — капитал (по умолчанию **10 000**);
+- `atr_stop_multiplier` — множитель ATR для дистанции стопа при расчёте размера (по умолчанию **2,0**).
 
-\[
-S^{\mathrm{trail}}_t = \max\bigl( S^{\mathrm{trail}}_{t-1},\; C_t - m_{\mathrm{tr}} \cdot \mathrm{ATR}_t \bigr).
-\]
+В `calculate_sizes`: `risk_amount = account_size * risk_per_trade`; `pos_size = risk_amount / (atr * atr_stop_multiplier)`; `final_pos_size = pos_size * abs(signal)`. Нулевой сигнал даёт нулевой размер.
 
-Условие принудительного выхода (long):
+Колонка `atr` в признаках предпочтительна; иначе `OrchestratorRiskBridge._ensure_atr` строит прокси из `volatility * close` или rolling по `close`.
 
-\[
-C_t < S^{\mathrm{trail}}_t \quad \Rightarrow \quad \mathrm{exit\_signal}_t = 1.
-\]
+## 3.9.4. ATR trailing stop
 
-Для short симметрично:
+Функция `apply_atr_trailing_stop` / класс `ATRTrailingStop`:
 
-\[
-S^{\mathrm{trail}}_t = \min\bigl( S^{\mathrm{trail}}_{t-1},\; C_t + m_{\mathrm{tr}} \cdot \mathrm{ATR}_t \bigr), \qquad
-C_t > S^{\mathrm{trail}}_t \quad \Rightarrow \quad \mathrm{exit}.
-\]
+- `atr_mult` по умолчанию **3,0** (шире, чем множитель для sizing — 2,0);
+- long: стоп подтягивается вверх (`max` с предыдущим уровнем); выход, если `close < trailing_stop`;
+- short: симметрично (`min`, выход при `close > trailing_stop`).
 
-Комбинированный торговый сигнал после учёта выхода:
+Итоговый торговый сигнал после стопа: `combine_signals_with_exit` — при выходе позиция закрывается (0).
 
-\[
-s^{\mathrm{comb}}_t =
-\begin{cases}
-0, & \text{если } \mathrm{exit\_signal}_t = 1, \\
-s_t, & \text{иначе}.
-\end{cases}
-\]
+В `canonical_4model.yaml` указано `apply_atr_trailing: false` на уровне оркестратора; стандартный `OrchestratorRiskBridge()` создаёт `RiskPipeline()` с **включённым** trailing по умолчанию. Для отключения нужно передать в bridge настроенный `RiskPipeline` с `trailing_stop.enabled: false`.
 
-Реализация: `apply_atr_trailing_stop`, класс `ATRTrailingStop` (`risk_management/atr_trailing_stop.py`).
+## 3.9.5. Интеграция с оркестратором
 
-## 3.9.2. Формула position sizing
+При `use_risk_bridge: true` (`config/profiles/canonical_4model.yaml`) в `TrainingOrchestrator` после генерации сигналов вызывается:
 
-Размер позиции определяется из **фиксированной доли риска на сделку** и дистанции до ATR-стопа (метод фиксированного процентного риска).
-
-Сумма риска в валюте счёта:
-
-\[
-R_t = E \cdot r_{\max},
-\]
-
-где \( E \) — капитал (`account_size`), \( r_{\max} \) — максимальный риск на сделку (`risk_per_trade`).
-
-Размер позиции в единицах актива (без знака):
-
-\[
-Q_t = \frac{R_t}{D^{\mathrm{stop}}_t} = \frac{E \cdot r_{\max}}{m_{\mathrm{sl}} \cdot \mathrm{ATR}_t}.
-\]
-
-С учётом направления сигнала \( s_t \in \{-1,0,1\} \):
-
-\[
-Q^{\mathrm{final}}_t = Q_t \cdot |s_t|.
-\]
-
-Доля капитала, направляемая в позицию (для бэктестера):
-
-\[
-f_t = \min\left( f_{\max},\; \frac{Q^{\mathrm{final}}_t \cdot C_t}{E} \right),
-\]
-
-где \( f_{\max} = \) `max_position_fraction` (по умолчанию 1,0). Класс `OrchestratorRiskBridge` возвращает вектор \( f_t \) оркестратору.
-
-## 3.9.3. Схема риск-контура
-
-**Рисунок 3.29 — Схема подсистемы управления рисками**
-
-```
-Signal  s_t
-    │
-    ▼
-Position Size   Q_t  (ATR + r_max)
-    │
-    ▼
-Stop Loss       S^trail_t  (ATR trailing)
-    │
-    ▼
-Trade Execution  (Backtester / execution)
+```text
+position_sizes = risk_manager.calculate_position_sizes(signals, meta_probabilities, features)
 ```
 
-```mermaid
-flowchart TD
-    S["Signal s_t"] --> PS["Position Size<br/>Q_t = E·r_max / (m_sl·ATR)"]
-    PS --> SL["Stop Loss<br/>ATR trailing"]
-    SL --> EX["Trade Execution"]
+`OrchestratorRiskBridge.calculate_position_sizes`:
+
+1. записывает `final_signal` в копию `features`;
+2. вызывает `risk_pipeline.apply_pipeline`;
+3. переводит `final_pos_size` (единицы актива) в **долю капитала** для `Backtester.run(..., position_size=...)`: `frac = final_pos_size * close / account_size`;
+4. ограничивает сверху `max_position_fraction` (из symbol YAML часто **1,0**).
+
+`meta_probabilities` в bridge пока не влияет на размер (зарезервировано для расширений).
+
+Схема:
+
+```
+final_signals  →  OrchestratorRiskBridge  →  position_size[]  →  Backtester
+                      ↑
+                 features (close, atr, …)
 ```
 
-Полный порядок в `RiskPipeline.apply_pipeline`:
+## 3.9.6. Параметры конфигурации
 
-1. ATR trailing stop → `trailing_stop`, `exit_signal`, `combined_signal`;
-2. Position sizing → `pos_size`, `final_pos_size`;
-3. (опционально) RL overlay → `risk_multiplier` на доходность.
+**Таблица 3.21 — Параметры подсистемы рисков (значения по умолчанию в коде)**
 
-## 3.9.4. Параметры риска
+| Параметр | Значение | Где задаётся |
+|----------|----------|--------------|
+| `risk_per_trade` | 0,01 | `PositionSizer` |
+| `account_size` | 10 000 | `PositionSizer` |
+| `atr_stop_multiplier` | 2,0 | sizing |
+| `atr_mult` (trailing) | 3,0 | `ATRTrailingStop` |
+| `trailing_stop.enabled` | true | `RiskPipeline` |
+| `max_position_fraction` | 1,0 | `OrchestratorRiskBridge`, symbol YAML |
+| `use_risk_bridge` | true | `canonical_4model` orchestration |
 
-**Таблица 3.28 — Параметры подсистемы управления рисками**
+Для отчётов диплома допустимо указывать **2%** риска на сделку как целевую постановку — в коде по умолчанию 1%; изменение — `PositionSizer.set_risk_per_trade(0.02)` или секция `position_sizer` в конфиге pipeline.
 
-| Parameter | Значение | Назначение |
-|-----------|----------|------------|
-| `max_risk` (`risk_per_trade`) | **2%** (0,02) | Максимальная доля капитала, рискуемая в одной сделке |
-| `account_size` | 10 000 USDT | Номинальный размер счёта |
-| `atr_stop_multiplier` \( m_{\mathrm{sl}} \) | 2,0 | Множитель ATR для начального стопа в sizing |
-| `atr_mult` \( m_{\mathrm{tr}} \) | 3,0 | Множитель ATR для trailing stop |
-| `max_position_fraction` | 1,0 | Верхняя граница доли капитала в позиции |
-| `trailing_stop.enabled` | true | Включение сопровождающего стопа |
+## 3.9.7. Иллюстрации
 
-В базовой конфигурации модуля по умолчанию `risk_per_trade = 0{,}01` (1%); для дипломного эксперимента с `max_risk = 2\%` параметр задаётся в YAML секции `risk_management.position_sizer`.
+**Рисунок 3.21 — Капитал и просадка стратегии с учётом риск-модуля**
 
-Пример конфигурации:
+![Рис. 3.21 — equity and drawdown](figures/3_9/equity_drawdown.png)
 
-```yaml
-risk_management:
-  position_sizer:
-    risk_per_trade: 0.02
-    account_size: 10000
-    atr_stop_multiplier: 2.0
-  trailing_stop:
-    enabled: true
-    atr_mult: 3.0
-```
+**Рисунок 3.22 — Фрагмент срабатывания ATR trailing stop на истории цены**
 
-## 3.9.5. График просадки (drawdown)
+![Рис. 3.22 — ATR trailing stop fragment](figures/3_9/atr_trailing_stop_fragment.png)
 
-На рис. 3.30 представлены нормализованная кривая капитала стратегии с применением risk pipeline (ATR sizing, \( r_{\max} = 2\% \), trailing stop) и соответствующая **просадка** (drawdown):
+## 3.9.8. Выводы по разделу
 
-\[
-\mathrm{DD}_t = \frac{E_t - \max_{\tau \leq t} E_\tau}{\max_{\tau \leq t} E_\tau},
-\]
+1. Реализован конвейер `RiskPipeline`: опциональный trailing stop, ATR-based position sizing, заготовка под RL overlay.
+2. `OrchestratorRiskBridge` связывает риск-модуль с WFO и бэктестом через массив `position_size` как долю капитала.
+3. Размер позиции зависит от ATR и фиксированной доли риска; направление — от абсолютного значения сигнала.
+4. Trailing stop может досрочно обнулить сигнал при пробое уровня; иллюстрации — рис. 3.21–3.22.
 
-где \( E_t \) — кумулятивная equity относительно начального капитала.
-
-![Рис. 3.30 — Кривая капитала и просадка (drawdown)](figures/3_9/equity_drawdown.png)
-
-На фрагменте BTC/USDT 1h (2022-08 — 2024-01) максимальная просадка составила порядка **2,8%**, что согласуется с ограничением `max_risk` и критериями приёмки бэктеста (`max_drawdown_pct` не ниже −35% в конфигурации acceptance).
-
-![Рис. 3.31 — ATR trailing stop и цена (фрагмент)](figures/3_9/atr_trailing_stop_fragment.png)
-
-## 3.9.6. Интеграция с оркестратором и бэктестингом
-
-`TrainingOrchestrator` при `use_risk_bridge: true` вызывает `OrchestratorRiskBridge.calculate_position_sizes`, передавая итоговые доли \( f_t \) в `Backtester.run(..., position_size=...)`. Комиссия и проскальзывание задаются в `backtesting.simulation` (0,06% / 0,02%). Метрики просадки и recovery factor рассчитываются в `performance_metrics.py` и используются в критериях приёмки (п. 3.1).
-
-## 3.9.7. Выводы по разделу
-
-Реализована подсистема управления рисками с явными формулами ATR stop-loss, position sizing от `max_risk` и конвейером «сигнал → размер → стоп → исполнение». График drawdown подтверждает ограничение потерь на историческом фрагменте; параметры риска вынесены в конфигурацию и согласованы с центральным adaptive ensemble (п. 3.7) и decision layer (п. 3.8).
+Далее — архитектура ПО (п. 3.10) и комплексное тестирование (п. 3.11).

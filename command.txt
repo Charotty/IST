@@ -1,0 +1,200 @@
+(.venv) xxxxx@DESKTOP-QOU40DL:/mnt/d/IST$ python3 -m orchestration tune-thesis --symbol BTC/USDT
+2026-05-22 11:21:56.236254: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:467] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+E0000 00:00:1779438116.426083     601 cuda_dnn.cc:8579] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+E0000 00:00:1779438116.482664     601 cuda_blas.cc:1407] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+W0000 00:00:1779438116.920409     601 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1779438116.920540     601 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1779438116.920547     601 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1779438116.920551     601 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+2026-05-22 11:21:56.985758: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+/mnt/d/IST/orchestration/benchmark_runner.py:71: UserWarning: Ignoring unknown orchestration YAML keys: ['apply_atr_trailing', 'safe_threshold_mode', 'use_risk_bridge']
+  return OrchestratorConfig.from_yaml(load_canonical_config_path(config_path))
+I0000 00:00:1779438166.040367     601 gpu_device.cc:2019] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 4066 MB memory:  -> device: 0, name: NVIDIA GeForce GTX 1660 Ti, pci bus id: 0000:01:00.0, compute capability: 7.5
+I0000 00:00:1779438174.706456     665 cuda_dnn.cc:529] Loaded cuDNN version 90300
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1779438184.181963     662 service.cc:152] XLA service 0x7292e032df60 initialized for platform CUDA (this does not guarantee that XLA will be used). Devices:
+I0000 00:00:1779438184.182039     662 service.cc:160]   StreamExecutor device (0): NVIDIA GeForce GTX 1660 Ti, Compute Capability 7.5
+2026-05-22 11:23:04.281121: I tensorflow/compiler/mlir/tensorflow/utils/dump_mlir_util.cc:269] disabling MLIR crash reproducer, set env var `MLIR_CRASH_REPRODUCER_DIRECTORY` to enable.
+E0000 00:00:1779438185.904213     662 buffer_comparator.cc:156] Difference at 0: 0.135864, expected -nan
+E0000 00:00:1779438185.904324     662 buffer_comparator.cc:156] Difference at 1: 0.141479, expected 0
+E0000 00:00:1779438185.904339     662 buffer_comparator.cc:156] Difference at 2: 0.149658, expected -nan
+E0000 00:00:1779438185.904391     662 buffer_comparator.cc:156] Difference at 3: 0.152954, expected 0
+E0000 00:00:1779438185.904408     662 buffer_comparator.cc:156] Difference at 4: 0.161499, expected -nan
+E0000 00:00:1779438185.904416     662 buffer_comparator.cc:156] Difference at 5: 0.174072, expected 0
+E0000 00:00:1779438185.904423     662 buffer_comparator.cc:156] Difference at 6: 0.205078, expected -nan
+E0000 00:00:1779438185.904464     662 buffer_comparator.cc:156] Difference at 7: 0.201782, expected 0
+E0000 00:00:1779438185.904515     662 buffer_comparator.cc:156] Difference at 8: 0.207153, expected -nan
+E0000 00:00:1779438185.904564     662 buffer_comparator.cc:156] Difference at 10: 0.22522, expected -nan
+2026-05-22 11:23:05.904611: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:764] Results mismatch between different convolution algorithms. This is likely a bug/unexpected loss of precision in cudnn.
+%cudnn-conv-bias-activation.6 = (f16[128,1,22,64]{3,2,1,0}, u8[0]{0}) custom-call(f16[128,1,24,14]{3,2,1,0} %bitcast.4139, f16[64,1,3,14]{3,2,1,0} %bitcast.4143, f16[64]{0} %bitcast.4146), window={size=1x3}, dim_labels=b01f_o01i->b01f, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_type="Conv2D" op_name="sequential_1_1/conv1d_1/convolution" source_file="/mnt/d/IST/.venv/lib/python3.11/site-packages/tensorflow/python/framework/ops.py" source_line=1200}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"conv_result_scale":1,"activation_mode":"kNone","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false} for eng31{k2=2,k6=1,k13=1,k14=0,k22=2} vs eng4{k2=3,k4=2,k5=3,k6=3,k7=2}
+2026-05-22 11:23:05.904694: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:323] Device: NVIDIA GeForce GTX 1660 Ti
+2026-05-22 11:23:05.904760: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:324] Platform: Compute Capability 7.5
+2026-05-22 11:23:05.904775: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:325] Driver: 13.1.0
+2026-05-22 11:23:05.904782: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:326] Runtime: 12.5.0
+2026-05-22 11:23:05.904803: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:331] cudnn version: 9.3.0
+E0000 00:00:1779438186.269529     662 buffer_comparator.cc:156] Difference at 0: 0.135864, expected -nan
+E0000 00:00:1779438186.269630     662 buffer_comparator.cc:156] Difference at 1: 0.141479, expected 0
+E0000 00:00:1779438186.269642     662 buffer_comparator.cc:156] Difference at 2: 0.149658, expected -nan
+E0000 00:00:1779438186.269647     662 buffer_comparator.cc:156] Difference at 3: 0.152954, expected 0
+E0000 00:00:1779438186.269651     662 buffer_comparator.cc:156] Difference at 4: 0.161499, expected -nan
+E0000 00:00:1779438186.269683     662 buffer_comparator.cc:156] Difference at 5: 0.174072, expected 0
+E0000 00:00:1779438186.269697     662 buffer_comparator.cc:156] Difference at 6: 0.205078, expected -nan
+E0000 00:00:1779438186.269702     662 buffer_comparator.cc:156] Difference at 7: 0.201782, expected 0
+E0000 00:00:1779438186.269707     662 buffer_comparator.cc:156] Difference at 8: 0.207153, expected -nan
+E0000 00:00:1779438186.269714     662 buffer_comparator.cc:156] Difference at 10: 0.22522, expected -nan
+2026-05-22 11:23:06.269744: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:764] Results mismatch between different convolution algorithms. This is likely a bug/unexpected loss of precision in cudnn.
+%cudnn-conv-bias-activation.6 = (f16[128,1,22,64]{3,2,1,0}, u8[0]{0}) custom-call(f16[128,1,24,14]{3,2,1,0} %bitcast.4139, f16[64,1,3,14]{3,2,1,0} %bitcast.4143, f16[64]{0} %bitcast.4146), window={size=1x3}, dim_labels=b01f_o01i->b01f, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_type="Conv2D" op_name="sequential_1_1/conv1d_1/convolution" source_file="/mnt/d/IST/.venv/lib/python3.11/site-packages/tensorflow/python/framework/ops.py" source_line=1200}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"conv_result_scale":1,"activation_mode":"kNone","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false} for eng31{k2=2,k6=1,k13=1,k14=0,k22=2} vs eng4{k2=4,k4=1,k5=4,k6=3,k7=2}
+2026-05-22 11:23:06.269803: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:323] Device: NVIDIA GeForce GTX 1660 Ti
+2026-05-22 11:23:06.269841: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:324] Platform: Compute Capability 7.5
+2026-05-22 11:23:06.269883: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:325] Driver: 13.1.0
+2026-05-22 11:23:06.269925: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:326] Runtime: 12.5.0
+2026-05-22 11:23:06.269944: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:331] cudnn version: 9.3.0
+E0000 00:00:1779438186.716707     662 buffer_comparator.cc:156] Difference at 0: 0.550293, expected -nan
+E0000 00:00:1779438186.716799     662 buffer_comparator.cc:156] Difference at 1: 0.532715, expected 0
+E0000 00:00:1779438186.716841     662 buffer_comparator.cc:156] Difference at 2: 0.598145, expected -nan
+E0000 00:00:1779438186.716861     662 buffer_comparator.cc:156] Difference at 3: 0.620117, expected 0
+E0000 00:00:1779438186.716870     662 buffer_comparator.cc:156] Difference at 4: 0.549805, expected -nan
+E0000 00:00:1779438186.716912     662 buffer_comparator.cc:156] Difference at 5: 0.525879, expected 0
+E0000 00:00:1779438186.716925     662 buffer_comparator.cc:156] Difference at 6: 0.517578, expected -nan
+E0000 00:00:1779438186.716930     662 buffer_comparator.cc:156] Difference at 7: 0.619141, expected 0
+E0000 00:00:1779438186.716937     662 buffer_comparator.cc:156] Difference at 8: 0.611816, expected -nan
+E0000 00:00:1779438186.716942     662 buffer_comparator.cc:156] Difference at 9: 0.512695, expected 0
+2026-05-22 11:23:06.716968: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:764] Results mismatch between different convolution algorithms. This is likely a bug/unexpected loss of precision in cudnn.
+%cudnn-conv-bias-activation.7 = (f16[128,1,9,32]{3,2,1,0}, u8[0]{0}) custom-call(f16[128,1,11,64]{3,2,1,0} %bitcast.5295, f16[32,1,3,64]{3,2,1,0} %bitcast.4160, f16[32]{0} %bitcast.4163), window={size=1x3}, dim_labels=b01f_o01i->b01f, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_type="Conv2D" op_name="sequential_1_1/conv1d_1_2/convolution" source_file="/mnt/d/IST/.venv/lib/python3.11/site-packages/tensorflow/python/framework/ops.py" source_line=1200}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"conv_result_scale":1,"activation_mode":"kNone","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false} for eng31{k2=15,k6=3,k13=1,k14=0,k22=1} vs eng4{k2=3,k4=2,k5=3,k6=3,k7=2}
+2026-05-22 11:23:06.717021: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:323] Device: NVIDIA GeForce GTX 1660 Ti
+2026-05-22 11:23:06.717033: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:324] Platform: Compute Capability 7.5
+2026-05-22 11:23:06.717079: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:325] Driver: 13.1.0
+2026-05-22 11:23:06.717090: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:326] Runtime: 12.5.0
+2026-05-22 11:23:06.717104: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:331] cudnn version: 9.3.0
+E0000 00:00:1779438186.724312     662 buffer_comparator.cc:156] Difference at 0: 0.550293, expected -nan
+E0000 00:00:1779438186.724392     662 buffer_comparator.cc:156] Difference at 1: 0.532715, expected 0
+E0000 00:00:1779438186.724403     662 buffer_comparator.cc:156] Difference at 2: 0.598145, expected -nan
+E0000 00:00:1779438186.724407     662 buffer_comparator.cc:156] Difference at 3: 0.620117, expected 0
+E0000 00:00:1779438186.724443     662 buffer_comparator.cc:156] Difference at 4: 0.549805, expected -nan
+E0000 00:00:1779438186.724458     662 buffer_comparator.cc:156] Difference at 5: 0.525879, expected 0
+E0000 00:00:1779438186.724467     662 buffer_comparator.cc:156] Difference at 6: 0.517578, expected -nan
+E0000 00:00:1779438186.724507     662 buffer_comparator.cc:156] Difference at 7: 0.619141, expected 0
+E0000 00:00:1779438186.724547     662 buffer_comparator.cc:156] Difference at 8: 0.611816, expected -nan
+E0000 00:00:1779438186.724584     662 buffer_comparator.cc:156] Difference at 9: 0.512695, expected 0
+2026-05-22 11:23:06.724648: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:764] Results mismatch between different convolution algorithms. This is likely a bug/unexpected loss of precision in cudnn.
+%cudnn-conv-bias-activation.7 = (f16[128,1,9,32]{3,2,1,0}, u8[0]{0}) custom-call(f16[128,1,11,64]{3,2,1,0} %bitcast.5295, f16[32,1,3,64]{3,2,1,0} %bitcast.4160, f16[32]{0} %bitcast.4163), window={size=1x3}, dim_labels=b01f_o01i->b01f, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_type="Conv2D" op_name="sequential_1_1/conv1d_1_2/convolution" source_file="/mnt/d/IST/.venv/lib/python3.11/site-packages/tensorflow/python/framework/ops.py" source_line=1200}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"conv_result_scale":1,"activation_mode":"kNone","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false} for eng31{k2=15,k6=3,k13=1,k14=0,k22=1} vs eng4{k2=4,k4=1,k5=4,k6=3,k7=2}
+2026-05-22 11:23:06.724743: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:323] Device: NVIDIA GeForce GTX 1660 Ti
+2026-05-22 11:23:06.724804: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:324] Platform: Compute Capability 7.5
+2026-05-22 11:23:06.724817: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:325] Driver: 13.1.0
+2026-05-22 11:23:06.724826: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:326] Runtime: 12.5.0
+2026-05-22 11:23:06.724901: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:331] cudnn version: 9.3.0
+2026-05-22 11:23:06.944146: I external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:549] Omitted potentially buggy algorithm eng14{k2=4,k4=1,k5=3,k6=3,k7=2} for conv %cudnn-conv-bw-input.1 = (f16[128,1,11,64]{3,2,1,0}, u8[0]{0}) custom-call(f16[128,1,9,32]{3,2,1,0} %bitcast.5240, f16[32,1,3,64]{3,2,1,0} %bitcast.4160), window={size=1x3}, dim_labels=b01f_o01i->b01f, custom_call_target="__cudnn$convBackwardInput", metadata={op_type="Conv2DBackpropInput" op_name="gradient_tape/sequential_1_1/conv1d_1_2/convolution/Conv2DBackpropInput" source_file="/mnt/d/IST/.venv/lib/python3.11/site-packages/tensorflow/python/framework/ops.py" source_line=1200}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"conv_result_scale":1,"activation_mode":"kNone","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false}
+2026-05-22 11:23:06.956592: I external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:549] Omitted potentially buggy algorithm eng14{k2=3,k4=2,k5=3,k6=3,k7=2} for conv %cudnn-conv-bw-input.1 = (f16[128,1,11,64]{3,2,1,0}, u8[0]{0}) custom-call(f16[128,1,9,32]{3,2,1,0} %bitcast.5240, f16[32,1,3,64]{3,2,1,0} %bitcast.4160), window={size=1x3}, dim_labels=b01f_o01i->b01f, custom_call_target="__cudnn$convBackwardInput", metadata={op_type="Conv2DBackpropInput" op_name="gradient_tape/sequential_1_1/conv1d_1_2/convolution/Conv2DBackpropInput" source_file="/mnt/d/IST/.venv/lib/python3.11/site-packages/tensorflow/python/framework/ops.py" source_line=1200}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"conv_result_scale":1,"activation_mode":"kNone","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false}
+2026-05-22 11:23:07.051954: I external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:549] Omitted potentially buggy algorithm eng14{k2=0,k4=3,k5=3,k6=3,k7=2} for conv %cudnn-conv.5 = (f16[14,1,3,64]{3,2,1,0}, u8[0]{0}) custom-call(f16[14,1,24,128]{3,2,1,0} %bitcast.5197, f16[64,1,22,128]{3,2,1,0} %bitcast.5260), window={size=1x22}, dim_labels=b01f_o01i->b01f, custom_call_target="__cudnn$convForward", metadata={op_type="Conv2DBackpropFilter" op_name="gradient_tape/sequential_1_1/conv1d_1/convolution/Conv2DBackpropFilter" source_file="/mnt/d/IST/.venv/lib/python3.11/site-packages/tensorflow/python/framework/ops.py" source_line=1200}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"conv_result_scale":1,"activation_mode":"kNone","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false}
+2026-05-22 11:23:07.052043: I external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:549] Omitted potentially buggy algorithm eng14{k2=3,k4=2,k5=3,k6=3,k7=2} for conv %cudnn-conv.5 = (f16[14,1,3,64]{3,2,1,0}, u8[0]{0}) custom-call(f16[14,1,24,128]{3,2,1,0} %bitcast.5197, f16[64,1,22,128]{3,2,1,0} %bitcast.5260), window={size=1x22}, dim_labels=b01f_o01i->b01f, custom_call_target="__cudnn$convForward", metadata={op_type="Conv2DBackpropFilter" op_name="gradient_tape/sequential_1_1/conv1d_1/convolution/Conv2DBackpropFilter" source_file="/mnt/d/IST/.venv/lib/python3.11/site-packages/tensorflow/python/framework/ops.py" source_line=1200}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"conv_result_scale":1,"activation_mode":"kNone","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false}
+I0000 00:00:1779438190.061784     662 device_compiler.h:188] Compiled cluster using XLA!  This line is logged at most once for the lifetime of the process.
+2026-05-22 11:23:11.234385: I external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:549] Omitted potentially buggy algorithm eng14{k2=4,k4=1,k5=3,k6=3,k7=2} for conv %cudnn-conv-bw-input.1 = (f16[37,1,11,64]{3,2,1,0}, u8[0]{0}) custom-call(f16[37,1,9,32]{3,2,1,0} %bitcast.5256, f16[32,1,3,64]{3,2,1,0} %bitcast.4171), window={size=1x3}, dim_labels=b01f_o01i->b01f, custom_call_target="__cudnn$convBackwardInput", metadata={op_type="Conv2DBackpropInput" op_name="gradient_tape/sequential_1_1/conv1d_1_2/convolution/Conv2DBackpropInput" source_file="/mnt/d/IST/.venv/lib/python3.11/site-packages/tensorflow/python/framework/ops.py" source_line=1200}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"conv_result_scale":1,"activation_mode":"kNone","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false}
+2026-05-22 11:23:11.339755: I external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:549] Omitted potentially buggy algorithm eng14{k2=0,k4=3,k5=3,k6=3,k7=2} for conv %cudnn-conv.6 = (f16[14,1,3,64]{3,2,1,0}, u8[0]{0}) custom-call(f16[14,1,24,40]{3,2,1,0} %bitcast.5213, f16[64,1,22,40]{3,2,1,0} %bitcast.5278), window={size=1x22}, dim_labels=b01f_o01i->b01f, custom_call_target="__cudnn$convForward", metadata={op_type="Conv2DBackpropFilter" op_name="gradient_tape/sequential_1_1/conv1d_1/convolution/Conv2DBackpropFilter" source_file="/mnt/d/IST/.venv/lib/python3.11/site-packages/tensorflow/python/framework/ops.py" source_line=1200}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"conv_result_scale":1,"activation_mode":"kNone","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false}
+2026-05-22 11:23:11.466829: I external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:549] Omitted potentially buggy algorithm eng14{k2=4,k4=1,k5=4,k6=3,k7=2} for conv %cudnn-conv.6 = (f16[14,1,3,64]{3,2,1,0}, u8[0]{0}) custom-call(f16[14,1,24,40]{3,2,1,0} %bitcast.5213, f16[64,1,22,40]{3,2,1,0} %bitcast.5278), window={size=1x22}, dim_labels=b01f_o01i->b01f, custom_call_target="__cudnn$convForward", metadata={op_type="Conv2DBackpropFilter" op_name="gradient_tape/sequential_1_1/conv1d_1/convolution/Conv2DBackpropFilter" source_file="/mnt/d/IST/.venv/lib/python3.11/site-packages/tensorflow/python/framework/ops.py" source_line=1200}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"conv_result_scale":1,"activation_mode":"kNone","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false}
+E0000 00:00:1779438194.615403     661 buffer_comparator.cc:156] Difference at 0: 0.135864, expected -nan
+E0000 00:00:1779438194.615484     661 buffer_comparator.cc:156] Difference at 1: 0.141479, expected 0
+E0000 00:00:1779438194.615499     661 buffer_comparator.cc:156] Difference at 2: 0.149658, expected -nan
+E0000 00:00:1779438194.615505     661 buffer_comparator.cc:156] Difference at 3: 0.152954, expected 0
+E0000 00:00:1779438194.615552     661 buffer_comparator.cc:156] Difference at 4: 0.161499, expected -nan
+E0000 00:00:1779438194.615594     661 buffer_comparator.cc:156] Difference at 5: 0.174072, expected 0
+E0000 00:00:1779438194.615724     661 buffer_comparator.cc:156] Difference at 6: 0.205078, expected -nan
+E0000 00:00:1779438194.615783     661 buffer_comparator.cc:156] Difference at 7: 0.201782, expected 0
+E0000 00:00:1779438194.615835     661 buffer_comparator.cc:156] Difference at 8: 0.207153, expected -nan
+E0000 00:00:1779438194.615852     661 buffer_comparator.cc:156] Difference at 10: 0.22522, expected -nan
+2026-05-22 11:23:14.615957: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:764] Results mismatch between different convolution algorithms. This is likely a bug/unexpected loss of precision in cudnn.
+%cudnn-conv-bias-activation.6 = (f16[128,1,22,64]{3,2,1,0}, u8[0]{0}) custom-call(f16[128,1,24,14]{3,2,1,0} %bitcast.405, f16[64,1,3,14]{3,2,1,0} %bitcast.409, f16[64]{0} %bitcast.412), window={size=1x3}, dim_labels=b01f_o01i->b01f, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_type="Conv2D" op_name="sequential_1_1/conv1d_1/convolution" source_file="/mnt/d/IST/.venv/lib/python3.11/site-packages/tensorflow/python/framework/ops.py" source_line=1200}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"conv_result_scale":1,"activation_mode":"kRelu","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false} for eng31{k2=2,k6=1,k13=1,k14=0,k22=2} vs eng4{k2=3,k4=2,k5=3,k6=3,k7=2}
+2026-05-22 11:23:14.616017: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:323] Device: NVIDIA GeForce GTX 1660 Ti
+2026-05-22 11:23:14.616029: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:324] Platform: Compute Capability 7.5
+2026-05-22 11:23:14.616074: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:325] Driver: 13.1.0
+2026-05-22 11:23:14.616137: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:326] Runtime: 12.5.0
+2026-05-22 11:23:14.616213: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:331] cudnn version: 9.3.0
+E0000 00:00:1779438194.731967     661 buffer_comparator.cc:156] Difference at 0: 0.135864, expected -nan
+E0000 00:00:1779438194.732055     661 buffer_comparator.cc:156] Difference at 1: 0.141479, expected 0
+E0000 00:00:1779438194.732069     661 buffer_comparator.cc:156] Difference at 2: 0.149658, expected -nan
+E0000 00:00:1779438194.732075     661 buffer_comparator.cc:156] Difference at 3: 0.152954, expected 0
+E0000 00:00:1779438194.732081     661 buffer_comparator.cc:156] Difference at 4: 0.161499, expected -nan
+E0000 00:00:1779438194.732121     661 buffer_comparator.cc:156] Difference at 5: 0.174072, expected 0
+E0000 00:00:1779438194.732165     661 buffer_comparator.cc:156] Difference at 6: 0.205078, expected -nan
+E0000 00:00:1779438194.732209     661 buffer_comparator.cc:156] Difference at 7: 0.201782, expected 0
+E0000 00:00:1779438194.732251     661 buffer_comparator.cc:156] Difference at 8: 0.207153, expected -nan
+E0000 00:00:1779438194.732264     661 buffer_comparator.cc:156] Difference at 10: 0.22522, expected -nan
+2026-05-22 11:23:14.732293: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:764] Results mismatch between different convolution algorithms. This is likely a bug/unexpected loss of precision in cudnn.
+%cudnn-conv-bias-activation.6 = (f16[128,1,22,64]{3,2,1,0}, u8[0]{0}) custom-call(f16[128,1,24,14]{3,2,1,0} %bitcast.405, f16[64,1,3,14]{3,2,1,0} %bitcast.409, f16[64]{0} %bitcast.412), window={size=1x3}, dim_labels=b01f_o01i->b01f, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_type="Conv2D" op_name="sequential_1_1/conv1d_1/convolution" source_file="/mnt/d/IST/.venv/lib/python3.11/site-packages/tensorflow/python/framework/ops.py" source_line=1200}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"conv_result_scale":1,"activation_mode":"kRelu","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false} for eng31{k2=2,k6=1,k13=1,k14=0,k22=2} vs eng4{k2=4,k4=1,k5=4,k6=3,k7=2}
+2026-05-22 11:23:14.732366: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:323] Device: NVIDIA GeForce GTX 1660 Ti
+2026-05-22 11:23:14.732419: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:324] Platform: Compute Capability 7.5
+2026-05-22 11:23:14.732466: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:325] Driver: 13.1.0
+2026-05-22 11:23:14.732478: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:326] Runtime: 12.5.0
+2026-05-22 11:23:14.732492: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:331] cudnn version: 9.3.0
+E0000 00:00:1779438195.058888     661 buffer_comparator.cc:156] Difference at 0: 0.550293, expected -nan
+E0000 00:00:1779438195.058964     661 buffer_comparator.cc:156] Difference at 1: 0.532715, expected 0
+E0000 00:00:1779438195.058976     661 buffer_comparator.cc:156] Difference at 2: 0.598145, expected -nan
+E0000 00:00:1779438195.058981     661 buffer_comparator.cc:156] Difference at 3: 0.620117, expected 0
+E0000 00:00:1779438195.058986     661 buffer_comparator.cc:156] Difference at 4: 0.549805, expected -nan
+E0000 00:00:1779438195.059020     661 buffer_comparator.cc:156] Difference at 5: 0.525879, expected 0
+E0000 00:00:1779438195.059034     661 buffer_comparator.cc:156] Difference at 6: 0.517578, expected -nan
+E0000 00:00:1779438195.059039     661 buffer_comparator.cc:156] Difference at 7: 0.619141, expected 0
+E0000 00:00:1779438195.059044     661 buffer_comparator.cc:156] Difference at 8: 0.611816, expected -nan
+E0000 00:00:1779438195.059049     661 buffer_comparator.cc:156] Difference at 9: 0.512695, expected 0
+2026-05-22 11:23:15.059078: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:764] Results mismatch between different convolution algorithms. This is likely a bug/unexpected loss of precision in cudnn.
+%cudnn-conv-bias-activation.7 = (f16[128,1,9,32]{3,2,1,0}, u8[0]{0}) custom-call(f16[128,1,11,64]{3,2,1,0} %bitcast.419, f16[32,1,3,64]{3,2,1,0} %bitcast.423, f16[32]{0} %bitcast.426), window={size=1x3}, dim_labels=b01f_o01i->b01f, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_type="Conv2D" op_name="sequential_1_1/conv1d_1_2/convolution" source_file="/mnt/d/IST/.venv/lib/python3.11/site-packages/tensorflow/python/framework/ops.py" source_line=1200}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"conv_result_scale":1,"activation_mode":"kRelu","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false} for eng31{k2=15,k6=3,k13=1,k14=0,k22=1} vs eng4{k2=3,k4=2,k5=3,k6=3,k7=2}
+2026-05-22 11:23:15.059126: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:323] Device: NVIDIA GeForce GTX 1660 Ti
+2026-05-22 11:23:15.059135: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:324] Platform: Compute Capability 7.5
+2026-05-22 11:23:15.059141: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:325] Driver: 13.1.0
+2026-05-22 11:23:15.059172: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:326] Runtime: 12.5.0
+2026-05-22 11:23:15.059188: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:331] cudnn version: 9.3.0
+E0000 00:00:1779438195.066130     661 buffer_comparator.cc:156] Difference at 0: 0.550293, expected -nan
+E0000 00:00:1779438195.066208     661 buffer_comparator.cc:156] Difference at 1: 0.532715, expected 0
+E0000 00:00:1779438195.066220     661 buffer_comparator.cc:156] Difference at 2: 0.598145, expected -nan
+E0000 00:00:1779438195.066225     661 buffer_comparator.cc:156] Difference at 3: 0.620117, expected 0
+E0000 00:00:1779438195.066229     661 buffer_comparator.cc:156] Difference at 4: 0.549805, expected -nan
+E0000 00:00:1779438195.066262     661 buffer_comparator.cc:156] Difference at 5: 0.525879, expected 0
+E0000 00:00:1779438195.066276     661 buffer_comparator.cc:156] Difference at 6: 0.517578, expected -nan
+E0000 00:00:1779438195.066281     661 buffer_comparator.cc:156] Difference at 7: 0.619141, expected 0
+E0000 00:00:1779438195.066288     661 buffer_comparator.cc:156] Difference at 8: 0.611816, expected -nan
+E0000 00:00:1779438195.066294     661 buffer_comparator.cc:156] Difference at 9: 0.512695, expected 0
+2026-05-22 11:23:15.066321: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:764] Results mismatch between different convolution algorithms. This is likely a bug/unexpected loss of precision in cudnn.
+%cudnn-conv-bias-activation.7 = (f16[128,1,9,32]{3,2,1,0}, u8[0]{0}) custom-call(f16[128,1,11,64]{3,2,1,0} %bitcast.419, f16[32,1,3,64]{3,2,1,0} %bitcast.423, f16[32]{0} %bitcast.426), window={size=1x3}, dim_labels=b01f_o01i->b01f, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_type="Conv2D" op_name="sequential_1_1/conv1d_1_2/convolution" source_file="/mnt/d/IST/.venv/lib/python3.11/site-packages/tensorflow/python/framework/ops.py" source_line=1200}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"conv_result_scale":1,"activation_mode":"kRelu","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false} for eng31{k2=15,k6=3,k13=1,k14=0,k22=1} vs eng4{k2=4,k4=1,k5=4,k6=3,k7=2}
+2026-05-22 11:23:15.066370: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:323] Device: NVIDIA GeForce GTX 1660 Ti
+2026-05-22 11:23:15.066379: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:324] Platform: Compute Capability 7.5
+2026-05-22 11:23:15.066412: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:325] Driver: 13.1.0
+2026-05-22 11:23:15.066425: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:326] Runtime: 12.5.0
+2026-05-22 11:23:15.066440: E external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:331] cudnn version: 9.3.0
+/mnt/d/IST/orchestration/benchmark_runner.py:71: UserWarning: Ignoring unknown orchestration YAML keys: ['apply_atr_trailing', 'safe_threshold_mode', 'use_risk_bridge']
+  return OrchestratorConfig.from_yaml(load_canonical_config_path(config_path))
+/mnt/d/IST/orchestration/benchmark_runner.py:71: UserWarning: Ignoring unknown orchestration YAML keys: ['apply_atr_trailing', 'safe_threshold_mode', 'use_risk_bridge']
+  return OrchestratorConfig.from_yaml(load_canonical_config_path(config_path))
+2026-05-22 11:26:04.581497: I external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:549] Omitted potentially buggy algorithm eng14{k2=4,k4=1,k5=3,k6=3,k7=2} for conv %cudnn-conv-bw-input.1 = (f16[26,1,11,64]{3,2,1,0}, u8[0]{0}) custom-call(f16[26,1,9,32]{3,2,1,0} %bitcast.5256, f16[32,1,3,64]{3,2,1,0} %bitcast.4171), window={size=1x3}, dim_labels=b01f_o01i->b01f, custom_call_target="__cudnn$convBackwardInput", metadata={op_type="Conv2DBackpropInput" op_name="gradient_tape/sequential_1_1/conv1d_1_2/convolution/Conv2DBackpropInput" source_file="/mnt/d/IST/.venv/lib/python3.11/site-packages/tensorflow/python/framework/ops.py" source_line=1200}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"conv_result_scale":1,"activation_mode":"kNone","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false}
+2026-05-22 11:26:04.692885: I external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:549] Omitted potentially buggy algorithm eng14{k2=0,k4=3,k5=3,k6=3,k7=2} for conv %cudnn-conv.6 = (f16[14,1,3,64]{3,2,1,0}, u8[0]{0}) custom-call(f16[14,1,24,32]{3,2,1,0} %bitcast.5213, f16[64,1,22,32]{3,2,1,0} %bitcast.5278), window={size=1x22}, dim_labels=b01f_o01i->b01f, custom_call_target="__cudnn$convForward", metadata={op_type="Conv2DBackpropFilter" op_name="gradient_tape/sequential_1_1/conv1d_1/convolution/Conv2DBackpropFilter" source_file="/mnt/d/IST/.venv/lib/python3.11/site-packages/tensorflow/python/framework/ops.py" source_line=1200}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"conv_result_scale":1,"activation_mode":"kNone","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false}
+2026-05-22 11:26:04.800672: I external/local_xla/xla/service/gpu/autotuning/conv_algorithm_picker.cc:549] Omitted potentially buggy algorithm eng14{k2=4,k4=1,k5=4,k6=3,k7=2} for conv %cudnn-conv.6 = (f16[14,1,3,64]{3,2,1,0}, u8[0]{0}) custom-call(f16[14,1,24,32]{3,2,1,0} %bitcast.5213, f16[64,1,22,32]{3,2,1,0} %bitcast.5278), window={size=1x22}, dim_labels=b01f_o01i->b01f, custom_call_target="__cudnn$convForward", metadata={op_type="Conv2DBackpropFilter" op_name="gradient_tape/sequential_1_1/conv1d_1/convolution/Conv2DBackpropFilter" source_file="/mnt/d/IST/.venv/lib/python3.11/site-packages/tensorflow/python/framework/ops.py" source_line=1200}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"conv_result_scale":1,"activation_mode":"kNone","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false}
+/mnt/d/IST/orchestration/benchmark_runner.py:71: UserWarning: Ignoring unknown orchestration YAML keys: ['apply_atr_trailing', 'safe_threshold_mode', 'use_risk_bridge']
+  return OrchestratorConfig.from_yaml(load_canonical_config_path(config_path))
+/mnt/d/IST/orchestration/benchmark_runner.py:71: UserWarning: Ignoring unknown orchestration YAML keys: ['apply_atr_trailing', 'safe_threshold_mode', 'use_risk_bridge']
+  return OrchestratorConfig.from_yaml(load_canonical_config_path(config_path))
+/mnt/d/IST/orchestration/benchmark_runner.py:71: UserWarning: Ignoring unknown orchestration YAML keys: ['apply_atr_trailing', 'safe_threshold_mode', 'use_risk_bridge']
+  return OrchestratorConfig.from_yaml(load_canonical_config_path(config_path))
+/mnt/d/IST/orchestration/benchmark_runner.py:71: UserWarning: Ignoring unknown orchestration YAML keys: ['apply_atr_trailing', 'safe_threshold_mode', 'use_risk_bridge']
+  return OrchestratorConfig.from_yaml(load_canonical_config_path(config_path))
+/mnt/d/IST/orchestration/benchmark_runner.py:71: UserWarning: Ignoring unknown orchestration YAML keys: ['apply_atr_trailing', 'safe_threshold_mode', 'use_risk_bridge']
+  return OrchestratorConfig.from_yaml(load_canonical_config_path(config_path))
+/mnt/d/IST/orchestration/benchmark_runner.py:71: UserWarning: Ignoring unknown orchestration YAML keys: ['apply_atr_trailing', 'safe_threshold_mode', 'use_risk_bridge']
+  return OrchestratorConfig.from_yaml(load_canonical_config_path(config_path))
+/mnt/d/IST/orchestration/benchmark_runner.py:71: UserWarning: Ignoring unknown orchestration YAML keys: ['apply_atr_trailing', 'safe_threshold_mode', 'use_risk_bridge']
+  return OrchestratorConfig.from_yaml(load_canonical_config_path(config_path))
+/mnt/d/IST/orchestration/benchmark_runner.py:71: UserWarning: Ignoring unknown orchestration YAML keys: ['apply_atr_trailing', 'safe_threshold_mode', 'use_risk_bridge']
+  return OrchestratorConfig.from_yaml(load_canonical_config_path(config_path))
+/mnt/d/IST/orchestration/benchmark_runner.py:71: UserWarning: Ignoring unknown orchestration YAML keys: ['apply_atr_trailing', 'safe_threshold_mode', 'use_risk_bridge']
+  return OrchestratorConfig.from_yaml(load_canonical_config_path(config_path))
+/mnt/d/IST/orchestration/benchmark_runner.py:71: UserWarning: Ignoring unknown orchestration YAML keys: ['apply_atr_trailing', 'safe_threshold_mode', 'use_risk_bridge']
+  return OrchestratorConfig.from_yaml(load_canonical_config_path(config_path))
+/mnt/d/IST/orchestration/benchmark_runner.py:71: UserWarning: Ignoring unknown orchestration YAML keys: ['apply_atr_trailing', 'safe_threshold_mode', 'use_risk_bridge']
+  return OrchestratorConfig.from_yaml(load_canonical_config_path(config_path))
+/mnt/d/IST/orchestration/benchmark_runner.py:71: UserWarning: Ignoring unknown orchestration YAML keys: ['apply_atr_trailing', 'safe_threshold_mode', 'use_risk_bridge']
+  return OrchestratorConfig.from_yaml(load_canonical_config_path(config_path))
+/mnt/d/IST/orchestration/benchmark_runner.py:71: UserWarning: Ignoring unknown orchestration YAML keys: ['apply_atr_trailing', 'safe_threshold_mode', 'use_risk_bridge']
+  return OrchestratorConfig.from_yaml(load_canonical_config_path(config_path))
+/mnt/d/IST/orchestration/benchmark_runner.py:71: UserWarning: Ignoring unknown orchestration YAML keys: ['apply_atr_trailing', 'safe_threshold_mode', 'use_risk_bridge']
+  return OrchestratorConfig.from_yaml(load_canonical_config_path(config_path))
+/mnt/d/IST/orchestration/benchmark_runner.py:71: UserWarning: Ignoring unknown orchestration YAML keys: ['apply_atr_trailing', 'safe_threshold_mode', 'use_risk_bridge']
+  return OrchestratorConfig.from_yaml(load_canonical_config_path(config_path)) 

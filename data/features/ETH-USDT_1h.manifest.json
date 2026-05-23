@@ -1,0 +1,12 @@
+{
+  "symbol": "ETH-USDT",
+  "timeframe": "1h",
+  "slug": "ETH-USDT_1h",
+  "built_at": "2026-05-22T14:17:46Z",
+  "config_path": "config/profiles/canonical_4model.yaml",
+  "config_hash": "2ec10ea180db7c95",
+  "row_count": 38359,
+  "columns_hash": "e713cfc466fbc27c",
+  "features_parquet": "/mnt/d/IST/data/features/ETH-USDT_1h.parquet",
+  "ohlcv_parquet": "/mnt/d/IST/data/ohlcv/ETH-USDT_1h.parquet"
+}

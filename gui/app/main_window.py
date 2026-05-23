@@ -1,27 +1,18 @@
-"""IST main window — tab shell + symbol toolbar."""
+"""IST main window — 3 вкладки: График, Задачи, Конфигурация."""
 
 from __future__ import annotations
 
 from typing import Dict, Optional
 
 from PyQt6.QtCore import QSettings, QTimer
-from PyQt6.QtWidgets import (
-    QMainWindow,
-    QMessageBox,
-    QStatusBar,
-    QTabWidget,
-    QWidget,
-)
+from PyQt6.QtWidgets import QMainWindow, QStatusBar, QTabWidget, QVBoxLayout, QWidget
 
 from gui.api import IstGuiClient
 from gui.api.types import SymbolEntry
 from gui.app import i18n_ru as ru
-from gui.app.views.backtests_view import BacktestsView
-from gui.app.views.chart_view import ChartView
-from gui.app.views.execution_view import ExecutionView
-from gui.app.views.jobs_view import JobsView
-from gui.app.views.models_view import ModelsView
-from gui.app.views.overview_view import OverviewView
+from gui.app.views.chart_hub_view import ChartHubView
+from gui.app.views.jobs_hub_view import JobsHubView
+from gui.app.views.regime_view import RegimeView
 from gui.app.views.settings_view import SettingsView
 from gui.app.widgets.symbol_toolbar import SymbolToolbar
 from gui.app.workers import LoadOkxMarketsWorker, ResolveSymbolWorker
@@ -37,34 +28,36 @@ class MainWindow(QMainWindow):
 
         central = QWidget()
         self.setCentralWidget(central)
-        from PyQt6.QtWidgets import QVBoxLayout
-
         layout = QVBoxLayout(central)
 
         self._toolbar = SymbolToolbar()
         layout.addWidget(self._toolbar)
 
+        self._chart_hub = ChartHubView(self._api)
+        self._regime = RegimeView(self._api)
+        self._jobs_hub = JobsHubView(self._api)
+        self._config = SettingsView(self._api)
+
         self._tabs = QTabWidget()
         self._views: Dict[str, QWidget] = {
-            ru.TAB_OVERVIEW: OverviewView(self._api),
-            ru.TAB_CHART: ChartView(self._api),
-            ru.TAB_MODELS: ModelsView(self._api),
-            ru.TAB_BACKTESTS: BacktestsView(self._api),
-            ru.TAB_EXECUTION: ExecutionView(self._api),
-            ru.TAB_JOBS: JobsView(self._api),
-            ru.TAB_CONFIG: SettingsView(self._api),
+            ru.TAB_CHART: self._chart_hub,
+            ru.TAB_REGIME: self._regime,
+            ru.TAB_JOBS: self._jobs_hub,
+            ru.TAB_CONFIG: self._config,
         }
         for name, view in self._views.items():
             self._tabs.addTab(view, name)
-            if name == ru.TAB_JOBS and hasattr(view, "pipeline_finished"):
-                view.pipeline_finished.connect(self._on_pipeline_finished)
+
+        self._jobs_hub.pipeline_finished.connect(self._on_pipeline_finished)
+        self._config.config_saved.connect(self._on_config_saved)
+
         layout.addWidget(self._tabs, stretch=1)
 
         self.setStatusBar(QStatusBar())
         self.statusBar().showMessage("Загрузка списка пар OKX…")
 
         self._toolbar.symbol_changed.connect(self._on_symbol_changed)
-        self._tabs.currentChanged.connect(self._refresh_current_tab)
+        self._tabs.currentChanged.connect(self._on_tab_changed)
 
         interval = int(self._settings.value("refresh_interval_sec", 0) or 0)
         self._auto_timer = QTimer(self)
@@ -113,6 +106,12 @@ class MainWindow(QMainWindow):
 
     def _on_pipeline_finished(self) -> None:
         self._resolve_pipeline_status()
+        self._jobs_hub.refresh_journal()
+        self._refresh_current_tab()
+
+    def _on_config_saved(self) -> None:
+        self._resolve_pipeline_status()
+        self._chart_hub.overview.refresh()
         self._refresh_current_tab()
 
     def _on_symbol_changed(self, symbol: str, timeframe: str) -> None:
@@ -120,6 +119,9 @@ class MainWindow(QMainWindow):
             if hasattr(view, "set_context"):
                 view.set_context(symbol, timeframe)
         self._resolve_pipeline_status()
+        self._refresh_current_tab()
+
+    def _on_tab_changed(self, _index: int) -> None:
         self._refresh_current_tab()
 
     def _refresh_current_tab(self) -> None:

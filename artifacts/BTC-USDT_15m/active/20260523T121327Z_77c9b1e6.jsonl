@@ -1,0 +1,6 @@
+{"step": "start", "symbol": "BTC-USDT", "timeframe": "15m", "slug": "BTC-USDT_15m", "ts": "2026-05-23T12:13:27+00:00"}
+{"step": "download", "status": "begin", "profile": "canonical_4model", "ts": "2026-05-23T12:13:33+00:00"}
+{"step": "download", "status": "done", "parquet": "D:\\IST\\data\\ohlcv\\BTC-USDT_15m.parquet", "ts": "2026-05-23T12:40:22+00:00"}
+{"step": "features", "status": "begin", "profile": "canonical_4model", "ts": "2026-05-23T12:40:22+00:00"}
+{"step": "features", "status": "done", "rows": 153521, "train_rows": 122816, "holdout_rows": 30705, "train_span": {"start": "2022-01-05 08:00:00+00:00", "end": "2025-07-07 15:45:00+00:00", "rows": 122816}, "holdout_span": {"start": "2025-07-07 16:00:00+00:00", "end": "2026-05-23 12:00:00+00:00", "rows": 30705}, "ts": "2026-05-23T12:40:23+00:00"}
+{"step": "tune", "status": "begin", "max_trials": 30, "ts": "2026-05-23T12:40:23+00:00"}
