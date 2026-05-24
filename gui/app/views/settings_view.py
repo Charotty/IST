@@ -42,6 +42,7 @@ class SettingsView(QWidget):
         self._settings = QSettings("IST", "Desktop")
         self._explain_worker: Optional[ExplainWorker] = None
         self._accept_worker = None
+        self._yaml_snapshot = ""
 
         outer = QVBoxLayout(self)
         scroll = QScrollArea()
@@ -219,6 +220,7 @@ class SettingsView(QWidget):
 
             text, _ = self._api.config.load_raw_yaml(self._symbol, self._timeframe)
             self._yaml_edit.setPlainText(text)
+            self._yaml_snapshot = text.strip()
             merged = self._api.config.merged(self._symbol, self._timeframe)
             self._merged_view.setPlainText(json.dumps(merged, indent=2, ensure_ascii=False, default=str))
             self._result.setPlainText(f"Загружено для {self._symbol} {self._timeframe}")
@@ -276,7 +278,7 @@ class SettingsView(QWidget):
                 self._symbol, self._timeframe, self._collect_values()
             )
             yaml_text = self._yaml_edit.toPlainText().strip()
-            if yaml_text:
+            if yaml_text and yaml_text != self._yaml_snapshot:
                 path = self._api.config.save_raw_yaml(self._symbol, self._timeframe, yaml_text)
             self._result.setPlainText(f"Сохранено: {path}")
             QMessageBox.information(self, "Конфигурация", f"Сохранено:\n{path}")

@@ -520,3 +520,108 @@ class PaperAccountWorker(QThread):
     def run(self) -> None:
         snap: ExecutionAccountSnapshot = self._session.account_snapshot()
         self.finished.emit(snap)
+
+
+class PaperReplayWorker(QThread):
+    finished = pyqtSignal(object)
+    failed = pyqtSignal(str)
+
+    def __init__(
+        self,
+        symbol: str,
+        timeframe: str,
+        *,
+        n_bars: int = 300,
+        window: int = 256,
+        initial_balance: float = 10_000.0,
+        api: Optional[IstGuiClient] = None,
+    ):
+        super().__init__()
+        self._api = api or IstGuiClient()
+        self._symbol = symbol
+        self._tf = timeframe
+        self._n_bars = n_bars
+        self._window = window
+        self._balance = initial_balance
+
+    def run(self) -> None:
+        try:
+            result = self._api.paper_evidence.run_replay(
+                self._symbol,
+                self._tf,
+                n_bars=self._n_bars,
+                window=self._window,
+                initial_balance=self._balance,
+            )
+            self.finished.emit(result)
+        except Exception as e:
+            self.failed.emit(str(e))
+
+
+class PaperSignalsWorker(QThread):
+    finished = pyqtSignal(object)
+    failed = pyqtSignal(str)
+
+    def __init__(
+        self,
+        symbol: str,
+        timeframe: str,
+        *,
+        n_bars: int = 300,
+        window: int = 256,
+        api: Optional[IstGuiClient] = None,
+    ):
+        super().__init__()
+        self._api = api or IstGuiClient()
+        self._symbol = symbol
+        self._tf = timeframe
+        self._n_bars = n_bars
+        self._window = window
+
+    def run(self) -> None:
+        try:
+            bundle_dir, decisions = self._api.paper_evidence.collect_decisions(
+                self._symbol,
+                self._tf,
+                n_bars=self._n_bars,
+                window=self._window,
+            )
+            self.finished.emit((bundle_dir, decisions))
+        except Exception as e:
+            self.failed.emit(str(e))
+
+
+class PaperCalibrationWorker(QThread):
+    finished = pyqtSignal(object)
+    failed = pyqtSignal(str)
+
+    def __init__(
+        self,
+        symbol: str,
+        timeframe: str,
+        *,
+        n_bars: int = 500,
+        window: int = 256,
+        n_buckets: int = 8,
+        api: Optional[IstGuiClient] = None,
+    ):
+        super().__init__()
+        self._api = api or IstGuiClient()
+        self._symbol = symbol
+        self._tf = timeframe
+        self._n_bars = n_bars
+        self._window = window
+        self._n_buckets = n_buckets
+
+    def run(self) -> None:
+        try:
+            result = self._api.paper_evidence.calibration(
+                self._symbol,
+                self._tf,
+                n_bars=self._n_bars,
+                window=self._window,
+                n_buckets=self._n_buckets,
+            )
+            self.finished.emit(result)
+        except Exception as e:
+            self.failed.emit(str(e))

@@ -33,6 +33,7 @@ from gui.api.demo_api import (
 )
 from gui.api.execution_api import ExecutionApi
 from gui.api.reconcile_api import ReconcileApi
+from gui.api.paper_evidence_api import PaperEvidenceApi
 from gui.api.inference_api import InferenceApi
 from gui.api.jobs_api import JobsApi
 from gui.api.config_api import ConfigApi
@@ -67,6 +68,7 @@ class IstGuiClient:
             self.cli = DemoCliApi()
             self.execution = DemoExecutionApi()
             self.reconcile = DemoReconcileApi()
+            self.paper_evidence = PaperEvidenceApi()
         else:
             self.symbols = SymbolsApi()
             self.bundles = BundlesApi()
@@ -76,3 +78,4 @@ class IstGuiClient:
             self.cli = CliApi()
             self.execution = ExecutionApi()
             self.reconcile = ReconcileApi()
+            self.paper_evidence = PaperEvidenceApi()

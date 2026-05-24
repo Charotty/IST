@@ -1,17 +1,10 @@
-"""Overview tab — explain card + decision steps."""
+"""Overview tab — карточка решения на последнем баре."""
 
 from __future__ import annotations
 
 from typing import Optional
 
-from PyQt6.QtWidgets import (
-    QLabel,
-    QListWidget,
-    QListWidgetItem,
-    QScrollArea,
-    QVBoxLayout,
-    QWidget,
-)
+from PyQt6.QtWidgets import QScrollArea, QVBoxLayout, QWidget
 
 from gui.api import IstGuiClient
 from gui.api.types import ExplainSnapshot
@@ -37,16 +30,6 @@ class OverviewView(QWidget):
 
         self._explain = ExplainCard()
         layout.addWidget(self._explain)
-
-        steps_title = QLabel(
-            "Шаги decision pipeline — проверки на последнем баре (✓ прошло / ✗ нет)"
-        )
-        steps_title.setWordWrap(True)
-        steps_title.setStyleSheet("color: #555; font-size: 11px;")
-        layout.addWidget(steps_title)
-        self._steps = QListWidget()
-        self._steps.setMinimumHeight(120)
-        layout.addWidget(self._steps)
         layout.addStretch()
 
         scroll.setWidget(body)
@@ -60,7 +43,6 @@ class OverviewView(QWidget):
         if self._worker and self._worker.isRunning():
             return
         self._explain.set_loading()
-        self._steps.clear()
         self._worker = ExplainWorker(
             self._symbol, self._timeframe, window=256, api=self._api
         )
@@ -70,44 +52,3 @@ class OverviewView(QWidget):
 
     def _on_explain(self, snap: ExplainSnapshot) -> None:
         self._explain.set_snapshot(snap)
-        self._fill_steps(snap)
-
-    def _fill_steps(self, snap: ExplainSnapshot) -> None:
-        self._steps.clear()
-        cfg = snap.config or {}
-        thr = float(cfg.get("direction_threshold", 0.52))
-        margin = float(cfg.get("min_signal_margin", 0.0))
-
-        p = snap.meta_probability
-        items = [
-            (
-                f"P(up) ансамбля = {p:.4f} (порог направления thr={thr})",
-                abs(p - 0.5) >= (thr - 0.5),
-            ),
-            (
-                f"Итог: {snap.direction.upper()} (сигнал {snap.signal})",
-                snap.signal != 0,
-            ),
-            (
-                "Нет блокировки risk/decision (см. поле «Блокировка»)",
-                snap.why_blocked is None,
-            ),
-            (
-                f"Вне мёртвой зоны: |P−0.5| ≥ margin ({margin})",
-                margin <= 0 or abs(p - 0.5) >= margin,
-            ),
-            (
-                f"trade_mode={cfg.get('trade_mode', 'both')} допускает сторону",
-                True,
-            ),
-            (
-                f"Доля позиции > 0: {snap.position_size_frac:.4f}",
-                snap.position_size_frac > 0,
-            ),
-        ]
-        for text, ok in items:
-            mark = "✓" if ok else "✗"
-            item = QListWidgetItem(f"{mark}  {text}")
-            if not ok:
-                item.setForeground(item.foreground().color().darker(150))
-            self._steps.addItem(item)

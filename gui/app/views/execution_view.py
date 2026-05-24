@@ -1,21 +1,19 @@
-"""Вкладка исполнения — paper trading и сверка с Backtester."""
+"""Вкладка «Практика» — replay, сигналы на графике, калибровка прогноза."""
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
-from PyQt6.QtCore import QTimer, Qt
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
-    QComboBox,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
-    QPlainTextEdit,
     QPushButton,
-    QScrollArea,
     QSpinBox,
-    QSplitter,
+    QTabWidget,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -23,10 +21,12 @@ from PyQt6.QtWidgets import (
 )
 
 from gui.api import IstGuiClient
-from gui.api.execution_api import PaperExecutionSession
-from gui.api.types import ExecutionAccountSnapshot, ExecutionStepResult, OrderRecord
 from gui.app.widgets.help_label import help_label
-from gui.app.workers import PaperCompareWorker, PaperConnectWorker, PaperStepWorker
+from gui.app.workers import (
+    PaperCalibrationWorker,
+    PaperReplayWorker,
+    PaperSignalsWorker,
+)
 
 try:
     import numpy as np
@@ -38,380 +38,400 @@ except ImportError:
 
 
 class ExecutionView(QWidget):
+    """Практическая проверка модели (frozen bundle, без OKX API)."""
+
     def __init__(self, api: Optional[IstGuiClient] = None, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self._symbol = "BTC/USDT"
         self._timeframe = "1h"
         self._api = api or IstGuiClient()
-        self._session: Optional[PaperExecutionSession] = None
-        self._connect_worker: Optional[PaperConnectWorker] = None
-        self._step_worker: Optional[PaperStepWorker] = None
-        self._compare_worker: Optional[PaperCompareWorker] = None
-        self._last_step: Optional[ExecutionStepResult] = None
-        self._orders: List[OrderRecord] = []
-        self._balance_history: List[float] = []
-        self._balance_step = 0
+        self._replay_worker: Optional[PaperReplayWorker] = None
+        self._signals_worker: Optional[PaperSignalsWorker] = None
+        self._cal_worker: Optional[PaperCalibrationWorker] = None
+        self._last_decisions = None
 
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        body = QWidget()
-        layout = QVBoxLayout(body)
-
-        about = help_label(
-            "<b>Исполнение (paper)</b> — симуляция сделок на последнем баре: "
-            "inference → сигнал → ордер в виртуальном брокере. "
-            "Не путать с графиком OKX: здесь проверяется цепочка «решение → позиция → комиссии». "
-            "Сверка с Backtester показывает расхождение тайминга (close vs shift(1)).",
-            background="#e8f5e9",
-            border="#a5d6a7",
+        layout = QVBoxLayout(self)
+        layout.addWidget(
+            help_label(
+                "<b>Практика</b> — проверка работы модели без биржи: прогон по последним N барам "
+                "на <b>замороженном bundle</b> (без переобучения). "
+                "Replay сравнивает paper-брокер и Backtester; график сигналов показывает, "
+                "когда система входит в рынок; калибровка — средняя доходность следующего бара "
+                "по корзинам meta_probability (канон shift(1)).",
+                background="#e8f5e9",
+                border="#a5d6a7",
+            )
         )
-        layout.addWidget(about)
 
-        mode_row = QHBoxLayout()
-        mode_row.addWidget(QLabel("Режим:"))
-        self._mode = QComboBox()
-        self._mode.addItems(["Paper (симуляция)", "Live (нужны ключи OKX)"])
-        self._mode.setCurrentIndex(0)
-        self._mode.setEnabled(False)
-        mode_row.addWidget(self._mode)
-        self._live_hint = QLabel("")
-        self._live_hint.setStyleSheet("color: #666;")
-        mode_row.addWidget(self._live_hint, stretch=1)
-        layout.addLayout(mode_row)
-
-        conn = QHBoxLayout()
-        self._btn_connect = QPushButton("Подключить paper")
-        self._btn_disconnect = QPushButton("Отключить")
-        self._btn_disconnect.setEnabled(False)
-        self._btn_reset = QPushButton("Сброс портфеля")
-        self._btn_emergency = QPushButton("Аварийная остановка")
-        self._btn_emergency.setEnabled(False)
-        conn.addWidget(self._btn_connect)
-        conn.addWidget(self._btn_disconnect)
-        conn.addWidget(self._btn_reset)
-        conn.addWidget(self._btn_emergency)
-        conn.addStretch()
-        layout.addLayout(conn)
-
-        acct_box = QGroupBox("Счёт")
-        acct_form = QFormLayout(acct_box)
-        self._balance = QLabel("—")
-        self._pnl = QLabel("—")
-        self._fees = QLabel("—")
-        self._status_conn = QLabel("Не подключено")
-        acct_form.addRow("Статус:", self._status_conn)
-        acct_form.addRow("Баланс:", self._balance)
-        acct_form.addRow("PnL к началу:", self._pnl)
-        acct_form.addRow("Комиссии:", self._fees)
-        layout.addWidget(acct_box)
-
-        split = QSplitter(Qt.Orientation.Horizontal)
-
-        left = QWidget()
-        left_l = QVBoxLayout(left)
-        left_l.addWidget(QLabel("Позиции"))
-        self._positions = QTableWidget(0, 4)
-        self._positions.setHorizontalHeaderLabels(
-            ["Символ", "Кол-во", "Вход", "uPnL"]
-        )
-        self._positions.horizontalHeader().setStretchLastSection(True)
-        left_l.addWidget(self._positions)
-
-        left_l.addWidget(QLabel("Ордера"))
-        self._orders_table = QTableWidget(0, 6)
-        self._orders_table.setHorizontalHeaderLabels(
-            ["ID", "Сторона", "Статус", "Кол-во", "Цена", "Комиссия"]
-        )
-        self._orders_table.horizontalHeader().setStretchLastSection(True)
-        left_l.addWidget(self._orders_table)
-        if _HAS_PG:
-            self._bal_plot = pg.PlotWidget(title="Баланс по шагам")
-            self._bal_plot.setMaximumHeight(160)
-            self._bal_plot.showGrid(x=True, y=True, alpha=0.3)
-            left_l.addWidget(self._bal_plot)
-        else:
-            self._bal_plot = None
-        split.addWidget(left)
-
-        right = QWidget()
-        right_l = QVBoxLayout(right)
-        step_box = QGroupBox("Инференс + исполнение (последний бар)")
-        step_l = QVBoxLayout(step_box)
-        row = QHBoxLayout()
-        self._btn_step = QPushButton("Выполнить шаг")
-        self._btn_step.setEnabled(False)
-        self._btn_batch = QPushButton("Серия шагов")
-        self._btn_batch.setEnabled(False)
-        self._batch_n = QSpinBox()
-        self._batch_n.setRange(2, 50)
-        self._batch_n.setValue(5)
-        self._auto = QComboBox()
-        self._auto.addItems(["Вручную", "Авто каждые 30 с", "Авто каждые 60 с"])
+        params = QHBoxLayout()
+        params.addWidget(QLabel("Баров:"))
+        self._n_bars = QSpinBox()
+        self._n_bars.setRange(50, 2000)
+        self._n_bars.setValue(300)
+        params.addWidget(self._n_bars)
+        params.addWidget(QLabel("Окно inference:"))
         self._window = QSpinBox()
         self._window.setRange(64, 512)
         self._window.setValue(256)
-        row.addWidget(self._btn_step)
-        row.addWidget(self._btn_batch)
-        row.addWidget(QLabel("×"))
-        row.addWidget(self._batch_n)
-        row.addWidget(QLabel("Окно:"))
-        row.addWidget(self._window)
-        row.addWidget(self._auto)
-        step_l.addLayout(row)
-        self._batch_remaining = 0
-        self._step_log = QPlainTextEdit()
-        self._step_log.setReadOnly(True)
-        step_l.addWidget(self._step_log)
+        params.addWidget(self._window)
+        params.addWidget(QLabel("Старт USDT:"))
+        self._balance = QSpinBox()
+        self._balance.setRange(1000, 1_000_000)
+        self._balance.setSingleStep(1000)
+        self._balance.setValue(10_000)
+        params.addWidget(self._balance)
+        self._bundle_lbl = QLabel("Bundle: —")
+        self._bundle_lbl.setStyleSheet("color: #555;")
+        params.addWidget(self._bundle_lbl, stretch=1)
+        layout.addLayout(params)
 
-        compare_box = QGroupBox("Сверка с Backtester (тот же бар)")
-        compare_l = QVBoxLayout(compare_box)
-        self._compare_text = QPlainTextEdit()
-        self._compare_text.setReadOnly(True)
-        self._compare_text.setPlaceholderText(
-            "После шага появится сравнение paper и векторного бэктеста…"
+        self._tabs = QTabWidget()
+        self._tabs.addTab(self._build_replay_tab(), "1. Практический прогон")
+        self._tabs.addTab(self._build_signals_tab(), "2. Сигналы и цена")
+        self._tabs.addTab(self._build_calibration_tab(), "3. Калибровка")
+        layout.addWidget(self._tabs, stretch=1)
+
+    def _build_replay_tab(self) -> QWidget:
+        w = QWidget()
+        v = QVBoxLayout(w)
+        row = QHBoxLayout()
+        self._btn_replay = QPushButton("Запустить replay")
+        self._btn_replay.clicked.connect(self._run_replay)
+        row.addWidget(self._btn_replay)
+        self._replay_status = QLabel("")
+        row.addWidget(self._replay_status, stretch=1)
+        v.addLayout(row)
+
+        self._replay_summary = QLabel("—")
+        self._replay_summary.setWordWrap(True)
+        v.addWidget(self._replay_summary)
+
+        if _HAS_PG:
+            self._replay_plot = pg.PlotWidget(title="Equity: Paper vs Backtester")
+            self._replay_plot.addLegend(offset=(10, 10))
+            self._replay_plot.showGrid(x=True, y=True, alpha=0.3)
+            self._replay_plot.setLabel("left", "USDT")
+            self._replay_plot.setMinimumHeight(220)
+            v.addWidget(self._replay_plot)
+        else:
+            self._replay_plot = None
+            v.addWidget(QLabel("Установите pyqtgraph для графиков."))
+
+        v.addWidget(QLabel("Сделки paper"))
+        self._trades_table = QTableWidget(0, 6)
+        self._trades_table.setHorizontalHeaderLabels(
+            ["Время", "Сторона", "Кол-во", "Цена", "Комиссия", "Баланс"]
         )
-        self._compare_text.setMaximumHeight(220)
-        compare_l.addWidget(self._compare_text)
-        step_l.addWidget(compare_box)
+        self._trades_table.horizontalHeader().setStretchLastSection(True)
+        v.addWidget(self._trades_table)
+        return w
 
-        right_l.addWidget(step_box)
-        split.addWidget(right)
-        split.setSizes([480, 400])
-        split.setMinimumHeight(420)
-        layout.addWidget(split, stretch=1)
+    def _build_signals_tab(self) -> QWidget:
+        w = QWidget()
+        v = QVBoxLayout(w)
+        row = QHBoxLayout()
+        self._btn_signals = QPushButton("Построить график")
+        self._btn_signals.clicked.connect(self._run_signals)
+        row.addWidget(self._btn_signals)
+        self._signals_status = QLabel("")
+        row.addWidget(self._signals_status, stretch=1)
+        v.addLayout(row)
 
-        scroll.setWidget(body)
-        outer.addWidget(scroll)
+        if _HAS_PG:
+            self._sig_plot = pg.PlotWidget(title="Close и сигналы")
+            self._sig_plot.showGrid(x=True, y=True, alpha=0.3)
+            self._sig_plot.setLabel("left", "Цена")
+            self._sig_plot.setMinimumHeight(280)
+            v.addWidget(self._sig_plot, stretch=2)
+            self._p_plot = pg.PlotWidget(title="Meta probability")
+            self._p_plot.showGrid(x=True, y=True, alpha=0.3)
+            self._p_plot.setLabel("left", "p")
+            self._p_plot.setMaximumHeight(140)
+            v.addWidget(self._p_plot)
+        else:
+            self._sig_plot = None
+            self._p_plot = None
+        self._signals_legend = QLabel(
+            "● long  ● short  |  фон: trend (светло-зелёный) / range (светло-серый)"
+        )
+        self._signals_legend.setStyleSheet("color: #666;")
+        v.addWidget(self._signals_legend)
+        return w
 
-        self._auto_timer = QTimer(self)
-        self._auto_timer.timeout.connect(self._on_auto_timer)
-
-        self._btn_connect.clicked.connect(self._connect_paper)
-        self._btn_disconnect.clicked.connect(self._disconnect)
-        self._btn_reset.clicked.connect(self._reset_portfolio)
-        self._btn_emergency.clicked.connect(self._emergency_stop)
-        self._btn_step.clicked.connect(self._run_step)
-        self._btn_batch.clicked.connect(self._run_batch)
-        self._auto.currentIndexChanged.connect(self._on_auto_changed)
-
-        self._update_live_hint()
+    def _build_calibration_tab(self) -> QWidget:
+        w = QWidget()
+        v = QVBoxLayout(w)
+        row = QHBoxLayout()
+        row.addWidget(QLabel("Корзин:"))
+        self._n_buckets = QSpinBox()
+        self._n_buckets.setRange(4, 16)
+        self._n_buckets.setValue(8)
+        row.addWidget(self._n_buckets)
+        self._btn_cal = QPushButton("Рассчитать калибровку")
+        self._btn_cal.clicked.connect(self._run_calibration)
+        row.addWidget(self._btn_cal)
+        self._cal_status = QLabel("")
+        row.addWidget(self._cal_status, stretch=1)
+        v.addLayout(row)
+        self._cal_summary = QLabel("—")
+        self._cal_summary.setWordWrap(True)
+        v.addWidget(self._cal_summary)
+        if _HAS_PG:
+            self._cal_plot = pg.PlotWidget(title="Средняя net-доходность след. бара (%) по p[t-1]")
+            self._cal_plot.showGrid(x=True, y=True, alpha=0.3)
+            self._cal_plot.setMinimumHeight(260)
+            v.addWidget(self._cal_plot, stretch=1)
+        else:
+            self._cal_plot = None
+        return w
 
     def set_context(self, symbol: str, timeframe: str) -> None:
         self._symbol = symbol
         self._timeframe = timeframe
+        self._bundle_lbl.setText("Bundle: (запустите расчёт)")
 
     def refresh(self) -> None:
-        self._update_live_hint()
-        if self._session and self._session.connected:
-            self._refresh_account()
+        pass
 
-    def _update_live_hint(self) -> None:
-        if self._api.execution.live_available():
-            self._live_hint.setText("Ключи OKX в env найдены — live в следующих версиях")
-        else:
-            self._live_hint.setText("Для live: OKX_API_KEY, OKX_SECRET_KEY, OKX_PASSPHRASE")
+    def _guard_demo(self) -> bool:
+        if getattr(self._api, "demo", False):
+            self._replay_status.setText("Демо-режим: нужны реальные bundle и parquet.")
+            return True
+        return False
 
-    def _connect_paper(self) -> None:
-        if self._connect_worker and self._connect_worker.isRunning():
+    def _run_replay(self) -> None:
+        if self._guard_demo():
             return
-        self._btn_connect.setEnabled(False)
-        self._connect_worker = PaperConnectWorker(api=self._api)
-        self._connect_worker.finished.connect(self._on_connected)
-        self._connect_worker.failed.connect(self._on_connect_failed)
-        self._connect_worker.start()
-
-    def _on_connected(self, session: PaperExecutionSession) -> None:
-        self._session = session
-        self._btn_connect.setEnabled(False)
-        self._btn_disconnect.setEnabled(True)
-        self._btn_step.setEnabled(True)
-        self._btn_batch.setEnabled(True)
-        self._btn_emergency.setEnabled(True)
-        self._btn_reset.setEnabled(True)
-        self._status_conn.setText("Подключено (paper)")
-        self._status_conn.setStyleSheet("color: #2e7d32; font-weight: bold;")
-        self._append_log("Paper-сессия подключена.")
-        self._balance_step = 0
-        self._balance_history = [float(session.config.initial_balance)]
-        self._plot_balance()
-        self._refresh_account(record_balance_step=False)
-
-    def _on_connect_failed(self, msg: str) -> None:
-        self._btn_connect.setEnabled(True)
-        self._append_log(f"Ошибка подключения: {msg}")
-
-    def _disconnect(self) -> None:
-        self._auto_timer.stop()
-        if self._session:
-            self._session.disconnect()
-            self._session = None
-        self._btn_connect.setEnabled(True)
-        self._btn_disconnect.setEnabled(False)
-        self._btn_step.setEnabled(False)
-        self._btn_batch.setEnabled(False)
-        self._btn_emergency.setEnabled(False)
-        self._status_conn.setText("Не подключено")
-        self._status_conn.setStyleSheet("color: #c62828;")
-        self._append_log("Отключено.")
-        self._compare_text.clear()
-
-    def _reset_portfolio(self) -> None:
-        if self._session:
-            self._session.reset()
-            self._balance_step = 0
-            self._balance_history.clear()
-            self._plot_balance()
-            self._append_log("Портфель сброшен.")
-            self._refresh_account()
-
-    def _emergency_stop(self) -> None:
-        if not self._session:
+        if self._replay_worker and self._replay_worker.isRunning():
             return
-        n = self._session.emergency_stop()
-        self._auto_timer.stop()
-        self._append_log(f"Аварийная остановка — отменено ордеров: {n}.")
-        self._refresh_account()
-
-    def hideEvent(self, event) -> None:
-        self._auto_timer.stop()
-        super().hideEvent(event)
-
-    def _on_auto_changed(self, index: int) -> None:
-        self._auto_timer.stop()
-        if index == 1:
-            self._auto_timer.start(30_000)
-        elif index == 2:
-            self._auto_timer.start(60_000)
-
-    def _on_auto_timer(self) -> None:
-        if self._auto.currentIndex() == 0:
-            self._auto_timer.stop()
-            return
-        self._run_step(from_auto=True)
-
-    def _run_batch(self) -> None:
-        self._batch_remaining = self._batch_n.value()
-        self._append_log(f"Серия из {self._batch_remaining} шагов…")
-        self._run_step()
-
-    def _run_step(self, *, from_auto: bool = False) -> None:
-        if from_auto and self._auto.currentIndex() == 0:
-            return
-        if not self._session or not self._session.connected:
-            self._append_log("Сначала подключите paper-сессию.")
-            return
-        if self._step_worker and self._step_worker.isRunning():
-            return
-        self._btn_step.setEnabled(False)
-        self._btn_batch.setEnabled(False)
-        self._step_worker = PaperStepWorker(
-            self._session,
+        self._btn_replay.setEnabled(False)
+        self._replay_status.setText("Считаю replay (inference + paper + backtester)…")
+        self._replay_worker = PaperReplayWorker(
             self._symbol,
             self._timeframe,
+            n_bars=self._n_bars.value(),
             window=self._window.value(),
+            initial_balance=float(self._balance.value()),
+            api=self._api,
         )
-        self._step_worker.finished.connect(self._on_step)
-        self._step_worker.failed.connect(self._on_step_failed)
-        self._step_worker.start()
+        self._replay_worker.finished.connect(self._on_replay_done)
+        self._replay_worker.failed.connect(self._on_replay_fail)
+        self._replay_worker.start()
 
-    def _on_step(self, result: ExecutionStepResult) -> None:
-        self._btn_step.setEnabled(True)
-        self._btn_batch.setEnabled(True)
-        self._last_step = result
-        line = (
-            f"[{result.as_of}] {result.direction} сигнал={result.signal} "
-            f"p={result.meta_probability:.4f} qty={result.quantity:.6f} @ {result.price:.2f} — "
-            f"{result.message}"
+    def _on_replay_done(self, result) -> None:
+        self._btn_replay.setEnabled(True)
+        self._replay_status.setText("Готово")
+        self._bundle_lbl.setText(f"Bundle: …{result.bundle_dir[-40:]}")
+        self._last_decisions = result.decisions
+        self._replay_summary.setText(
+            f"<b>{result.n_bars}</b> баров · сигналов ≠0: <b>{result.n_nonzero_signals}</b> · "
+            f"сделок paper: <b>{result.n_trades}</b><br>"
+            f"Доходность (equity MTM): paper <b>{result.total_return_paper_pct:+.2f}%</b> · "
+            f"Backtester shift(1): <b>{result.total_return_bt_pct:+.2f}%</b><br>"
+            f"Капитал: {result.initial_balance:,.0f} → {result.final_balance_paper:,.2f} USDT "
+            f"(cash+позиция; не только cash после buy)"
         )
-        self._append_log(line)
-        self._refresh_account(record_balance_step=True)
-        self._run_compare(result)
-        if self._batch_remaining > 0:
-            self._batch_remaining -= 1
-            if self._batch_remaining > 0:
-                QTimer.singleShot(400, self._run_step)
-            else:
-                self._append_log("Серия шагов завершена.")
+        self._fill_trades(result.trades)
+        self._plot_replay_equity(result.equity_paper, result.equity_backtester)
 
-    def _run_compare(self, step: ExecutionStepResult) -> None:
-        if self._compare_worker and self._compare_worker.isRunning():
-            return
-        self._compare_text.setPlainText("Сверка с Backtester…")
-        self._compare_worker = PaperCompareWorker(
-            step, self._symbol, self._timeframe, api=self._api
-        )
-        self._compare_worker.finished.connect(self._on_compare)
-        self._compare_worker.failed.connect(self._on_compare_failed)
-        self._compare_worker.start()
+    def _on_replay_fail(self, msg: str) -> None:
+        self._btn_replay.setEnabled(True)
+        self._replay_status.setText(f"Ошибка: {msg}")
 
-    def _on_compare(self, cmp_result) -> None:
-        self._compare_text.setPlainText(cmp_result.to_russian_text())
-
-    def _on_compare_failed(self, msg: str) -> None:
-        self._compare_text.setPlainText(f"Ошибка сверки: {msg}")
-
-    def _on_step_failed(self, msg: str) -> None:
-        self._btn_step.setEnabled(True)
-        self._btn_batch.setEnabled(True)
-        self._batch_remaining = 0
-        self._append_log(f"Ошибка шага: {msg}")
-
-    def _refresh_account(self, *, record_balance_step: bool = False) -> None:
-        if not self._session:
-            return
-        snap = self._session.account_snapshot()
-        self._apply_account(snap, record_balance_step=record_balance_step)
-        self._orders = self._session.order_history(limit=40)
-        self._fill_orders_table(self._orders)
-
-    def _apply_account(
-        self, snap: ExecutionAccountSnapshot, *, record_balance_step: bool = False
-    ) -> None:
-        self._balance.setText(f"{snap.balance:,.2f} USDT")
-        pnl = snap.balance - snap.initial_balance
-        self._pnl.setText(f"{pnl:+,.2f} USDT ({100 * pnl / snap.initial_balance:+.2f}%)")
-        self._fees.setText(f"{snap.total_fees:.4f}")
-        if record_balance_step:
-            self._balance_step += 1
-            self._balance_history.append(float(snap.balance))
-            self._plot_balance()
-
-        self._positions.setRowCount(len(snap.positions))
-        for row, p in enumerate(snap.positions):
-            self._positions.setItem(row, 0, QTableWidgetItem(p.symbol))
-            self._positions.setItem(row, 1, QTableWidgetItem(f"{p.quantity:.6f}"))
-            self._positions.setItem(row, 2, QTableWidgetItem(f"{p.entry_price:.2f}"))
-            self._positions.setItem(row, 3, QTableWidgetItem(f"{p.unrealized_pnl:+.2f}"))
-
-    def _fill_orders_table(self, orders: List[OrderRecord]) -> None:
-        self._orders_table.setRowCount(len(orders))
-        for row, o in enumerate(orders):
+    def _fill_trades(self, trades) -> None:
+        self._trades_table.setRowCount(len(trades))
+        for row, t in enumerate(trades):
             cells = [
-                o.order_id[:14],
-                o.side,
-                o.status,
-                f"{o.quantity:.6f}",
-                f"{o.filled_price:.2f}" if o.filled_price else "—",
-                f"{o.fees:.4f}",
+                t.as_of[:19],
+                t.side,
+                f"{t.quantity:.6f}",
+                f"{t.price:.2f}",
+                f"{t.fees:.4f}",
+                f"{t.balance_after:,.2f}",
             ]
             for col, text in enumerate(cells):
-                self._orders_table.setItem(row, col, QTableWidgetItem(text))
+                self._trades_table.setItem(row, col, QTableWidgetItem(text))
 
-    def _plot_balance(self) -> None:
-        if not _HAS_PG or self._bal_plot is None:
+    def _plot_replay_equity(self, paper: List[float], bt: List[float]) -> None:
+        if not _HAS_PG or self._replay_plot is None:
             return
-        self._bal_plot.clear()
-        if not self._balance_history:
-            self._bal_plot.setTitle("Баланс по шагам")
+        self._replay_plot.clear()
+        n = min(len(paper), len(bt))
+        if n < 1:
             return
-        ys = np.array(self._balance_history, dtype=float)
-        xs = np.arange(len(ys))
-        self._bal_plot.plot(
-            xs, ys, pen=pg.mkPen("#2e7d32", width=2), symbol="o", symbolSize=6
+        xs = np.arange(n)
+        self._replay_plot.plot(
+            xs,
+            np.array(paper[:n]),
+            pen=pg.mkPen("#2e7d32", width=2),
+            name="Paper",
         )
-        self._bal_plot.setTitle(f"Баланс по шагам ({len(ys)} точек)")
+        self._replay_plot.plot(
+            xs,
+            np.array(bt[:n]),
+            pen=pg.mkPen("#1565c0", width=2),
+            name="Backtester",
+        )
 
-    def _append_log(self, text: str) -> None:
-        self._step_log.appendPlainText(text)
+    def _run_signals(self) -> None:
+        if self._guard_demo():
+            return
+        if self._signals_worker and self._signals_worker.isRunning():
+            return
+        self._btn_signals.setEnabled(False)
+        self._signals_status.setText("Inference по барам…")
+        self._signals_worker = PaperSignalsWorker(
+            self._symbol,
+            self._timeframe,
+            n_bars=self._n_bars.value(),
+            window=self._window.value(),
+            api=self._api,
+        )
+        self._signals_worker.finished.connect(self._on_signals_done)
+        self._signals_worker.failed.connect(self._on_signals_fail)
+        self._signals_worker.start()
+
+    def _on_signals_done(self, payload: Tuple[str, list]) -> None:
+        self._btn_signals.setEnabled(True)
+        bundle_dir, decisions = payload
+        self._signals_status.setText(f"Готово · {len(decisions)} баров")
+        self._bundle_lbl.setText(f"Bundle: …{bundle_dir[-40:]}")
+        self._last_decisions = decisions
+        self._plot_signals(decisions)
+
+    def _on_signals_fail(self, msg: str) -> None:
+        self._btn_signals.setEnabled(True)
+        self._signals_status.setText(f"Ошибка: {msg}")
+
+    def _add_regime_bands(self, decisions) -> None:
+        if not decisions or self._sig_plot is None:
+            return
+        start = 0
+        cur = decisions[0].regime
+        for i in range(1, len(decisions)):
+            if decisions[i].regime != cur:
+                self._add_one_regime_band(start, i - 1, cur)
+                start = i
+                cur = decisions[i].regime
+        self._add_one_regime_band(start, len(decisions) - 1, cur)
+
+    def _add_one_regime_band(self, i0: int, i1: int, regime: str) -> None:
+        color = QColor(200, 230, 200, 50) if regime == "trend" else QColor(210, 210, 210, 40)
+        region = pg.LinearRegionItem(
+            values=(i0 - 0.5, i1 + 0.5),
+            movable=False,
+            brush=color,
+        )
+        region.setZValue(-10)
+        self._sig_plot.addItem(region)
+
+    def _plot_signals(self, decisions) -> None:
+        if not _HAS_PG or self._sig_plot is None:
+            return
+        n = len(decisions)
+        xs = np.arange(n)
+        closes = np.array([d.close for d in decisions], dtype=float)
+        ps = np.array([d.meta_probability for d in decisions], dtype=float)
+
+        self._sig_plot.clear()
+        self._sig_plot.plot(xs, closes, pen=pg.mkPen("#333", width=1.5))
+
+        self._add_regime_bands(decisions)
+
+        long_x, long_y, short_x, short_y, flat_x, flat_y = [], [], [], [], [], []
+        for i, d in enumerate(decisions):
+            if d.signal > 0:
+                long_x.append(i)
+                long_y.append(d.close)
+            elif d.signal < 0:
+                short_x.append(i)
+                short_y.append(d.close)
+            else:
+                flat_x.append(i)
+                flat_y.append(d.close)
+
+        if long_x:
+            self._sig_plot.plot(
+                long_x,
+                long_y,
+                pen=None,
+                symbol="t",
+                symbolBrush="#2e7d32",
+                symbolSize=12,
+            )
+        if short_x:
+            self._sig_plot.plot(
+                short_x,
+                short_y,
+                pen=None,
+                symbol="t1",
+                symbolBrush="#c62828",
+                symbolSize=12,
+            )
+        if flat_x:
+            self._sig_plot.plot(
+                flat_x,
+                flat_y,
+                pen=None,
+                symbol="o",
+                symbolBrush="#9e9e9e",
+                symbolSize=5,
+            )
+
+        if self._p_plot is not None:
+            self._p_plot.clear()
+            self._p_plot.plot(xs, ps, pen=pg.mkPen("#6a1b9a", width=1))
+            self._p_plot.addLine(y=0.5, pen=pg.mkPen("#999", style=Qt.PenStyle.DashLine))
+            thr = 0.56
+            self._p_plot.addLine(y=thr, pen=pg.mkPen("#2e7d32", style=Qt.PenStyle.DotLine))
+            self._p_plot.addLine(y=1 - thr, pen=pg.mkPen("#c62828", style=Qt.PenStyle.DotLine))
+
+    def _run_calibration(self) -> None:
+        if self._guard_demo():
+            return
+        if self._cal_worker and self._cal_worker.isRunning():
+            return
+        self._btn_cal.setEnabled(False)
+        self._cal_status.setText("Считаю…")
+        self._cal_worker = PaperCalibrationWorker(
+            self._symbol,
+            self._timeframe,
+            n_bars=max(self._n_bars.value(), 200),
+            window=self._window.value(),
+            n_buckets=self._n_buckets.value(),
+            api=self._api,
+        )
+        self._cal_worker.finished.connect(self._on_cal_done)
+        self._cal_worker.failed.connect(self._on_cal_fail)
+        self._cal_worker.start()
+
+    def _on_cal_done(self, result) -> None:
+        self._btn_cal.setEnabled(True)
+        self._cal_status.setText("Готово")
+        self._bundle_lbl.setText(f"Bundle: …{result.bundle_dir[-40:]}")
+        total = sum(b.count for b in result.buckets)
+        self._cal_summary.setText(
+            f"Пар (p[t-1] → net[t]) по <b>{result.n_bars}</b> барам · "
+            f"<b>{total}</b> точек в корзинах · канон Backtester shift(1)"
+        )
+        self._plot_calibration(result.buckets)
+
+    def _on_cal_fail(self, msg: str) -> None:
+        self._btn_cal.setEnabled(True)
+        self._cal_status.setText(f"Ошибка: {msg}")
+
+    def _plot_calibration(self, buckets) -> None:
+        if not _HAS_PG or self._cal_plot is None:
+            return
+        self._cal_plot.clear()
+        xs = np.arange(len(buckets))
+        heights = np.array([b.mean_forward_net_pct for b in buckets], dtype=float)
+        counts = [b.count for b in buckets]
+        bg = pg.BarGraphItem(x=xs, height=heights, width=0.7, brush="#1565c0")
+        self._cal_plot.addItem(bg)
+        for i, (b, h) in enumerate(zip(buckets, heights)):
+            if b.count > 0:
+                self._cal_plot.plot([i], [h], pen=None, symbol="o", symbolSize=8)
+        labels = [f"{b.label}\n(n={b.count})" for b in buckets]
+        ax = self._cal_plot.getAxis("bottom")
+        ax.setTicks([[(i, labels[i].replace("\n", " ")) for i in range(len(labels))]])

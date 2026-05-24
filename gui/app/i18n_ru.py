@@ -16,7 +16,7 @@ TAB_SETTINGS = TAB_CONFIG
 # Подвкладки «Задачи»
 SUBTAB_PIPELINE = "Pipeline"
 SUBTAB_JOURNAL = "Журнал WFO"
-SUBTAB_PAPER = "Paper"
+SUBTAB_PAPER = "Практика"
 
 # Подпанели «График»
 SUBTAB_DECISION = "Решение"

@@ -100,9 +100,7 @@ def _cmd_report_real(args: argparse.Namespace) -> None:
             )
     else:
         pq = default_real_parquet()
-    use_best = getattr(args, "use_tuning_best", False)
-    if getattr(args, "no_tuning_best", False):
-        use_best = False
+    use_best = bool(getattr(args, "use_tuning_best", True))
     config_path = args.config
     tuning: dict = {}
     if use_best:
@@ -443,17 +441,13 @@ def main() -> None:
     )
     pr.add_argument(
         "--use-tuning-best",
-        action="store_true",
-        help="Use orchestration_tuning_best from symbol YAML or config/archive",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Use orchestration_tuning_best from symbol YAML + reference (default: on)",
     )
     pr.add_argument("--symbol", default=None, help="e.g. BTC/USDT — load config/symbols/<slug>.yaml")
     pr.add_argument("--timeframe", default="1h")
     pr.add_argument("--dl-epochs", type=int, default=3, help="GRU/CNN epochs per WFO fold (thesis: 2–3)")
-    pr.add_argument(
-        "--no-tuning-best",
-        action="store_true",
-        help=argparse.SUPPRESS,
-    )
     pr.add_argument(
         "--full-models",
         action="store_true",

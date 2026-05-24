@@ -1,10 +1,10 @@
-"""Журнал WFO / бэктестов — фильтры, сводка, equity, запуск отчёта."""
+"""Журнал WFO / бэктестов — фильтры, сводка, equity."""
 
 from __future__ import annotations
 
 from typing import List, Optional
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -42,9 +42,7 @@ def _summary_float(summary: dict, key: str) -> float:
 
 
 class BacktestsView(QWidget):
-    """Journal browser with filters, structured summary, and WFO launch."""
-
-    request_report_wfo = pyqtSignal()
+    """Journal browser with filters and structured summary."""
 
     def __init__(self, api: Optional[IstGuiClient] = None, parent: Optional[QWidget] = None):
         super().__init__(parent)
@@ -63,7 +61,7 @@ class BacktestsView(QWidget):
             help_label(
                 "<b>Журнал</b> <code>docs/backtest_journal/</code> — все прогоны WFO и CLI.<br>"
                 "Фильтруйте по этапу, сортируйте по Sharpe, открывайте <b>Сводку</b> с критериями acceptance/target. "
-                "Новый прогон — <b>Запустить отчёт WFO</b> (вкладка «Задачи», те же флаги).",
+                "Новый прогон — кнопка <b>Отчёт WFO</b> на вкладке «Задачи → Pipeline».",
                 background="#f3e5f5",
                 border="#ce93d8",
             )
@@ -72,14 +70,10 @@ class BacktestsView(QWidget):
         btn_row = QHBoxLayout()
         self._btn_refresh = QPushButton("Обновить")
         self._btn_best = QPushButton("Лучший PASS")
-        self._btn_wfo = QPushButton("Запустить отчёт WFO…")
-        self._btn_wfo.setToolTip("Перейти в «Задачи» и запустить report-real для текущей пары")
         self._btn_refresh.clicked.connect(self.refresh)
         self._btn_best.clicked.connect(self._select_best_acceptance)
-        self._btn_wfo.clicked.connect(self.request_report_wfo.emit)
         btn_row.addWidget(self._btn_refresh)
         btn_row.addWidget(self._btn_best)
-        btn_row.addWidget(self._btn_wfo)
         btn_row.addStretch()
         layout.addLayout(btn_row)
 
@@ -136,6 +130,10 @@ class BacktestsView(QWidget):
         self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self._table.setAlternatingRowColors(True)
+        self._table.setStyleSheet(
+            "QTableWidget { background: #fafafa; gridline-color: #e0e0e0; }"
+            "QTableWidget::item:selected { background: #bbdefb; color: #111; }"
+        )
         self._table.cellClicked.connect(self._on_select)
         top.addWidget(self._table)
 
@@ -149,10 +147,6 @@ class BacktestsView(QWidget):
         split.setSizes([440, 200])
 
         layout.addWidget(split, stretch=1)
-
-        if self._api.demo:
-            self._btn_wfo.setEnabled(False)
-            self._btn_wfo.setToolTip("В demo недоступно — используйте реальный режим")
 
     def set_context(self, symbol: str, timeframe: str) -> None:
         self._symbol = symbol
@@ -175,9 +169,17 @@ class BacktestsView(QWidget):
         self._worker.start()
 
     def _on_runs_loaded(self, runs: List[BacktestRunSummary]) -> None:
+        from datetime import datetime, timezone
+
         self._all_runs = runs
         self._rebuild_stage_combo()
         self._apply_view_filters()
+        ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
+        sym = self._journal_symbol_key()
+        self._count_label.setText(
+            f"Показано {len(self._runs)} · в журнале для пары: {len(self._all_runs)} · "
+            f"обновлено {ts} UTC · {sym}"
+        )
 
     def _rebuild_stage_combo(self) -> None:
         stages = sorted(
@@ -227,9 +229,6 @@ class BacktestsView(QWidget):
 
         cap = self._limit.value()
         self._runs = runs[:cap]
-        self._count_label.setText(
-            f"Показано {len(self._runs)} из {len(runs)} (всего в журнале для пары: {len(self._all_runs)})"
-        )
         self._fill_table()
 
     def _fill_table(self) -> None:
@@ -247,19 +246,15 @@ class BacktestsView(QWidget):
                 self._fmt_metric(s, "mean_wfe"),
                 str(s.get("n_folds", "—")),
             ]
-            bg = _NEUTRAL_BG
-            if r.acceptance_passed is True:
-                bg = _PASS_BG
-            elif r.acceptance_passed is False:
-                bg = _FAIL_BG
             for col, text in enumerate(cells):
                 item = QTableWidgetItem(text)
                 item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                item.setBackground(bg)
                 if col in (3, 4):
                     if text == "PASS":
+                        item.setBackground(_PASS_BG)
                         item.setForeground(QColor("#1b5e20"))
                     elif text == "FAIL":
+                        item.setBackground(_FAIL_BG)
                         item.setForeground(QColor("#b71c1c"))
                 self._table.setItem(row, col, item)
         self._table.resizeColumnsToContents()
@@ -306,6 +301,13 @@ class BacktestsView(QWidget):
         if not self._symbol:
             return None
         return self._api.symbols.normalize_symbol(self._symbol)
+
+    def _journal_symbol_key(self) -> str:
+        if not self._symbol:
+            return "все пары"
+        sym = self._api.symbols.normalize_symbol(self._symbol)
+        tf = self._timeframe or "1h"
+        return f"{sym} {tf}"
 
     def _select_best_acceptance(self) -> None:
         try:

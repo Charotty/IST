@@ -34,16 +34,11 @@ class JobsHubView(QWidget):
 
         self._tabs.addTab(self.pipeline, "Pipeline")
         self._tabs.addTab(self.journal, "Журнал WFO")
-        self._tabs.addTab(self.paper, "Paper")
+        self._tabs.addTab(self.paper, "Практика")
 
         self.pipeline.pipeline_finished.connect(self.pipeline_finished.emit)
-        self.journal.request_report_wfo.connect(self._on_journal_request_wfo)
 
         layout.addWidget(self._tabs)
-
-    def _on_journal_request_wfo(self) -> None:
-        self._tabs.setCurrentWidget(self.pipeline)
-        self.pipeline.start_report_real()
 
     def set_context(self, symbol: str, timeframe: str) -> None:
         self._symbol = symbol
