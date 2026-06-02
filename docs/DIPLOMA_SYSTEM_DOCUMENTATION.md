@@ -73,8 +73,8 @@ D:/IST/
 ├── rl_layer/                      # DQN risk multiplier (не направление)
 ├── backtesting/                   # Backtester, WFO, metrics, journal
 ├── orchestration/                 # Центральный spine: train/infer/symbol pipeline
-├── execution/                     # Brokers, paper loop (scaffold)
-├── gui/                           # Только README (не реализован)
+├── execution/                     # PaperBroker, paper_loop, OKXBroker (каркас live)
+├── gui/                           # PyQt6 desktop + gui/api (IstGuiClient)
 ├── utils/                         # logger, data_leakage_prevention
 └── tests/                         # pytest unit + integration
 ```
@@ -97,7 +97,8 @@ D:/IST/
 | `rl_layer/` | DQN — множитель риска, не предсказание направления |
 | `backtesting/` | Симуляция PnL, WFO, критерии приёмки |
 | `orchestration/` | **Центральный модуль**: factory, WFO, symbol pipeline, CLI |
-| `execution/` | Paper/live execution (в основном каркас) |
+| `execution/` | Paper step + brokers; live loop — внешний scheduler |
+| `gui/` | PyQt6 мониторинг, CLI jobs, paper, журнал WFO |
 | `utils/` | Логирование, purge/embargo, safe thresholds |
 
 ### A.3. Основные модули по пакетам
@@ -869,6 +870,7 @@ cum_strategy_returns = cumprod(1 + net_returns)
 **HTTP API нет** (нет FastAPI/Flask). Интерфейсы:
 
 - **CLI:** `python -m orchestration <command>`
+- **Desktop GUI:** `python -m gui.app` → `gui.api.IstGuiClient`
 - **Library:** импорт orchestrator/backtester из Python
 
 Команды CLI (`orchestration/__main__.py`):
@@ -962,8 +964,8 @@ cum_strategy_returns = cumprod(1 + net_returns)
 | **Leakage prevention** | `utils/data_leakage_prevention.py` — отдельный модуль |
 | **Artifacts versioning** | run_id timestamp + hash, manifest schema |
 | **Optional ML deps** | `orchestration/ml_deps.py` — проверка lightgbm/tensorflow |
-| **GUI** | Не реализован (`gui/README.md` только spec) |
-| **Execution** | `PaperBroker`, `OKXBroker` scaffold |
+| **GUI** | PyQt6 (`gui/app/`), API `gui/api/` — см. `gui/README.md` |
+| **Execution** | `PaperBroker` + `paper_loop`; live end-to-end — roadmap |
 | **Legacy monolith** | `ist.py` — reference, не production path |
 
 ### J.13. Диаграмма развёртывания (логическая)

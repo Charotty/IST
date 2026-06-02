@@ -1,0 +1,8 @@
+flowchart LR
+  E[meta_mgmt_prob] --> DP[DecisionPipeline]
+  DP --> F[margin / trade_mode / ATR]
+  F --> S[final_signal]
+  S --> R[position_sizes]
+  R --> BT[Backtester]
+  S --> IO[InferenceOrchestrator]
+  IO --> EM[ExecutionManager]

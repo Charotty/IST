@@ -55,10 +55,10 @@ python -m orchestration from-parquet data/features/BTC-USDT_1h.parquet --config 
 | ID | Задача | Критерий готовности | Статус |
 |----|--------|---------------------|--------|
 | 2.1 | **Корневой `README.md`** | Один вход: что такое IST, канон pipeline, ссылка на этот план и `DIPLOMA_TECHNICAL_ANALYSIS.md` | ⬜ |
-| 2.2 | Переписать README слоёв под orchestrator | `data_layer`, `synchronization`, `feature_engineering`, `models`, `meta_learning`, `decision`, `risk_management`, `backtesting`, `rl_layer`, `execution`, `gui` — статус ✅/⬜ и ссылка на canonical | ⬜ |
+| 2.2 | Переписать README слоёв под orchestrator | `data_layer`, …, `gui` — статус ✅/⬜ и ссылка на canonical | 🔄 (май 2026: layer README + `docs/vkr/`) |
 | 2.3 | **`models/__init__.py` docstring** | Явно: multi-model path = orchestration; router = legacy | ⬜ |
 | 2.4 | **Архив `ist.py`** | `archive/ist_colab_research.py` + строка в root README «не канон» | ⬜ |
-| 2.5 | **Исправить `docs/INTEGRATION_GAPS_REFERENCE.md`** | Путь фабрики: `orchestration/model_factory.py` | ⬜ |
+| 2.5 | **Исправить `docs/INTEGRATION_GAPS_REFERENCE.md`** | Путь фабрики: `orchestration/model_factory.py` | ✅ |
 | 2.6 | **Удалить/пометить мёртвые ссылки** | `walk_forward` deprecated — в README backtesting один путь: `TrainingOrchestrator.walk_forward_backtest` | ⬜ |
 | 2.7 | **Терминология regime** | В README meta: бинарный `regime_pred`; `breakout_weights` — roadmap или реализация в фазе 4 | ⬜ |
 
@@ -96,7 +96,7 @@ python -m orchestration from-parquet data/features/BTC-USDT_1h.parquet --config 
 |----|--------|---------------------|--------|
 | 3.10 | `train_final` с bundle на 4 моделях | `artifacts/<slug>/<run_id>/` + manifest `bundle_run_id` | ⬜ |
 | 3.11 | `python -m orchestration paper-step --bundle ...` | Один бар: InferenceOrchestrator → PaperBroker | ⬜ |
-| 3.12 | GUI — не в scope; достаточно CLI + journal | — | ⬜ |
+| 3.12 | GUI desktop (PyQt6) + journal | `python -m gui.app`, вкладки График/Режим/Задачи/Конфигурация | ✅ |
 
 ### 3E. Научное сравнение ensemble modes
 

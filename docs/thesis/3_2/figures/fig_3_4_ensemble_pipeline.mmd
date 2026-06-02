@@ -1,0 +1,12 @@
+```mermaid
+flowchart LR
+    F[Features] --> R[Regime 0/1]
+    F --> LGB[LGB P_up]
+    F --> GRU[GRU P_up]
+    F --> XGB[XGB P_up]
+    F --> CNN[CNN P_up]
+    R --> MW[DynamicMetaWeighting]
+    LGB & GRU & XGB & CNN --> MW
+    MW --> META[meta_mgmt_prob]
+    META --> DEC[DecisionPipeline]
+```

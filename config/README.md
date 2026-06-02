@@ -30,6 +30,10 @@ python -m orchestration validate-config --config config/profiles/canonical_4mode
 
 `archive/discussion/` — эксперименты для обсуждения (например, только lgb+xgb, `fixed_range`). **Не использовать** как default в CLI.
 
+## Документация для ВКР
+
+Сводка «как реализовано в коде»: [docs/vkr/README.md](../docs/vkr/README.md).
+
 ## План работ
 
 См. [docs/IMPLEMENTATION_PLAN.md](../docs/IMPLEMENTATION_PLAN.md).

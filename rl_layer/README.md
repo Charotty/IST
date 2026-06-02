@@ -4,15 +4,16 @@
 
 **Не предсказывает направление рынка.** RL выбирает **уровень риска** (размер экспозиции) поверх готового сигнала `final_signal` / ансамбля. Опционально — расширенное состояние с **OBI** (микроструктура).
 
-Эталон: `TradingEnvironment`, `DQNAgent`, `EnsembleTradingEnv`, `MicrostructureRLenv` в `ist.py`.
+Эталон Colab: `ist.py`. Модульный код: `rl_layer/` + `run_rl_overlay_backtest` (`rl_backtest.py`).
 
 ## Статус
 
 | Компонент | Статус |
 |-----------|--------|
-| DQN, discrete risk levels | **Эталон** |
-| EnsembleTradingEnv | **Эталон** |
-| MicrostructureRLenv (+ OBI) | **Эталон** (при live OBI — production) |
+| DQN, discrete risk levels | **Реализовано** (`dqn_agent.py`, среды) |
+| Overlay backtest с `Backtester` | **Реализовано** (`rl_backtest.run_rl_overlay_backtest`) |
+| Интеграция с orchestrator train result | **Частично** (`integration.prepare_from_training_result`) |
+| EnsembleTradingEnv / MicrostructureRLenv | **Эталон** в `ist.py`; modular — по запросу |
 | BUY/SELL/HOLD как actions | **Не используется** |
 | Continuous position [-1,1] | Roadmap |
 

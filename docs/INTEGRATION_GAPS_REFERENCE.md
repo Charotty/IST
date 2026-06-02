@@ -13,13 +13,13 @@
 | 1 | Мёртвые импорты WFO | ✅ `walk_forward.py` → оркестратор; старые функции — `NotImplementedError` |
 | 2 | Сквозная сборка | ✅ `orchestration/glue.py`, CLI `python -m orchestration from-parquet` |
 | 3 | Backtester ↔ RiskPipeline | ✅ `OrchestratorRiskBridge`, `TrainingResult.position_sizes`, WFO-бэктест |
-| 4 | Фабрика моделей | ✅ `models/orchestration/factory.py` (`lgb`, `gru`, `xgb`, `cnn`) |
+| 4 | Фабрика моделей | ✅ `orchestration/model_factory.py` (`lgb`, `gru`, `xgb`, `cnn`) |
 | 5 | YAML ↔ код | ✅ `OrchestratorConfig.from_yaml` игнор. неизв. ключи; `validate_pipeline_config`; секция `feature_engineering` в `config.yaml` |
 | 6 | Артефакты / bundle | ✅ `orchestration/artifact_bundle.py` + сверка схемы фич |
 | 7 | Execution loop | ⚠️ `execution/paper_loop.run_inference_execution_step`; полный scheduler — вне репо |
 | 8 | Данные / микроструктура | ⚠️ live L2 по-прежнему `NotImplemented` (сообщение указывает на adapter); MTF/OKX — не одна команда |
 | 9 | E2E / pytest | ✅ `tests/test_integration_gaps_closure.py` |
-| 10 | Прочее | ⚠️ `gui/` не делался; `rl_layer` подключён к бэктесту; `SignalAssembler` помечен как parallel к `DecisionPipeline` |
+| 10 | Прочее | ✅ `gui/` PyQt6; `rl_layer` overlay backtest; ⚠️ `SignalAssembler` parallel к `DecisionPipeline` |
 
 ---
 
@@ -51,7 +51,7 @@
 
 ## 4. Оркестратор ↔ реальные модели
 
-✅ **`models/orchestration/factory.py`**: `build_orchestration_models`, `infer_training_feature_columns`, `meta_weighting_from_config` (ленивые импорты TF только для `gru`/`cnn`).
+✅ **`orchestration/model_factory.py`**: `build_orchestration_models`, `infer_training_feature_columns`, `meta_weighting_from_config` (ленивые импорты TF только для `gru`/`cnn`).
 
 ⚠️ **`DynamicMetaWeighting`** использует только **trend/range** (0/1); ключи **`breakout_weights`** в YAML задаются, но в весе по режиму не участвуют — нужно расширение meta-слоя, если нужен третий режим.
 
@@ -103,7 +103,7 @@
 
 | Пункт | Статус |
 |--------|--------|
-| **`gui/`** | ⬜ по запросу не развивался |
+| **`gui/`** | ✅ PyQt6 (`gui/app/`), API (`gui/api/`), paper + reconcile + CLI jobs |
 | **`rl_layer/`** | ✅ интеграция с оркестратором: `rl_layer/integration.py`, `run_rl_overlay_backtest` + общий `Backtester` |
 | **`meta_learning/signal_assembler.py`** | ⚠️ В модульном докстринге: канон **`DecisionPipeline`**; assembler — параллельный путь порогов |
 

@@ -9,14 +9,14 @@
 ## Pipeline
 
 ```text
-direction_soft_signal  (DirectionModel, τ=0.52)
-meta_prob | meta_mgmt_prob  (MetaFilter | Dynamic Ensemble)
+direction_soft_signal  (порог meta_mgmt_prob, τ=0.52; orchestration, не отдельный DirectionModel)
+meta_prob | meta_mgmt_prob  (MetaFilter legacy | DynamicMetaWeighting + DecisionPipeline)
     ↓
 threshold rules  →  final_signal | integrated_signal
     ↓
 [risk_management] ATR stop, PositionSizer, RL multiplier
     ↓
-[backtesting] / [execution — позже]
+[backtesting] / [execution paper_loop]
 ```
 
 ## Правила (эталон)
@@ -65,14 +65,15 @@ integrated_signal = np.where(
 - ATR stop, size, RL → **risk_management** / **rl_layer**  
 - Симуляция PnL → **backtesting**  
 
-## Структура модуля (целевая)
+## Структура модуля
 
 ```
 decision/
-├── __init__.py
-├── signal_rules.py      # final_signal, integrated_signal
-└── decision_pipeline.py # выбор варианта A/B из config
+├── signal_rules.py       # final_signal, integrated_signal (safe thresholds)
+└── decision_pipeline.py  # выбор A/B, used by TrainingOrchestrator / InferenceOrchestrator
 ```
+
+**Production:** `signal_source: integrated` в orchestration config.
 
 ## Конфигурация
 
@@ -93,6 +94,5 @@ decision:
 
 ## Roadmap
 
-- Асимметричные пороги long/short  
-- Фиксированный `meta_threshold` vs rolling median  
-- Единый `DecisionPipeline` class вместо inline `np.where`  
+- Асимметричные пороги long/short (`use_asymmetric_thresholds` — заготовка в config)  
+- Расширенный UI для калибровки порогов  

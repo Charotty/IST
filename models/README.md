@@ -21,18 +21,43 @@ The goal is to improve:
 
 ---
 
-# Core Architecture
+## Canonical production path (май 2026)
+
+**Не** `ModelRouter` (одна модель на режим). Путь **`orchestration`**:
+
+```text
+features → MomentumRegimeDetector (rule-based)
+        → ALL of lgb, gru, xgb, cnn → P(up) each bar
+        → DynamicMetaWeighting → DecisionPipeline → risk → backtest/execution
+```
+
+| Key | Модуль | Обучение в WFO |
+|-----|--------|----------------|
+| `lgb` | `tabular/lightgbm_tabular_model.py` | Да |
+| `xgb` | `mean_reversion/xgboost_model.py` | Да (тот же direction target) |
+| `gru` | `trend/gru_model.py` | Да (TensorFlow, window=24) |
+| `cnn` | `volatility/cnn_model.py` | Да |
+
+Фабрика: `orchestration/model_factory.py`. Legacy router / `InferenceEngine` — deprecated.
+
+**GUI:** вкладки «Решение» / «Bundle» показывают `explain` и manifest (`gui/api/inference_api.py`, `bundles_api.py`).
+
+Ниже — **концептуальная** схема специализации и каталог пакетов; для фактического pipeline см. `docs/vkr/02-ml-ensemble-decision-features.md`.
+
+---
+
+# Core Architecture (conceptual / legacy router)
 
 ```text
 Market Features
     ↓
 Regime Detection Layer
     ↓
-Model Router
+Model Router                    ← legacy; canonical calls ALL models
     ↓
 
 Trend Regime
-    → GRU/LSTM Model
+    → GRU Model
 
 Mean Reversion Regime
     → XGBoost Model
@@ -40,16 +65,10 @@ Mean Reversion Regime
 Volatility Breakout Regime
     → CNN Model
 
-Low Confidence Regime
-    → No Trade
-
     ↓
-
-Meta Filter
+Meta ensemble (orchestration)
     ↓
-Position Sizing
-    ↓
-Execution
+Decision → Risk → Execution
 ```
 
 ---
@@ -457,24 +476,17 @@ Do models survive changing market conditions?
 
 Real-time inference orchestration.
 
+**Production entry:** `orchestration/inference_orchestrator.py` (`InferenceOrchestrator` — all models + meta weighting).
+
+**Legacy:** `models/inference/inference_engine.py` + `ModelRouter` — deprecation warning; не смешивать с canonical deployment.
+
 ---
 
-## Pipeline
+## Pipeline (canonical)
 
 ```text
-Features
-    ↓
-Regime Detection
-    ↓
-Model Routing
-    ↓
-Specialized Prediction
-    ↓
-Meta Filter
-    ↓
-Sizing
-    ↓
-Execution
+Features → regime (SMA) → {p_lgb, p_gru, p_xgb, p_cnn}
+       → meta_mgmt_prob → DecisionPipeline → risk → execution
 ```
 
 ---

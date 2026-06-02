@@ -2,15 +2,16 @@
 
 ## Назначение
 
-Расчёт признаков для ML/DL: базовые индикаторы на основном TF, MTF-колонки после sync, микроструктура (OBI, spread). Каталог ниже включает **реализованные в `ist.py`** и **целевые** из roadmap.
+Расчёт признаков для ML/DL: базовые индикаторы на основном TF, MTF-колонки после sync, микроструктура (OBI, spread). Каталог ниже: **реализовано в `feature_engineering/`** + roadmap.
 
 ## Статус
 
 | Блок | Статус |
 |------|--------|
-| `FeatureEngine` (pandas_ta) | **Реализовано** |
+| `FeatureEngine` (`feature_engine.py`, `synchronization/indicators`) | **Реализовано** |
+| `FeatureManager` + Parquet storage | **Реализовано** |
 | MTF-колонки (через sync) | **Реализовано** |
-| OBI / spread | **Симуляция в research** → **реальный L2** (см. ниже) |
+| OBI / spread | **off** в `canonical_4model` · **simulated** / **live** (live → `NotImplementedError`) |
 | Bollinger, сессии, skew/kurtosis, selection | **Roadmap** (каталог сохранён) |
 
 ## Реализованные признаки (`FeatureEngine`)

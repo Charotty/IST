@@ -20,7 +20,7 @@
 
 **Мульти-пара:** инфраструктура (`data/ohlcv/`, `config/symbols/`, `paths_for`, GUI toolbar) готова; **ETH** и второй JSON acceptance не прогонялись с variant B.
 
-**GUI:** PyQt6, выбор пары, Overview/Chart/Models/Backtests/Jobs/Settings/Execution (paper). Jobs запускает `prepare-symbol`, `train-final-symbol`, `report-real` без флагов tuning-best и feature-cache; `tune-thesis` и `build-features` в GUI нет. Settings редактирует часть `orchestration_tuning_best` (margin, direction, ensemble, …), не все поля variant B.
+**GUI:** PyQt6 (`python -m gui.app`): вкладки **График** (chart + Решение/Bundle), **Режим**, **Задачи** (Pipeline / Журнал WFO / Практика), **Конфигурация**. Jobs: `prepare-symbol`, `build-features`, `tune-thesis`, `train-final-symbol`, `report-real` с чекбоксами `tuning-best` / feature-cache (`jobs_view.py`). Paper + сверка с Backtester — «Практика». См. `gui/README.md`, `docs/GUI_LAYOUT_REFERENCE.md`.
 
 **Дипломные артефакты:** `THESIS_CONTEXT.md` описывает старые цифры (~0.33 Sharpe); нужна синхронизация с variant B и acceleration plan.
 
@@ -92,7 +92,7 @@
 |--------|--------|
 | [x] | `THESIS_CONTEXT.md`, `THESIS_REFERENCE.md`, `GUI_USER_GUIDE.md` |
 | [ ] | `THESIS_4MODEL_STEPS.md` — reference + overrides |
-| [ ] | `3_11_SYSTEM_TESTING.md` — BTC variant B, ETH |
+| [ ] | Разделы `docs/thesis/3_*` (см. `docs/thesis/README.md`) — BTC variant B, ETH |
 | [ ] | Слайды / figures GUI |
 
 ---

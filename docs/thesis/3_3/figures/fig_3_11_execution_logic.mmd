@@ -1,0 +1,8 @@
+flowchart LR
+  SIG[Trading Signal
+final_signal] --> PS[Position Sizing
+OrchestratorRiskBridge]
+  PS --> EM[ExecutionManager
+execute_signal]
+  EM --> BR[Broker
+PaperBroker / OKXBroker]

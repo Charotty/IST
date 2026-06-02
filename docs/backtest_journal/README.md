@@ -25,3 +25,5 @@ py -3 -m orchestration tune-until --parquet data/ohlcv/BTC-USDT_1h.parquet --max
 Справочник метрик: `docs/BACKTESTING_CRITERIA_REFERENCE.md`.
 
 **План достижения целей (а)/(б):** `docs/BACKTESTING_ACTION_PLAN.md`.
+
+**GUI:** таблица прогонов — вкладка «Задачи» → «Журнал WFO» (`gui/api/backtests_api.py`).

@@ -29,8 +29,8 @@ IST/
 ├── rl_layer/                   # DQN, среды риска, overlay backtest
 ├── backtesting/                # Backtester, метрики, WFO, criteria gate
 ├── orchestration/              # ★ Центральный spine: Training/Inference orchestrator
-├── execution/                  # Paper/live брокеры, ExecutionManager (каркас)
-├── gui/                        # Только спецификация (код не реализован)
+├── execution/                  # PaperBroker, paper_loop; OKX live — частично
+├── gui/                        # PyQt6 + gui/api (IstGuiClient, workers)
 ├── utils/                      # DataLeakagePreventer, logger
 └── tests/                      # Unit + integration + real parquet benchmarks
 ```
@@ -93,7 +93,7 @@ features[t] → regime[t] → {p_lgb, p_gru, p_xgb, p_cnn}[t]
 | Backtesting | `backtesting/` | Симуляция, метрики, WFO, acceptance criteria |
 | Orchestration | `orchestration/` | TrainingOrchestrator, InferenceOrchestrator, glue, CLI |
 | Execution | `execution/` | PaperBroker, OKXBroker, ExecutionManager |
-| GUI | `gui/` | Не реализован (PRD) |
+| GUI | `gui/` | PyQt6 desktop + `gui/api` (4 вкладки, paper, журнал WFO) |
 | Utils | `utils/` | Anti-leakage, логирование |
 
 ### Взаимодействие модулей

@@ -6,9 +6,20 @@
 
 ## Статус
 
-**Не реализовано** — запланировано после стабилизации research pipeline (`ist.py` + слои data → backtest).
+| Компонент | Статус |
+|-----------|--------|
+| Векторный **Backtester** | **Реализовано** (`backtesting/`) — основной research path |
+| **PaperBroker** + **ExecutionManager** | **Реализовано** — один шаг: сигнал → ордер |
+| **paper_loop** | **Реализовано** — `run_inference_execution_step` (inference + execute) |
+| **OKXBroker** | **Каркас** — market orders, sandbox; не полный prod loop |
+| **order_manager**, **execution_monitor** | **Частично** — базовые классы |
+| Автономный scheduler (daemon по барам) | **Вне репо** — внешний cron/GUI timer/скрипт |
+| Live trading end-to-end | **Не готово** |
+| **GUI «Практика»** | **Реализовано** — `gui/app/views/execution_view.py`, paper step, сверка с Backtester |
 
-Сейчас «исполнение» — только векторный **Backtester** (**backtesting**).
+Исторический backtest по-прежнему в **backtesting**; paper — для проверки связки orchestrator → broker на live/песочнице котировок.
+
+См. также: `gui/README.md`, `orchestration/paper_evidence.py`, `gui/api/reconcile_api.py`.
 
 ## Зависимости (готовые контракты)
 

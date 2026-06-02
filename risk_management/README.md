@@ -6,11 +6,13 @@
 
 ## Статус
 
-| Компонент | Где эталон | Статус |
-|-----------|------------|--------|
-| `PositionSizer` (ATR) | `ist.py` | **Эталон** |
-| `apply_atr_trailing_stop` | `ist.py` | **Эталон** |
-| RL `risk_multiplier` | **rl_layer** | **Эталон** (динамический риск) |
+| Компонент | Модуль | Статус |
+|-----------|--------|--------|
+| `PositionSizer` (ATR) | `position_sizer.py` | **Реализовано** |
+| `apply_atr_trailing_stop` | `atr_trailing_stop.py` | **Реализовано** |
+| `RiskPipeline` | `risk_pipeline.py` | **Реализовано** |
+| `OrchestratorRiskBridge` | `orchestrator_risk_bridge.py` | **Реализовано** — WFO/backtest `position_size` (`use_risk_bridge: true` в canonical) |
+| RL `risk_multiplier` | **rl_layer** | Опционально (не направление) |
 | Kelly, VaR, portfolio limits | — | Roadmap |
 
 ## 1. Position Sizing (статический)

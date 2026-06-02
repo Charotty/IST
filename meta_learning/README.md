@@ -24,6 +24,20 @@ between predictive models and execution logic.
 
 ---
 
+## Production vs legacy (май 2026)
+
+| Тема | Canonical (`orchestration`) | Legacy (`ist.py` / этот README ниже) |
+|------|---------------------------|--------------------------------------|
+| Ключи моделей | `lgb`, `gru`, `xgb`, `cnn` | `lgb`, `lstm`, `cnn`, `trans` |
+| Режим | `MomentumRegimeDetector` (SMA), `regime_pred` 0/1 | ML + Colab-имена |
+| Ансамбль | `DynamicMetaWeighting` + веса из `config/profiles/canonical_4model.yaml` | те же идеи, другие ключи |
+| Фильтр сделок | `decision.DecisionPipeline` (`integrated`) | inline `np.where` |
+| Online-обучение весов по PnL | **Нет** | `WeightUtils.adaptive_weight_update` — утилита, не в pipeline |
+
+Для ВКР и аудита кода: **`docs/vkr/02-ml-ensemble-decision-features.md`**.
+
+---
+
 # Core Architecture
 
 ```text
@@ -34,7 +48,7 @@ Regime Model
     ↓
 
 Model Predictions
-(LightGBM + LSTM + CNN + Transformer)
+(prod: LightGBM + GRU + XGBoost + CNN; legacy doc: LSTM + Transformer)
     ↓
 
 Meta-Learning Layer
@@ -64,8 +78,9 @@ Examples:
 
 | Market Regime | Preferred Models |
 |---|---|
-| Trend | LSTM + Transformer |
-| Range / Flat | LightGBM + CNN |
+| Trend (prod) | GRU + CNN (+ малый вес LGB/XGB) |
+| Range / Flat (prod) | LightGBM + XGBoost (+ CNN) |
+| Trend (legacy names) | LSTM + Transformer |
 | Low Confidence | No Trade |
 
 The meta-learning layer dynamically adapts model influence depending on detected market structure.
@@ -99,13 +114,14 @@ Priority is given to:
 
 | Component | Status |
 |---|---|
-| MetaFilterModel | Production-ready |
-| Dynamic regime weighting | Production-ready |
-| Signal assembly | Production-ready |
-| Simple ensemble | Baseline |
+| `DynamicMetaWeighting` (regime-adaptive) | **Production** — via `orchestration` |
+| `DecisionPipeline` + thresholds | **Production** — `decision/` |
+| `EnsembleAggregator` (simple average) | Baseline / benchmark only |
+| `SignalAssembler` | Parallel path; canonical uses `DecisionPipeline` |
+| Separate trained MetaFilterModel pickle | **Not** in canonical bundle |
 | Full stacking L2 | Research |
 | MAML routing | Research |
-| RL orchestration | Future research |
+| RL orchestration of direction | **Not** — see `rl_layer/` (risk multiplier only) |
 
 ---
 

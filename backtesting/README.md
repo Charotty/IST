@@ -2,33 +2,35 @@
 
 ## Назначение
 
-Симуляция стратегии на истории, walk-forward валидация, метрики и лог экспериментов. **Использовать готовую реализацию из `ist.py`** — перенос в модуль `backtesting/` без изменения семантики.
+Симуляция стратегии на истории, walk-forward валидация, метрики и журнал экспериментов. Реализация в **`backtesting/`**; семантика согласована с эталоном `ist.py`.
 
 ## Статус
 
 | Компонент | Класс / функция | Статус |
 |-----------|-----------------|--------|
-| Движок бэктеста | `Backtester` | **Эталон** |
-| Метрики | `PerformanceMetrics` | **Эталон** |
-| WFO split | `TimeSeriesSplitter` | **Эталон** |
-| WFO Direction | `run_walk_forward_validation` | **Эталон** |
-| WFO Integrated | `run_integrated_wfo` | **Эталон** |
-| Логи | `ExperimentLogger` | **Эталон** |
+| Движок бэктеста | `Backtester` | **Реализовано** (`position_size` опционально) |
+| Метрики | `PerformanceMetrics` | **Реализовано** |
+| WFO + 4 модели + purge/embargo | `TrainingOrchestrator.walk_forward_backtest` | **Реализовано** (canonical) |
+| Обертка WFO | `walk_forward.run_orchestrator_walk_forward_backtest` | **Реализовано** |
+| Простой WFO по готовому сигналу | `run_simple_signal_wfo` | **Реализовано** |
+| WFO split без ML | `TimeSeriesSplitter` | **Вспомогательный** (без purge) |
+| `run_walk_forward_validation` / `run_integrated_wfo` | — | **Удалены** → `NotImplementedError` |
+| Журнал прогонов | `results_journal` → `docs/backtest_journal/` | **Реализовано** (таблица в GUI «Журнал WFO») |
+| Критерии acceptance/target | `criteria_evaluator` | **Реализовано** |
 | Monte Carlo, order-level sim | — | Roadmap |
 
 ## Backtester
 
 ```python
 class Backtester:
-    def __init__(self, commission=0.0005, slippage=0.0001):
+    def __init__(self, commission=0.0006, slippage=0.0002):
         ...
 
-    def run(self, df, signals):
+    def run(self, df, signals, position_size=None):
         # signal ∈ {-1, 0, 1}
-        # strategy_returns = signal.shift(1) * market_returns
-        # costs = |signal.diff()| * (commission + slippage)
-        # net_returns = strategy_returns - costs
-        # cum_strategy_returns, drawdown
+        # strategy_returns = signal.shift(1) * position_size.shift(1) * market_returns
+        # costs = |Δ(signal * position_size)| * (commission + slippage)
+        # net_returns, cum_strategy_returns, drawdown
 ```
 
 ### Параметры research (эталон)
@@ -40,10 +42,10 @@ class Backtester:
 
 ### Допущения
 
-- Позиция **полная** по знаку сигнала (без `final_pos_size` в `run`)  
+- Без `position_size` — множитель 1.0; с risk bridge — `final_pos_size` из orchestrator  
 - Исполнение на **close** следующего бара (`shift(1)`)  
-- Издержки только при **смене** сигнала (`trades = signal.diff().abs()`)  
-- Long и short симметричны  
+- Издержки при изменении **эффективной** экспозиции `signal × position_size`  
+- Long и short симметричны (если `trade_mode: both` в orchestration)  
 
 ## PerformanceMetrics
 
@@ -73,42 +75,32 @@ class TimeSeriesSplitter:
         # yield train_chunk, test_chunk
 ```
 
-## Walk-Forward
-
-### Direction only
+## Walk-Forward (canonical)
 
 ```python
-run_walk_forward_validation(df, n_splits=5)
-# на каждом фолде: DirectionModel → get_calibrated_signals(0.52) → Backtester
+from orchestration import TrainingOrchestrator, OrchestratorConfig
+from orchestration.model_factory import build_orchestration_models, meta_weighting_from_config
+
+# после initialize(models, regime_detector, meta_weighting, ...)
+fold_metrics = orchestrator.walk_forward_backtest(features, targets)
+# purge + embargo via DataLeakagePreventer; train-only meta threshold on OOS
 ```
 
-### Integrated system
+CLI: `python -m orchestration report-real`, `from-parquet <features.parquet>`.
 
-```python
-run_integrated_wfo(df, n_splits=3)
-# переобучение LGBM + короткое DL (3 epochs)
-# get_dynamic_meta_signal → integrated_signal → Backtester
-```
+Журнал: `docs/backtest_journal/` (`runs.jsonl`, `INDEX.md`).
 
-## ExperimentLogger
-
-```python
-logger.log_experiment(name, params_dict, metrics_series)
-# → experiments_log.json
-```
-
-Примеры имён: `Phase_2_MTF_Full_History`, `Integrated_Meta_Optimization_v1`, `Phase_2_with_ATR_Stop`.
-
-## Структура модуля (целевая)
+## Структура модуля (фактическая)
 
 ```
 backtesting/
-├── __init__.py
-├── backtester.py              # из ist.py
+├── backtester.py
 ├── performance_metrics.py
+├── metrics_config.py
 ├── time_series_splitter.py
-├── walk_forward.py            # run_walk_forward_validation, run_integrated_wfo
-└── experiment_logger.py
+├── walk_forward.py              # orchestrator wrapper + run_simple_signal_wfo
+├── criteria_evaluator.py
+└── results_journal.py
 ```
 
 ## Конфигурация

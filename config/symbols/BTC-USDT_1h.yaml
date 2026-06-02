@@ -1,5 +1,5 @@
-symbol: BTC-USDT
-timeframe: 1h
 baseline_ref: config/reference/thesis_4model_reference.yaml
 orchestration_overrides:
   tune_source: variant_b_vol_filter_90
+symbol: BTC-USDT
+timeframe: 1h

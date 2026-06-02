@@ -12,11 +12,11 @@ Previously, there were two incompatible orchestration approaches:
 - ModelRouter registers models by regime keys: 'trend', 'mean_reversion', 'volatility'
 - **Issue**: Only single model, no ensemble/meta-layer in live path
 
-### B. meta_learning/ branch (Old)
+### B. meta_learning/ branch (resolved in orchestration)
 - All models → weights by regime → meta_mgmt_prob
-- DynamicMetaWeighting expects keys: lgb, lstm, cnn, trans
-- EnsembleAggregator combines predictions from all models
-- **Issue**: Key mismatch with router, no integration with InferenceEngine
+- **Production keys:** `lgb`, `gru`, `xgb`, `cnn` (from `OrchestratorConfig` / `model_factory.meta_weighting_from_config`)
+- Legacy defaults in `DynamicMetaWeighting.__init__` still mention `lstm`/`trans` — overridden by YAML weights in canonical path
+- `EnsembleAggregator` — baseline only (`lstm`/`trans` names); not used in WFO
 
 ### Danger
 Building "production" that looks multi-model on paper but is actually:
@@ -60,7 +60,7 @@ features[t] → regime[t] → {p_lgb, p_gru, p_xgb, p_cnn, ...}[t] → meta_mgmt
 ```yaml
 orchestration:
   model_keys: ['lgb', 'gru', 'xgb', 'cnn']
-  regime_keys: ['trend', 'range', 'breakout']
+  regime_keys: ['trend', 'range']   # breakout in YAML — не участвует в DynamicMetaWeighting (только 0/1)
   direction_threshold: 0.52
   meta_threshold: 0.5
   signal_threshold: 0.6
@@ -146,6 +146,8 @@ python -m orchestration report-real --max-rows 2200 --json-out docs/e2e_last_met
 
 Integration tests: `pytest tests/test_orchestration_real_models.py -m integration`.
 
+Desktop UI: `python -m gui.app` (обёртки в `gui/api/`, фабрика моделей — `orchestration/model_factory.py`). Справочник ВКР: `docs/vkr/`.
+
 ## Migration Guide
 
 ### From Old InferenceEngine
@@ -183,7 +185,7 @@ result = orchestrator.predict(df)  # ALL models called, meta-weighted
 ┌─────────────────────────────────────────────────────────────┐
 │                    OrchestratorConfig                        │
 │  - Fixed model_keys: ['lgb', 'gru', 'xgb', 'cnn']           │
-│  - Fixed regime_keys: ['trend', 'range', 'breakout']        │
+│  - regime_keys (config); prod regime: binary trend/range      │
 │  - Thresholds & weights                                     │
 └─────────────────────────────────────────────────────────────┘
                               │

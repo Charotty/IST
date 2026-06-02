@@ -4,7 +4,7 @@
 
 Приведение нескольких OHLCV-таймфреймов к **единому базовому индексу** (по умолчанию `1h`): расчёт MTF-признаков, `resample` + `ffill`, merge с основным рядом.
 
-Реализация **не** отдельный микросервис с субсекундными тиками — это слой выравнивания MTF внутри research/production pipeline (эталон: `MultiTimeframeEngine` в `ist.py`).
+Реализация **не** отдельный микросервис с субсекундными тиками — слой выравнивания MTF внутри pipeline. Код: **`synchronization/multi_timeframe_engine.py`** (референс также в `ist.py`).
 
 ## Статус
 
@@ -94,6 +94,8 @@ synchronization:
   fill_method: "ffill"
   drop_na_after_merge: true
 ```
+
+Canonical profile: `config/profiles/canonical_4model.yaml` → `base_timeframe: 1h`, aux `15m`/`4h`. См. `docs/vkr/01-architecture-and-data.md`.
 
 ## Расширения (не ломают MTF)
 

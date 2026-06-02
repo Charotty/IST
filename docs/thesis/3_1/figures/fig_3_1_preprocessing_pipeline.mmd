@@ -1,0 +1,11 @@
+```mermaid
+flowchart LR
+    OKX["OKX API\n(ccxt REST)"]
+    RAW["Raw OHLCV\nParquet"]
+    VAL["Validation\ndedup, UTC index"]
+    MTF["Multi-Timeframe Merge\n15m + 4h → 1h"]
+    FE["Feature Engineering\nFeatureManager"]
+    DS["Dataset Formation\nfeatures.parquet + target"]
+
+    OKX --> RAW --> VAL --> MTF --> FE --> DS
+```

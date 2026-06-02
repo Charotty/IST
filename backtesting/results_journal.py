@@ -14,6 +14,8 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
+from orchestration.symbols import normalize_symbol, slug as symbol_slug
+
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
@@ -51,6 +53,9 @@ class BacktestResultsJournal:
         if profile and "profile" not in params:
             params["profile"] = profile
 
+        sym = report.get("symbol")
+        if sym:
+            sym = normalize_symbol(str(sym))
         entry = {
             "run_id": run_id,
             "timestamp_utc": _utc_now_iso(),
@@ -58,7 +63,7 @@ class BacktestResultsJournal:
             "notes": notes,
             "profile": profile,
             "params": params,
-            "symbol": report.get("symbol"),
+            "symbol": sym,
             "timeframe": report.get("timeframe"),
             "stage": report.get("stage"),
             "parquet": report.get("parquet"),
@@ -150,12 +155,28 @@ class BacktestResultsJournal:
             for ln in self.jsonl_path.read_text(encoding="utf-8").splitlines()
             if ln.strip()
         ]
+        want_slug = (
+            symbol_slug(symbol, timeframe or "1h")
+            if symbol and timeframe
+            else normalize_symbol(symbol)
+            if symbol
+            else None
+        )
         if symbol:
-            rows = [r for r in rows if (r.get("symbol") or "") == symbol]
+            rows = [r for r in rows if _row_matches_symbol(r, want_slug)]
         if timeframe:
-            rows = [r for r in rows if (r.get("timeframe") or "") == timeframe]
+            rows = [
+                r
+                for r in rows
+                if (r.get("timeframe") or (r.get("params") or {}).get("timeframe") or "")
+                == timeframe
+            ]
         if stage:
-            rows = [r for r in rows if (r.get("stage") or "") == stage]
+            rows = [
+                r
+                for r in rows
+                if (r.get("stage") or (r.get("params") or {}).get("stage") or "") == stage
+            ]
         return rows
 
     def best_acceptance_run(
@@ -175,6 +196,31 @@ class BacktestResultsJournal:
             passed,
             key=lambda r: (r.get("summary") or {}).get("mean_sharpe", float("-inf")),
         )
+
+
+def _row_matches_symbol(row: Dict[str, Any], want_slug: str) -> bool:
+    """Match BTC-USDT slug across legacy rows (symbol missing or BTC/USDT vs BTC-USDT)."""
+    raw = row.get("symbol") or (row.get("params") or {}).get("symbol")
+    if raw:
+        try:
+            if normalize_symbol(str(raw)) == want_slug.split("_")[0]:
+                return True
+        except Exception:
+            pass
+    tf = row.get("timeframe") or (row.get("params") or {}).get("timeframe") or "1h"
+    if raw and tf:
+        try:
+            if symbol_slug(str(raw), str(tf)) == want_slug:
+                return True
+        except Exception:
+            pass
+    parquet = str(row.get("parquet") or "")
+    if want_slug.replace("_", "-") in parquet.replace("_", "-"):
+        return True
+    label = str(row.get("label") or "")
+    if want_slug in label or want_slug.split("_")[0] in label:
+        return True
+    return False
 
 
 def _folds_to_records(folds: Any) -> List[Dict[str, Any]]:

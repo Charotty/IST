@@ -63,4 +63,6 @@ pip install -r requirements-gui.txt
 py -3 -m gui.app
 ```
 
-См. также: `docs/PROJECT_CLI_AND_GUI_COMMANDS.md`, `docs/GUI_USER_GUIDE.md`.
+См. также: `gui/README.md`, `docs/PROJECT_CLI_AND_GUI_COMMANDS.md`, `docs/GUI_USER_GUIDE.md`, `docs/GUI_LAYOUT_REFERENCE.md`.
+
+**Слойные README** (`data_layer/`, `orchestration/`, `meta_learning/`, …) обновлены под canonical pipeline (май 2026); при расхождении приоритет у этого комплекта и кода.

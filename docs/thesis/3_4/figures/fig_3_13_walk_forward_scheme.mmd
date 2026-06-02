@@ -1,0 +1,6 @@
+flowchart LR
+  T1[Train fold k] --> P[purge H bars]
+  P --> E[embargo E bars]
+  E --> OOS[Test OOS]
+  OOS --> S[shift window]
+  S --> T2[Train fold k+1]

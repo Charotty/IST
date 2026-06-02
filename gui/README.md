@@ -8,7 +8,8 @@
 - карточка решения на последнем баре (`explain`);
 - журнал WFO / бэктестов;
 - статус подготовки символа (parquet, features, bundle);
-- позже — paper/live через **execution**.
+- **paper** (вкладка «Задачи» → «Практика»): шаг inference+order, сверка с Backtester;
+- live OKX — roadmap (sandbox broker в коде, без полного prod loop).
 
 Research по-прежнему доступен через CLI (`python -m orchestration …`) и журнал `docs/backtest_journal/`. Справочник всех команд и приёмки GUI: [`docs/PROJECT_CLI_AND_GUI_COMMANDS.md`](../docs/PROJECT_CLI_AND_GUI_COMMANDS.md).
 
@@ -19,13 +20,16 @@ Research по-прежнему доступен через CLI (`python -m orche
 
 | Компонент | Статус |
 |-----------|--------|
-| `gui/api/` | ✅ API-слой (обёртки orchestration) |
-| PyQt6 UI (`gui/app/`) | ✅ 3 вкладки: **График** (chart+решение/режим/bundle), **Задачи** (pipeline/журнал/paper), **Конфигурация** |
-| CLI из Jobs | ✅ prepare, build-features, tune-thesis, train-final, report-real + smoke, validate, tune-until, from-parquet, regime-history, list-symbols, manifest-show |
-| Вкладка «Режим» | ✅ `inference.regime_series` |
+| `gui/api/` | ✅ API-слой (`IstGuiClient`, без Qt) |
+| PyQt6 UI (`gui/app/`) | ✅ 4 вкладки: **График**, **Режим**, **Задачи**, **Конфигурация** |
+| График (hub) | ✅ свечи + подпанели **Решение** / **Bundle** (`ChartHubView`) |
+| Задачи (hub) | ✅ **Pipeline** / **Журнал WFO** / **Практика** (paper) |
+| CLI из Jobs | ✅ prepare, build-features, tune-thesis, train-final, report-real, smoke, validate, … |
+| Paper + сверка | ✅ `execution_api`, `reconcile_api`, `paper_evidence_api` |
+| Режим | ✅ отдельная вкладка `RegimeView`, `inference.regime_series` |
 | График IST | ✅ `chart_payload`: regime overlay, сигналы, meta P(up) |
-| HTTP backend | ⬜ не нужен для desktop (прямой вызов `gui.api`) |
-| Live OKX trading | ⬜ (paper только) |
+| HTTP backend | ⬜ не нужен (desktop → `gui.api` напрямую) |
+| Live OKX trading | ⬜ (paper в UI; live заблокирован) |
 
 ### CLI ↔ GUI (Jobs / Settings)
 
@@ -45,11 +49,17 @@ Research по-прежнему доступен через CLI (`python -m orche
 | Данные | Parquet, `artifacts/`, `docs/backtest_journal/` |
 | Тяжёлые вызовы | `QThread` / `QRunnable` + сигналы в UI |
 
-Зависимости UI (добавить в `requirements-gui.txt` при реализации):
+Зависимости UI (`requirements-gui.txt`):
 
 ```text
 PyQt6>=6.6
 pyqtgraph>=0.13
+```
+
+```powershell
+pip install -r requirements-gui.txt
+py -3 -m gui.app
+py -3 -m gui.app --demo   # синтетика, без CLI subprocess
 ```
 
 ## Архитектура
@@ -57,12 +67,13 @@ pyqtgraph>=0.13
 ```text
 ┌─────────────────────────────────────────────────────────┐
 │  PyQt6 MainWindow (gui/app/)                            │
-│  Views: Overview | Chart | Models | Backtests | Jobs    │
+│  Tabs: ChartHub | Regime | JobsHub | Settings           │
 └───────────────────────────┬─────────────────────────────┘
-                            │ IstGuiClient (sync / threads)
+                            │ IstGuiClient (QThread workers)
 ┌───────────────────────────▼─────────────────────────────┐
 │  gui/api/                                               │
-│  symbols | bundles | inference | backtests | jobs       │
+│  symbols | bundles | inference | backtests | jobs | cli │
+│  execution | reconcile | paper_evidence | config        │
 └───────────────────────────┬─────────────────────────────┘
                             │
 ┌───────────────────────────▼─────────────────────────────┐
@@ -97,6 +108,12 @@ runs = api.backtests.list_runs(symbol="BTC-USDT", timeframe="1h", limit=50)
 | `inference_api.py` | `InferenceApi` | `explain`, `regime_series`, `chart_bars` |
 | `backtests_api.py` | `BacktestsApi` | `runs.jsonl`, снимки `runs/<id>.json` |
 | `jobs_api.py` | `JobsApi` | `active/*.jsonl`, чеклист pipeline |
+| `cli_api.py` | `CliApi` | subprocess `python -m orchestration …` |
+| `execution_api.py` | `ExecutionApi` | `PaperExecutionSession`, paper connect |
+| `reconcile_api.py` | `ReconcileApi` | сравнение paper-шага с `Backtester` на том же баре |
+| `paper_evidence_api.py` | `PaperEvidenceApi` | replay/calibration paper (`orchestration/paper_evidence`) |
+| `config_api.py` | `ConfigApi` | пути repo, профили |
+| `okx_api.py` | `OkxApi` | список рынков OKX для toolbar |
 | `types.py` | dataclasses | `ExplainSnapshot`, `ChartBar`, … — для Qt models |
 
 ### Типизированные ответы (`gui/api/types.py`)
@@ -139,47 +156,30 @@ class ExplainWorker(QThread):
 
 ---
 
-## Структура каталога (целевая)
+## Структура каталога (фактическая)
 
 ```text
 gui/
-├── README.md                 # этот файл
-├── __init__.py
-├── api/                      # ✅ реализовано
-│   ├── client.py
-│   ├── types.py
-│   ├── symbols_api.py
-│   ├── bundles_api.py
-│   ├── inference_api.py
-│   ├── backtests_api.py
-│   └── jobs_api.py
-└── app/                      # ⬜ PyQt6
-    ├── main.py               # QApplication entry
-    ├── main_window.py        # QMainWindow + QStackedWidget / tabs
-    ├── workers.py            # QThread wrappers над IstGuiClient
-    ├── widgets/
-    │   ├── symbol_toolbar.py # QComboBox symbol, TF, bundle
-    │   ├── explain_card.py
-    │   ├── model_weights_bar.py
-    │   ├── criteria_badge.py
-    │   ├── chart_widget.py   # pyqtgraph candlestick + regime
-    │   ├── backtest_table.py
-    │   └── job_log_view.py
+├── README.md
+├── api/                          # без зависимости от PyQt6
+│   ├── client.py                 # IstGuiClient
+│   ├── inference_api.py, execution_api.py, reconcile_api.py
+│   ├── paper_evidence_api.py, cli_api.py, backtests_api.py, …
+│   └── types.py
+└── app/                          # PyQt6
+    ├── main.py, main_window.py   # 4 вкладки (i18n_ru)
+    ├── workers.py                # QThread: explain, chart, CLI, paper compare
+    ├── widgets/                  # symbol_toolbar, explain_card, chart_layers, …
     └── views/
-        ├── overview_view.py
-        ├── chart_view.py
-        ├── models_view.py
-        ├── backtests_view.py
-        ├── pipeline_view.py
+        ├── chart_hub_view.py     # Chart + Решение + Bundle
+        ├── regime_view.py
+        ├── jobs_hub_view.py      # Pipeline | Журнал | Практика
+        ├── chart_view.py, overview_view.py, models_view.py
+        ├── jobs_view.py, backtests_view.py, execution_view.py
         └── settings_view.py
 ```
 
-Запуск:
-
-```powershell
-pip install -r requirements-gui.txt
-py -3 -m gui.app
-```
+Подробная раскладка окон: [`docs/GUI_LAYOUT_REFERENCE.md`](../docs/GUI_LAYOUT_REFERENCE.md).
 
 ---
 
@@ -321,15 +321,18 @@ py -3 -m gui.app
 
 ---
 
-### 8. Orders & Execution (фаза 2)
+### 8. Orders & Execution — вкладка «Практика» (Jobs hub)
 
-**Статус:** `execution/` — scaffold. Вкладка показывает заглушку «Backtest-only mode».
+**Статус:** **реализовано** (фаза 4).
 
-| Панель | Когда |
-|--------|-------|
-| Paper positions / orders | после `PaperBroker` |
-| Emergency stop | после `execution_manager` |
-| Mode switch paper/live | с подтверждением `QMessageBox` |
+| Панель | API |
+|--------|-----|
+| Paper connect / disconnect | `execution.create_paper_session()` |
+| One-bar step + auto timer | `PaperExecutionSession.run_step()` |
+| Сверка с Backtester | `reconcile.compare_paper_step()` |
+| Positions / orders / emergency stop | `execution_api` |
+| Paper evidence replay | `paper_evidence_api` |
+| Live OKX | **не в UI** (by design) |
 
 ---
 
@@ -369,20 +372,10 @@ gui:
 | **1** ✅ | PyQt6: Overview + Chart + SymbolToolbar |
 | **2** ✅ | Backtests + Jobs + Models + Settings |
 | **3** ✅ | CLI jobs (prepare/train/report), regime overlay, fold equity chart |
-| **4** ✅ | Execution tab — paper connect, one-bar step, positions/orders |
+| **4** ✅ | Execution («Практика»): paper, reconcile, paper_evidence |
 | **5** | Live + алерты (drawdown, disconnect) |
 
-### Фаза 4 (реализовано)
-
-| Функция | Где | API |
-|---------|-----|-----|
-| Paper connect / disconnect | Execution | `execution.create_paper_session()` |
-| One-bar inference + order | Execution | `PaperExecutionSession.run_step()` |
-| Positions & order history | Execution | `account_snapshot()`, `order_history()` |
-| Auto-step timer | Execution | 30s / 60s |
-| Emergency stop | Execution | `emergency_stop()` |
-
-Paper: long-only (short closes long). Live mode — когда заданы `OKX_*` env (UI подсказка).
+Paper: long-focused. Сверка с vector `Backtester` после каждого шага (русский текст в UI).
 
 ### Фаза 3 (реализовано)
 
@@ -429,6 +422,7 @@ py -3 -c "from gui.api import IstGuiClient; c=IstGuiClient(); print(c.symbols.li
 | `meta_learning/README.md` | Models / weights |
 | `execution/README.md` | Orders (фаза 4) |
 | `docs/DIPLOMA_SYSTEM_DOCUMENTATION.md` | Текст для главы «Реализация» |
+| `docs/vkr/` | Чеклист ВКР: модели, ensemble, WFO, статусы компонентов |
 
 ---
 

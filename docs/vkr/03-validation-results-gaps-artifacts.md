@@ -159,7 +159,7 @@ splits = leakage_preventer.safe_walk_forward_split(
 | Regime-adaptive vs static | `ensemble_mode: regime_adaptive` vs `fixed_trend` / `fixed_range` |
 | Тюнинг | `orchestration/tuning_loop.py`, `tune-thesis` |
 
-Готовые графики сравнения: `docs/figures/3_7/static_vs_adaptive_metrics.png`, `static_vs_adaptive_weights.png`.
+Графики сравнения ensemble — генерировать заново (`scripts/run_ablation.py`) или из журнала WFO; каталог `docs/figures/3_*` снят с репозитория.
 
 ### 12.4. Screenshots / logs
 
@@ -259,25 +259,15 @@ planned / discussed but NOT in canonical production:
 
 ## 17. Графики и артефакты
 
-### 17.1. Каталог фигур (`docs/figures/`)
+### 17.1. Каталог фигур
 
-| Путь | Содержание |
-|------|------------|
-| `3_3/indicators_rsi_atr_ema.png` | Индикаторы |
-| `3_5/lgb_xgb_comparison.png` | Сравнение табличных моделей |
-| `3_5/gru_sequence_heatmap.png` | GRU окна |
-| `3_5/dl_loss_curves.png` | Кривые обучения DL |
-| `3_6/regime_*.png` | Режимы на свечах |
-| `3_7/weights_over_time.png` | Динамика весов |
-| `3_7/static_vs_adaptive_*.png` | Static vs regime-adaptive |
-| `3_8/signals_*.png` | Сигналы на графике |
-| `3_9/equity_drawdown.png` | Equity / DD |
-| `3_11/equity_drawdown_comparison.png` | Сравнение кривых |
-| `3_11/wfo_split_visualization.png` | WFO окна |
-| `3_11/purge_embargo_scheme.png` | Схема purge/embargo |
-| `3_11/weight_adaptation.png` | Адаптация весов |
-| `3_11/roc_confusion.png` | Классификация |
-| `3_11/gui/*.png` | Скриншоты GUI |
+Ранее: `docs/figures/3_3` … `3_11` (удалены). Для диплома:
+
+| Тип | Как получить |
+|-----|----------------|
+| GUI | `python docs/scripts/capture_gui_screenshots.py` |
+| WFO / equity | экспорт из `docs/backtest_journal/runs/<id>.json` |
+| Индикаторы §3.1 | построить из `data/features/*.parquet` |
 
 ### 17.2. Runtime-артефакты
 

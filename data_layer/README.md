@@ -8,7 +8,7 @@
 
 | Компонент | Статус |
 |-----------|--------|
-| REST ccxt, пагинация OHLCV | **Реализовано** (`ist.py` → `OKXDataLoader`) |
+| REST ccxt, пагинация OHLCV | **Реализовано** (`loaders/okx_ohlcv_loader.py` → `OKXDataLoader`) |
 | Мульти-таймфрейм при включении | **Реализовано** (флаг/список TF) |
 | WebSocket, Glassnode, trades, Parquet, Timescale | **Не в scope** (позже при необходимости) |
 
@@ -27,7 +27,9 @@ OHLCV_t = (timestamp, open, high, low, close, volume)
 
 Индекс — `timestamp` (UTC), дедупликация по времени, обрезка по `end_date`.
 
-## Эталонная реализация (Colab / `ist.py`)
+## Реализация в репозитории
+
+**Модуль:** `data_layer/loaders/okx_ohlcv_loader.py` (дубликат логики в legacy `ist.py` для справки).
 
 ### OKXDataLoader
 
@@ -58,6 +60,10 @@ class OKXDataLoader:
 - `4h` — макро-контекст  
 
 Базовый ряд остаётся основным (обычно `1h`). Слияние — в **Synchronization** (`MultiTimeframeEngine`).
+
+**GUI:** загрузка OHLCV — CLI `prepare-symbol` / `data_layer`; список пар OKX — панель символа (`gui/api/okx_api.py`).
+
+Сводка архитектуры: `docs/vkr/01-architecture-and-data.md`.
 
 ## Структура модуля (целевая)
 

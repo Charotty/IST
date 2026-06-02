@@ -4,6 +4,8 @@
 
 Общие утилиты и вспомогательные функции, используемые всеми компонентами системы.
 
+**Production-critical:** `data_leakage_prevention.py` — purge/embargo и `safe_walk_forward_split` для WFO (`TrainingOrchestrator`). `compute_safe_threshold` — causal meta-порог в `decision` (без look-ahead).
+
 ## Основные категории утилит
 
 ### 1. Работа с данными
