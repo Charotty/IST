@@ -1,1 +1,122 @@
+# =========================
+# Python: bytecode / cache
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+*.pyo
+
+# =========================
+# Virtual environments
+# =========================
 .venv/
+venv/
+env/
+ENV/
+.env
+.env.*
+!.env.example
+.python-version
+
+# =========================
+# Conda / Jupyter
+# =========================
+.conda/
+conda-meta/
+.ipynb_checkpoints/
+*.nbconvert.ipynb
+
+# =========================
+# Testing / lint / typing
+# =========================
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.tox/
+.nox/
+pytestdebug.log
+
+# Coverage
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+*.py,cover
+
+# =========================
+# Build / packaging
+# =========================
+build/
+dist/
+site/
+wheelhouse/
+pip-wheel-metadata/
+*.egg-info/
+.eggs/
+*.egg
+
+# PyInstaller
+*.spec.bak
+
+# =========================
+# IDE / editor files
+# =========================
+.vscode/
+.idea/
+*.iml
+*.suo
+*.user
+*.userossc
+*.sln.docstates
+*.swp
+*.swo
+*~
+
+# =========================
+# OS / system files
+# =========================
+.DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# =========================
+# Logs / temp files
+# =========================
+*.log
+logs/
+log/
+tmp/
+temp/
+*.tmp
+*.bak
+*.pid
+*.stackdump
+
+# =========================
+# Project artifacts / data
+# =========================
+artifacts/
+data/parquet/
+data/ohlcv/
+data/features/
+docs/backtest_journal/runs/
+docs/backtest_journal/*.jsonl
+docs/backtest_journal/*.json
+command.txt
+
+# Typical model binaries
+*.h5
+*.hdf5
+*.keras
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.joblib
+*.pkl
+*.pickle
+*.bin
